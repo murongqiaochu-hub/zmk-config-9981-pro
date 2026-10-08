@@ -11,13 +11,10 @@
 #include <zephyr/logging/log.h>
 
 #include <zmk/endpoints.h>
-#include <zmk/hid_indicators.h>
 #include <zmk/backlight.h>
 #include <zmk/activity.h>
 #include "trackpad_led.h"
 #include "a320_0x57.h"
-
-#define HID_INDICATORS_CAPS_LOCK (1 << 1)
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -47,7 +44,7 @@ static struct k_work_delayable animation_work;
 static struct k_work_delayable auto_off_work;
 static struct k_work_delayable usb_flash_work;
 
-static bool capslock_on = false;
+static bool scroll_mode_on = false;
 static bool touch_active = false;
 static bool animation_increasing = true;
 static uint8_t brightness = BRT_MIN;
@@ -75,7 +72,6 @@ static void set_led_brightness(uint8_t level) {
 
 static void usb_flash_work_handler(struct k_work *work) {
     if (!usb_mode) {
-        set_led_brightness(0);
         return;
     }
 
@@ -86,7 +82,7 @@ static void usb_flash_work_handler(struct k_work *work) {
 }
 
 static void auto_off_work_handler(struct k_work *work) {
-    if (!capslock_on && !touch_active) {
+    if (!usb_mode && !scroll_mode_on && !touch_active) {
         manual_override = false;
         set_led_brightness(0);
         LOG_DBG("Auto-off triggered after inactivity");
@@ -94,7 +90,7 @@ static void auto_off_work_handler(struct k_work *work) {
 }
 
 static void animation_work_handler(struct k_work *work) {
-    if (!capslock_on)
+    if (usb_mode || !scroll_mode_on)
         return;
 
     if (animation_increasing) {
@@ -117,7 +113,7 @@ static void animation_work_handler(struct k_work *work) {
 
 static void polling_work_handler(struct k_work *work) {
     enum zmk_transport transport = zmk_endpoints_selected().transport;
-    bool current_capslock = (zmk_hid_indicators_get_current_profile() & HID_INDICATORS_CAPS_LOCK);
+    bool current_scroll_mode = tp_scroll_mode_active();
     bool current_touch = tp_is_touched();
     bool current_active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     uint8_t current_brt = zmk_backlight_get_brt();
@@ -125,8 +121,11 @@ static void polling_work_handler(struct k_work *work) {
     /* ---------------- USB Mode ---------------- */
     if (transport == ZMK_TRANSPORT_USB) {
         if (!usb_mode) {
-            /* blink */
+            /* USB blink takes precedence over the local scroll animation. */
             usb_mode = true;
+            scroll_mode_on = false;
+            k_work_cancel_delayable(&animation_work);
+            k_work_cancel_delayable(&auto_off_work);
             usb_flash_state = false;
             k_work_reschedule(&usb_flash_work, K_NO_WAIT);
             LOG_INF("Entered USB flash mode");
@@ -139,6 +138,9 @@ static void polling_work_handler(struct k_work *work) {
     if (usb_mode) {
         usb_mode = false;
         k_work_cancel_delayable(&usb_flash_work);
+        scroll_mode_on = false;
+        touch_active = false;
+        manual_override = false;
         set_led_brightness(0);
         LOG_INF("Exited USB flash mode");
     }
@@ -150,10 +152,10 @@ static void polling_work_handler(struct k_work *work) {
         }
     }
 
-    /* CapsLock */
-    if (current_capslock != capslock_on) {
-        capslock_on = current_capslock;
-        if (capslock_on) {
+    /* Local scroll mode */
+    if (current_scroll_mode != scroll_mode_on) {
+        scroll_mode_on = current_scroll_mode;
+        if (scroll_mode_on) {
             brightness = BRT_MIN;
             animation_increasing = true;
             k_work_reschedule(&animation_work, K_NO_WAIT);
@@ -176,7 +178,7 @@ static void polling_work_handler(struct k_work *work) {
     }
 
     /* touched */
-    if (!capslock_on && current_touch != touch_active) {
+    if (!scroll_mode_on && current_touch != touch_active) {
         touch_active = current_touch;
         if (touch_active) {
             manual_override = true;
@@ -190,7 +192,7 @@ static void polling_work_handler(struct k_work *work) {
         }
     }
 
-    if (!capslock_on && !touch_active && current_brt != last_backlight_brt && keyboard_active) {
+    if (!scroll_mode_on && !touch_active && current_brt != last_backlight_brt && keyboard_active) {
         last_backlight_brt = current_brt;
         if (current_brt > 0) {
             manual_override = true;
@@ -215,7 +217,7 @@ static int indicator_tp_init(void) {
     usb_mode = false;
     usb_flash_state = false;
     last_backlight_brt = zmk_backlight_get_brt();
-    capslock_on = touch_active = manual_override = keyboard_active = false;
+    scroll_mode_on = touch_active = manual_override = keyboard_active = false;
 
     k_work_init_delayable(&polling_work, polling_work_handler);
     k_work_init_delayable(&animation_work, animation_work_handler);

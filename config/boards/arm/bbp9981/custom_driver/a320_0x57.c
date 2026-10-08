@@ -7,6 +7,7 @@
 #define DT_DRV_COMPAT avago_a320
 
 #include <zephyr/kernel.h>
+#include <zephyr/sys/atomic.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/i2c.h>
@@ -18,16 +19,15 @@
 #include <stdlib.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
-#include <zmk/events/hid_indicators_changed.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include "a320_0x57.h"
 #include "trackpad_led.h"
 
 LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 
-/* ==== Detect HID indicators ==== */
-static zmk_hid_indicators_t current_indicators;
-#define HID_INDICATORS_CAPS_LOCK (1 << 1)
+/* Stock Pro matrix: the bottom-right aA key is physical position 41. */
+#define A320_SCROLL_MODE_POSITION 41
+static atomic_t scroll_mode_pressed;
 
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
@@ -39,7 +39,7 @@ static bool touched = false;
 
 static int16_t sum_dx = 0, sum_dy = 0;
 static uint8_t sample_cnt = 0;
-static bool last_capslock = false;
+static bool last_scroll_mode = false;
 static uint32_t last_read_time = 0;
 
 /* =========================
@@ -77,18 +77,14 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
         ctrl_pressed = ev->state;
         LOG_INF("Ctrl position=37 %s", ctrl_pressed ? "PRESSED" : "RELEASED");
     }
+    if (ev->position == A320_SCROLL_MODE_POSITION) {
+        atomic_set(&scroll_mode_pressed, ev->state ? 1 : 0);
+        LOG_DBG("Local scroll mode %s", ev->state ? "PRESSED" : "RELEASED");
+    }
     return 0;
 }
 ZMK_LISTENER(a320_ctrl_listener, ctrl_listener_cb);
 ZMK_SUBSCRIPTION(a320_ctrl_listener, zmk_position_state_changed);
-
-static int hid_indicators_listener(const zmk_event_t *eh) {
-    if (as_zmk_hid_indicators_changed(eh)) {
-        const struct zmk_hid_indicators_changed *ev = as_zmk_hid_indicators_changed(eh);
-        current_indicators = ev->indicators; // Cache the latest HID indicator state
-    }
-    return ZMK_EV_EVENT_BUBBLE;
-}
 
 /* =========================
  *   Work handler (polling)
@@ -101,29 +97,30 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
 
-    bool capslock = current_indicators & HID_INDICATORS_CAPS_LOCK;
+    bool scroll_mode = tp_scroll_mode_active();
 
-    /* ======== Clear CapsLock residual scroll data ======== */
-    if (last_capslock && !capslock) {
+    /* Only this poll worker owns the accumulated motion state. */
+    if (scroll_mode != last_scroll_mode) {
         sum_dx = 0;
         sum_dy = 0;
         sample_cnt = 0;
+        last_read_time = 0;
+        last_scroll_mode = scroll_mode;
     }
-    last_capslock = capslock;
-    /* ====================================================== */
 
     if (pin_state == 0) {
         int16_t dx = 0, dy = 0;
 
         if (a320_read_motion(dev, &dx, &dy) == 0) {
+            touched = true;
 
             if (ctrl_pressed) {
                 dx /= 2;
                 dy /= 2;
             }
 
-            /* === Normal cursor movement when CapsLock is off === */
-            if (!capslock) {
+            /* === Normal cursor movement while aA is released === */
+            if (!scroll_mode) {
                 uint8_t tp_led_brt = indicator_tp_get_last_valid_brightness();
                 float tp_factor = 0.4f + 0.01f * tp_led_brt;
 
@@ -132,11 +129,9 @@ static void a320_poll_work_handler(struct k_work *work) {
 
                 input_report_rel(dev, INPUT_REL_X, dx, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_Y, dy, true, K_FOREVER);
-
-                touched = true;
             }
 
-            /* === Scroll mode when CapsLock is on === */
+            /* === Scroll mode while aA is pressed === */
             else {
 
                 uint32_t now = k_uptime_get_32();
@@ -236,6 +231,7 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
 }
 
 bool tp_is_touched(void) { return touched; }
+bool tp_scroll_mode_active(void) { return atomic_get(&scroll_mode_pressed) != 0; }
 
 /* =========================
  *   Device init
@@ -280,5 +276,3 @@ static int a320_init(const struct device *dev) {
                           POST_KERNEL, A320_INIT_PRIORITY, NULL);
 
 DT_INST_FOREACH_STATUS_OKAY(A320_DEFINE)
-ZMK_LISTENER(a320_hid_listener, hid_indicators_listener);
-ZMK_SUBSCRIPTION(a320_hid_listener, zmk_hid_indicators_changed);
