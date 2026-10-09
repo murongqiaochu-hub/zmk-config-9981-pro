@@ -28,9 +28,14 @@ LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 /* Stock Pro matrix: the bottom-right aA key is physical position 41. */
 #define A320_SCROLL_MODE_POSITION 41
 #define A320_AA_TAP_TERM_MS 450
+#define A320_AA_DOUBLE_TAP_TERM_MS 350
 static atomic_t scroll_mode_pressed;
 static atomic_t scroll_mode_latched;
 static uint32_t scroll_mode_press_time;
+/* These tap-detection fields are only accessed by the position event listener. */
+static uint32_t scroll_mode_last_tap_release;
+static bool scroll_mode_tap_pending;
+static bool scroll_mode_double_tap_candidate;
 
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
@@ -76,6 +81,12 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
         return 0;
     }
 
+    /* A double tap must be two consecutive aA taps, not separated by another key. */
+    if (ev->position != A320_SCROLL_MODE_POSITION && ev->state) {
+        scroll_mode_tap_pending = false;
+        scroll_mode_double_tap_candidate = false;
+    }
+
     if (ev->position == 37) {
         ctrl_pressed = ev->state;
         LOG_INF("Ctrl position=37 %s", ctrl_pressed ? "PRESSED" : "RELEASED");
@@ -83,21 +94,42 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
     if (ev->position == A320_SCROLL_MODE_POSITION) {
         if (ev->state) {
             if (atomic_get(&scroll_mode_pressed) == 0) {
-                scroll_mode_press_time = k_uptime_get_32();
+                uint32_t now = k_uptime_get_32();
+                scroll_mode_press_time = now;
+                scroll_mode_double_tap_candidate =
+                    scroll_mode_tap_pending &&
+                    (now - scroll_mode_last_tap_release <= A320_AA_DOUBLE_TAP_TERM_MS);
+
+                if (!scroll_mode_double_tap_candidate) {
+                    scroll_mode_tap_pending = false;
+                }
             }
             atomic_set(&scroll_mode_pressed, 1);
             LOG_DBG("Local scroll key PRESSED");
         } else if (atomic_get(&scroll_mode_pressed) != 0) {
-            uint32_t held_ms = k_uptime_get_32() - scroll_mode_press_time;
+            uint32_t now = k_uptime_get_32();
+            uint32_t held_ms = now - scroll_mode_press_time;
             atomic_set(&scroll_mode_pressed, 0);
 
             if (held_ms < A320_AA_TAP_TERM_MS) {
-                atomic_val_t next_latched = atomic_get(&scroll_mode_latched) ? 0 : 1;
-                atomic_set(&scroll_mode_latched, next_latched);
-                LOG_INF("Persistent scroll %s", next_latched ? "ON" : "OFF");
+                if (scroll_mode_double_tap_candidate) {
+                    atomic_val_t next_latched = atomic_get(&scroll_mode_latched) ? 0 : 1;
+                    atomic_set(&scroll_mode_latched, next_latched);
+                    scroll_mode_tap_pending = false;
+                    LOG_INF("Persistent scroll %s (aA double tap)",
+                            next_latched ? "ON" : "OFF");
+                } else {
+                    /* A single tap remains available to the keymap's sticky Layer 2 binding. */
+                    scroll_mode_last_tap_release = now;
+                    scroll_mode_tap_pending = true;
+                    LOG_DBG("Single aA tap; scroll lock unchanged");
+                }
             } else {
+                /* Long press is momentary scroll only; it never toggles the latch. */
+                scroll_mode_tap_pending = false;
                 LOG_DBG("Long aA hold ended without changing persistent scroll");
             }
+            scroll_mode_double_tap_candidate = false;
         }
     }
     return 0;
