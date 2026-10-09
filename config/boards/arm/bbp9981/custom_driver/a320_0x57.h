@@ -20,7 +20,7 @@ extern "C" {
  */
 bool tp_is_touched(void);
 
-/** Physical aA key scroll mode, independent of host Caps Lock indicators. */
+/** Scroll mode while aA is held or latched by a short aA tap. */
 bool tp_scroll_mode_active(void);
 
 #ifdef __cplusplus

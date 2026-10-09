@@ -27,7 +27,10 @@ LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 
 /* Stock Pro matrix: the bottom-right aA key is physical position 41. */
 #define A320_SCROLL_MODE_POSITION 41
+#define A320_AA_TAP_TERM_MS 450
 static atomic_t scroll_mode_pressed;
+static atomic_t scroll_mode_latched;
+static uint32_t scroll_mode_press_time;
 
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
@@ -78,8 +81,24 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
         LOG_INF("Ctrl position=37 %s", ctrl_pressed ? "PRESSED" : "RELEASED");
     }
     if (ev->position == A320_SCROLL_MODE_POSITION) {
-        atomic_set(&scroll_mode_pressed, ev->state ? 1 : 0);
-        LOG_DBG("Local scroll mode %s", ev->state ? "PRESSED" : "RELEASED");
+        if (ev->state) {
+            if (atomic_get(&scroll_mode_pressed) == 0) {
+                scroll_mode_press_time = k_uptime_get_32();
+            }
+            atomic_set(&scroll_mode_pressed, 1);
+            LOG_DBG("Local scroll key PRESSED");
+        } else if (atomic_get(&scroll_mode_pressed) != 0) {
+            uint32_t held_ms = k_uptime_get_32() - scroll_mode_press_time;
+            atomic_set(&scroll_mode_pressed, 0);
+
+            if (held_ms < A320_AA_TAP_TERM_MS) {
+                atomic_val_t next_latched = atomic_get(&scroll_mode_latched) ? 0 : 1;
+                atomic_set(&scroll_mode_latched, next_latched);
+                LOG_INF("Persistent scroll %s", next_latched ? "ON" : "OFF");
+            } else {
+                LOG_DBG("Long aA hold ended without changing persistent scroll");
+            }
+        }
     }
     return 0;
 }
@@ -119,7 +138,7 @@ static void a320_poll_work_handler(struct k_work *work) {
                 dy /= 2;
             }
 
-            /* === Normal cursor movement while aA is released === */
+            /* === Normal cursor movement while local scroll mode is off === */
             if (!scroll_mode) {
                 uint8_t tp_led_brt = indicator_tp_get_last_valid_brightness();
                 float tp_factor = 0.4f + 0.01f * tp_led_brt;
@@ -131,7 +150,7 @@ static void a320_poll_work_handler(struct k_work *work) {
                 input_report_rel(dev, INPUT_REL_Y, dy, true, K_FOREVER);
             }
 
-            /* === Scroll mode while aA is pressed === */
+            /* === Scroll mode while aA is held or latched on === */
             else {
 
                 uint32_t now = k_uptime_get_32();
@@ -231,7 +250,9 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
 }
 
 bool tp_is_touched(void) { return touched; }
-bool tp_scroll_mode_active(void) { return atomic_get(&scroll_mode_pressed) != 0; }
+bool tp_scroll_mode_active(void) {
+    return atomic_get(&scroll_mode_pressed) != 0 || atomic_get(&scroll_mode_latched) != 0;
+}
 
 /* =========================
  *   Device init
