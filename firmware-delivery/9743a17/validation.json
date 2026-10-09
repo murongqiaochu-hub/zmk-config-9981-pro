@@ -1,0 +1,10 @@
+{
+  "source_commit": "9743a177c92360be5c40cf5f5f412ccb0209526a",
+  "source_run": 37877489401,
+  "file": "bbp9981-zmk.uf2",
+  "bytes": 458752,
+  "blocks": 896,
+  "family": "0xADA52840",
+  "sha256": "8d23aeecdc2d6b85827964cf77ea1817360c97414dbaff5232a4b2378cd4fd8c",
+  "device_tested": false
+}
