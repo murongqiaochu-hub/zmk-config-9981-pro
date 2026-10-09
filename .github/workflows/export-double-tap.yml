@@ -1,0 +1,60 @@
+name: Export double-tap firmware
+on:
+  push:
+    branches: [codex/aa-double-tap-scroll-20261009]
+    paths: [.github/workflows/export-double-tap.yml]
+permissions:
+  actions: read
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: codex/aa-double-tap-scroll-20261009
+      - name: Download the successful firmware build
+        uses: actions/download-artifact@v4
+        with:
+          name: firmware
+          run-id: 37877489401
+          github-token: ${{ github.token }}
+          path: firmware-delivery/9743a17
+      - name: Validate and record UF2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, struct, hashlib, json
+          root = pathlib.Path('firmware-delivery/9743a17')
+          files = list(root.rglob('*.uf2'))
+          assert len(files) == 1, files
+          p = files[0]
+          b = p.read_bytes()
+          assert len(b) % 512 == 0
+          blocks = len(b) // 512
+          addresses = []
+          for i in range(blocks):
+              block = b[i*512:(i+1)*512]
+              m0,m1,flags,addr,size,num,total,family = struct.unpack_from('<8I',block)
+              assert (m0,m1) == (0x0A324655,0x9E5D5157)
+              assert struct.unpack_from('<I',block,508)[0] == 0x0AB16F30
+              assert flags & 0x2000 and family == 0xADA52840
+              assert num == i and total == blocks and size == 256
+              addresses.append(addr)
+          assert all(y-x == 256 for x,y in zip(addresses,addresses[1:]))
+          sha = hashlib.sha256(b).hexdigest()
+          (root/'SHA256SUMS').write_text(sha+'  '+str(p.relative_to(root))+'\n')
+          (root/'validation.json').write_text(json.dumps({'source_commit':'9743a177c92360be5c40cf5f5f412ccb0209526a','source_run':37877489401,'file':str(p.relative_to(root)),'bytes':len(b),'blocks':blocks,'family':'0xADA52840','sha256':sha,'device_tested':False},indent=2)+'\n')
+          print('UF2 verified:', len(b), 'bytes,', blocks, 'blocks, SHA256', sha)
+          PY
+      - name: Preserve verified firmware on this branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add firmware-delivery/9743a17
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'chore: preserve verified double-tap UF2 [skip ci]'
+          git push origin HEAD:codex/aa-double-tap-scroll-20261009
