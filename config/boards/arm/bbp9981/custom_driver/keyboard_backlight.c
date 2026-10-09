@@ -21,6 +21,8 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 BUILD_ASSERT(DT_HAS_CHOSEN(zmk_keyboard_backlight),
              "keyboard_backlight: No zmk_keyboard_backlight chosen node found");
+BUILD_ASSERT(IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW) && IS_ENABLED(CONFIG_LED_PWM),
+             "9981 Pro indicators require RGB state controls and LED_PWM");
 
 static const struct device *const indiled_dev = DEVICE_DT_GET(DT_CHOSEN(zmk_keyboard_backlight));
 
@@ -49,23 +51,32 @@ static struct k_work_delayable polling_work;
 static struct k_work_delayable blink_work;
 static struct k_work_delayable cycle_work;
 
+static int last_led_level = -1;
+
 static void set_led_brightness(uint8_t level) {
     if (!device_is_ready(indiled_dev)) {
         LOG_ERR("Indicator LED device not ready");
         return;
     }
+    if (last_led_level == level) {
+        return;
+    }
+    bool all_written = true;
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
         int err = led_set_brightness(indiled_dev, i, level);
         if (err < 0) {
+            all_written = false;
             LOG_ERR("Failed to set LED[%d] brightness: %d", i, err);
         }
+    }
+    if (all_written) {
+        last_led_level = level;
     }
 }
 
 /* 层1/层3闪烁 */
 static void blink_work_handler(struct k_work *work) {
-    if (prev_layer != 1 && prev_layer != 3) {
-        set_led_brightness(0);
+    if (!prev_active || (prev_layer != 1 && prev_layer != 3)) {
         return;
     }
 
@@ -77,8 +88,7 @@ static void blink_work_handler(struct k_work *work) {
 }
 
 static void cycle_work_handler(struct k_work *work) {
-    if (prev_layer != 2) {
-        set_led_brightness(0);
+    if (!prev_active || prev_layer != 2) {
         return;
     }
 
@@ -91,7 +101,7 @@ static void cycle_work_handler(struct k_work *work) {
             cycle_direction_up = false;
         }
     } else {
-        if (cycle_brightness < CYCLE_BRT_STEP) {
+        if (cycle_brightness <= CYCLE_BRT_MIN + CYCLE_BRT_STEP) {
             cycle_brightness = CYCLE_BRT_MIN;
             cycle_direction_up = true;
         } else {
@@ -125,13 +135,17 @@ static void polling_work_handler(struct k_work *work) {
     }
 #endif
 
-    /* Reset allowed state if we went idle */
+    /* Idle must stop all layer animations, not just the default-layer light. */
     if (!active) {
         backlight_allowed = false;
+        prev_active = false;
+        prev_layer = current_layer;
+        k_work_cancel_delayable(&blink_work);
+        k_work_cancel_delayable(&cycle_work);
+        set_led_brightness(0);
+        k_work_reschedule(&polling_work, K_MSEC(100));
+        return;
     }
-
-    /* Force allowed if we detect layer change (e.g. from cache) or if we want to be safe,
-       but relies mainly on key listener. */
 
     if (current_layer != prev_layer || active != prev_active) {
         prev_layer = current_layer;
@@ -151,12 +165,6 @@ static void polling_work_handler(struct k_work *work) {
             break;
 
         case 1:
-            /* Layers 1/2/3 usually imply keys were pressed to get there, so we assume valid */
-            /* But if we layer-lock? Then we might want logic.
-               However, usually you hold a key to access layers.
-               If layer is active, backlight_allowed should essentially be true because you pressed
-               a key. */
-
             blink_start_high = !rgb_on ? true : false;
             blink_on = blink_start_high;
             /* Allow blink if active */
@@ -181,16 +189,7 @@ static void polling_work_handler(struct k_work *work) {
         }
     }
 
-    /* Continuous update for Layer 0 if brightness changes or allowed state changes?
-       The original code only updated on state change (layer or active).
-       We should probably re-evaluate brightness for Layer 0 if backlight_allowed changes.
-       But current logic only updates on prev_layer/active diff.
-
-       Let's assume we need to update if backlight_allowed changes?
-       Actually, polling runs every 100ms. If we modify 'prev_active' logic to also check allowed?
-
-       Let's stick to the structure but enforce brightness update if we are in Layer 0.
-    */
+    /* Refresh the default layer when RGB brightness or authorization changes. */
     if (current_layer == 0 && active && backlight_allowed) {
         /* Enforce brightness in case it was 0 before */
         uint8_t brt = rgb_on ? ug_brt : 0;

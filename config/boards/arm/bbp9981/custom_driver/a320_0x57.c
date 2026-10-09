@@ -22,32 +22,26 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include "a320_0x57.h"
 #include "trackpad_led.h"
+#include "trackpad_key_state.h"
+#include "aa_sym_ctrl.h"
 
 LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 
-/* Stock Pro matrix: the bottom-right aA key is physical position 41. */
-#define A320_SCROLL_MODE_POSITION 41
-#define A320_AA_TAP_TERM_MS 450
-#define A320_AA_DOUBLE_TAP_TERM_MS 350
-static atomic_t scroll_mode_pressed;
-static atomic_t scroll_mode_latched;
-static uint32_t scroll_mode_press_time;
-/* These tap-detection fields are only accessed by the position event listener. */
-static uint32_t scroll_mode_last_tap_release;
-static bool scroll_mode_tap_pending;
-static bool scroll_mode_double_tap_candidate;
+static struct tp_key_state scroll_keys;
+/* Coherent mode + transition epoch, also safe for future cross-thread readers. */
+static atomic_t scroll_mode_snapshot;
 
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
 #define MOTION_GPIO_PIN 2
 static const struct device *motion_gpio_dev;
 
-/* ==== Touch status flag ==== */
-static bool touched = false;
+/* Atomic publication is defensive; current non-split callbacks share one workqueue. */
+static atomic_t touched;
 
 static int16_t sum_dx = 0, sum_dy = 0;
-static uint8_t sample_cnt = 0;
-static bool last_scroll_mode = false;
+static uint16_t sample_cnt = 0;
+static uint32_t last_scroll_snapshot;
 static uint32_t last_read_time = 0;
 
 /* =========================
@@ -68,71 +62,37 @@ struct a320_data {
 #ifndef CONFIG_A320_POLL_INTERVAL_MS
 #define CONFIG_A320_POLL_INTERVAL_MS 10
 #endif
+BUILD_ASSERT(CONFIG_A320_POLL_INTERVAL_MS > 0, "A320 poll interval must be positive");
 
 static void a320_poll_work_handler(struct k_work *work);
 static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
 
-static bool ctrl_pressed = false;
+static atomic_t ctrl_pressed;
 
 /* ==== position_state_changed event listener ==== */
 static int ctrl_listener_cb(const zmk_event_t *eh) {
     const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
     if (!ev) {
-        return 0;
-    }
-
-    /* A double tap must be two consecutive aA taps, not separated by another key. */
-    if (ev->position != A320_SCROLL_MODE_POSITION && ev->state) {
-        scroll_mode_tap_pending = false;
-        scroll_mode_double_tap_candidate = false;
+        return ZMK_EV_EVENT_BUBBLE;
     }
 
     if (ev->position == 37) {
-        ctrl_pressed = ev->state;
-        LOG_INF("Ctrl position=37 %s", ctrl_pressed ? "PRESSED" : "RELEASED");
+        /* Keep original physical Ctrl slow-pointer behavior, separate from SYM Ctrl. */
+        atomic_set(&ctrl_pressed, ev->state);
     }
-    if (ev->position == A320_SCROLL_MODE_POSITION) {
-        if (ev->state) {
-            if (atomic_get(&scroll_mode_pressed) == 0) {
-                uint32_t now = k_uptime_get_32();
-                scroll_mode_press_time = now;
-                scroll_mode_double_tap_candidate =
-                    scroll_mode_tap_pending &&
-                    (now - scroll_mode_last_tap_release <= A320_AA_DOUBLE_TAP_TERM_MS);
-
-                if (!scroll_mode_double_tap_candidate) {
-                    scroll_mode_tap_pending = false;
-                }
-            }
-            atomic_set(&scroll_mode_pressed, 1);
-            LOG_DBG("Local scroll key PRESSED");
-        } else if (atomic_get(&scroll_mode_pressed) != 0) {
-            uint32_t now = k_uptime_get_32();
-            uint32_t held_ms = now - scroll_mode_press_time;
-            atomic_set(&scroll_mode_pressed, 0);
-
-            if (held_ms < A320_AA_TAP_TERM_MS) {
-                if (scroll_mode_double_tap_candidate) {
-                    atomic_val_t next_latched = atomic_get(&scroll_mode_latched) ? 0 : 1;
-                    atomic_set(&scroll_mode_latched, next_latched);
-                    scroll_mode_tap_pending = false;
-                    LOG_INF("Persistent scroll %s (aA double tap)",
-                            next_latched ? "ON" : "OFF");
-                } else {
-                    /* A single tap remains available to the keymap's sticky Layer 2 binding. */
-                    scroll_mode_last_tap_release = now;
-                    scroll_mode_tap_pending = true;
-                    LOG_DBG("Single aA tap; scroll lock unchanged");
-                }
-            } else {
-                /* Long press is momentary scroll only; it never toggles the latch. */
-                scroll_mode_tap_pending = false;
-                LOG_DBG("Long aA hold ended without changing persistent scroll");
-            }
-            scroll_mode_double_tap_candidate = false;
+    bool was_latched = scroll_keys.latched;
+    tp_key_state_update(&scroll_keys, ev->position, ev->state, ev->timestamp);
+    atomic_set(&scroll_mode_snapshot, scroll_keys.snapshot);
+    if (was_latched != scroll_keys.latched) {
+        LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
+    }
+    if (ev->position == TP_AA_POSITION && !ev->state) {
+        int err = tp_sym_ctrl_release(ev->timestamp);
+        if (err < 0) {
+            LOG_ERR("aA release could not release SYM Ctrl: %d", err);
         }
     }
-    return 0;
+    return ZMK_EV_EVENT_BUBBLE;
 }
 ZMK_LISTENER(a320_ctrl_listener, ctrl_listener_cb);
 ZMK_SUBSCRIPTION(a320_ctrl_listener, zmk_position_state_changed);
@@ -148,24 +108,25 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
 
-    bool scroll_mode = tp_scroll_mode_active();
+    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
+    bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
 
-    /* Only this poll worker owns the accumulated motion state. */
-    if (scroll_mode != last_scroll_mode) {
+    /* Epoch also detects enter+exit entirely between two sensor polls. */
+    if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
         sum_dx = 0;
         sum_dy = 0;
         sample_cnt = 0;
         last_read_time = 0;
-        last_scroll_mode = scroll_mode;
     }
+    last_scroll_snapshot = snapshot;
 
     if (pin_state == 0) {
         int16_t dx = 0, dy = 0;
 
         if (a320_read_motion(dev, &dx, &dy) == 0) {
-            touched = true;
+            atomic_set(&touched, 1);
 
-            if (ctrl_pressed) {
+            if (atomic_get(&ctrl_pressed) != 0) {
                 dx /= 2;
                 dy /= 2;
             }
@@ -211,7 +172,8 @@ static void a320_poll_work_handler(struct k_work *work) {
                 sum_dy += dy;
                 sample_cnt++;
 
-                uint8_t threshold = 40 / CONFIG_A320_POLL_INTERVAL_MS;
+                /* Preserve the current 40 ms window; never allow a zero threshold. */
+                uint16_t threshold = MAX(1, 40 / CONFIG_A320_POLL_INTERVAL_MS);
 
                 if (sample_cnt >= threshold) {
                     int16_t sx = sum_dx;
@@ -247,9 +209,15 @@ static void a320_poll_work_handler(struct k_work *work) {
                     input_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);
                 }
             }
+        } else {
+            /* Do not leave touch/scroll residue latched after a sensor read failure. */
+            atomic_set(&touched, 0);
+            sum_dx = sum_dy = 0;
+            sample_cnt = 0;
+            last_read_time = 0;
         }
     } else {
-        touched = false;
+        atomic_set(&touched, 0);
     }
 
     k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
@@ -281,9 +249,12 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
     return 0;
 }
 
-bool tp_is_touched(void) { return touched; }
+bool tp_is_touched(void) { return atomic_get(&touched) != 0; }
 bool tp_scroll_mode_active(void) {
-    return atomic_get(&scroll_mode_pressed) != 0 || atomic_get(&scroll_mode_latched) != 0;
+    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_FLAGS) != 0;
+}
+bool tp_aa_is_pressed(void) {
+    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_PRESSED) != 0;
 }
 
 /* =========================
@@ -305,7 +276,11 @@ static int a320_init(const struct device *dev) {
         LOG_ERR("Motion GPIO device not ready");
         return -ENODEV;
     }
-    gpio_pin_configure(motion_gpio_dev, MOTION_GPIO_PIN, GPIO_INPUT | GPIO_PULL_UP);
+    int err = gpio_pin_configure(motion_gpio_dev, MOTION_GPIO_PIN, GPIO_INPUT | GPIO_PULL_UP);
+    if (err < 0) {
+        LOG_ERR("Motion GPIO configuration failed: %d", err);
+        return err;
+    }
 
     data->dev = dev;
 

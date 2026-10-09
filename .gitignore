@@ -1,0 +1,5 @@
+.host-test-build/
+__pycache__/
+02_双击滚轮固件试用说明.md
+03_条件Ctrl与固件审查说明.md
+04_条件Ctrl回归测试记录.txt

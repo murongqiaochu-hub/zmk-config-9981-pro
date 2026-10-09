@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Get current indicator led brightness
+ * @brief Get last valid touch-mode brightness (not instantaneous animation brightness)
  *
  * @return uint8_t valid LED brightness
  */

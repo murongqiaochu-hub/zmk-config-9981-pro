@@ -7,7 +7,7 @@
         display-name = "bbp9981";
 
         kscan = <&kscan0>;
-        transform = <&matrix_transform0>;
+        transform = <&default_transform>;
 
         keys  //                     w   h    x    y     rot    rx    ry
             = <&key_physical_attrs 150 100  100    0       0     0     0>

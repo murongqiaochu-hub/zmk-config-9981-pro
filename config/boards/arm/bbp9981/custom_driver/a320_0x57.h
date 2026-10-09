@@ -20,8 +20,11 @@ extern "C" {
  */
 bool tp_is_touched(void);
 
-/** Scroll mode while aA is held or latched by a short aA tap. */
+/** Scroll mode while aA is held or latched by an aA double tap. */
 bool tp_scroll_mode_active(void);
+
+/** Physical aA state, independent of sticky Layer 2 and scroll locking. */
+bool tp_aa_is_pressed(void);
 
 #ifdef __cplusplus
 }

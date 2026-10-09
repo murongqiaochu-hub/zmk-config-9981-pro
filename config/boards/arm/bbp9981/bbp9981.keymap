@@ -26,6 +26,14 @@
 
 / {
     behaviors {
+        aa_sym_ctrl: aa_sym_ctrl {
+            compatible = "zmk,behavior-aa-sym-ctrl";
+            #binding-cells = <0>;
+            display-name = "aA held: SYM Ctrl";
+        };
+    };
+
+    behaviors {
         td0: tap_dance_0 {
             compatible = "zmk,behavior-tap-dance";
             #binding-cells = <0>;
@@ -74,7 +82,7 @@
     sl_mo: behavior_sl_mo {
         compatible = "zmk,behavior-hold-tap";
         #binding-cells = <2>;
-        flavor = "hold-preferred";      /* 单击优先 */
+        flavor = "hold-preferred";      /* hold wins when another key is pressed */
         tapping-term-ms = <450>;       /* 长按阈值 */
         bindings = <&mo &sl>;          /* hold=MO, tap=SL */
         };
@@ -135,7 +143,7 @@
     &none        &kp UP     &kp C_EJECT &sys_reset      &ext_power EP_TOG &none            &kp LT           &kp GT          &kp PIPE         &kp KP_EQUAL
     &kp LEFT     &kp DOWN   &kp RIGHT   &none           &kp BSLH          &kp AMPS         &kp LBRC         &kp RBRC        &kp CARET        &kp BSPC
     &kp LSHFT    &none      &none       &rgb_ug RGB_BRD &bl BL_DEC        &rgb_ug RGB_TOG  &bl BL_INC       &rgb_ug RGB_BRI &td_boot_out     &kp ENTER
-    &kp LCTRL               &kp LALT                                      &kp  SPACE                        &to DEFAULT                      &to DEFAULT
+    &kp LCTRL               &kp LALT                                      &kp  SPACE                        &aa_sym_ctrl                     &to DEFAULT
             >;
         };
 

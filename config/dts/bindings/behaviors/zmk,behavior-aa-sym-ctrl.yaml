@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+description: Ctrl while physical aA is held, otherwise return to the default layer
+compatible: "zmk,behavior-aa-sym-ctrl"
+include: zero_param.yaml
