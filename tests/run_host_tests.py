@@ -26,7 +26,8 @@ for relative in HEADERS:
 cc = os.environ.get('CC', 'cc')
 for name in ['ctrl', 'sensor', 'combo', 'keyboard_led', 'trackpad_led']:
     exe = BUILD / ('test_' + name)
-    subprocess.run([cc, '-std=c11', '-Wall', '-Wextra', '-Werror',
+    extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
+    subprocess.run([cc, *extra, '-std=c11', '-Wall', '-Wextra', '-Werror',
                     '-Wno-unused-parameter', '-Wno-unused-function', '-Wno-unused-variable',
                     '-fsanitize=undefined', '-fno-sanitize-recover=all',
                     '-I', str(STUBS), str(ROOT / 'tests' / ('test_' + name + '.c')),

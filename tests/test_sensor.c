@@ -30,6 +30,15 @@ int main(void) {
     assert(!scroll_keys.latched);
     reset_keys();key(41,true,0);key(41,true,10);key(41,false,450);key(41,false,460);
     assert(!scroll_keys.tap_pending && !scroll_keys.latched);
+    for(int duration=449;duration<=451;duration++) {
+        reset_keys();key(41,true,0);key(41,false,duration);
+        assert(scroll_keys.tap_pending==(duration<450));
+    }
+    for(int gap=349;gap<=351;gap++) {
+        reset_keys();key(41,true,0);key(41,false,50);
+        key(41,true,50+gap);key(41,false,100+gap);
+        assert(scroll_keys.latched==(gap<=350));
+    }
     reset_keys();key(41,true,4294967290LL);key(41,false,4294967340LL);
     key(41,true,4294967440LL);key(41,false,4294967490LL);assert(scroll_keys.latched);
     /* A complete mode round-trip between sensor polls still invalidates old motion. */

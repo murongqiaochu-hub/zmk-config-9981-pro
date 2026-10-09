@@ -23,7 +23,14 @@ int main(void) {
     }
     set_led_brightness(30);unsigned writes=fake_led_writes;
     set_led_brightness(30);assert(fake_led_writes==writes);
-    fake_led_error=-EIO;set_led_brightness(40);assert(last_led_level==30);
+    assert(INDICATOR_LED_NUM_LEDS==2);
+    for(int bad=0;bad<2;bad++) {
+        fake_led_error=-EIO;fake_led_error_index=bad;set_led_brightness(40);
+        assert(last_led_level==-1 && fake_led_levels[bad]==30 && fake_led_levels[1-bad]==40);
+        writes=fake_led_writes;fake_led_error=0;set_led_brightness(30);
+        assert(fake_led_writes==writes+2 && fake_led_levels[0]==30 && fake_led_levels[1]==30);
+    }
+    fake_led_error=-EIO;fake_led_error_index=-1;set_led_brightness(40);assert(last_led_level==-1);
     writes=fake_led_writes;fake_led_error=0;set_led_brightness(40);
     assert(fake_led_writes>writes && last_led_level==40 && fake_led_level==40);
     puts("PASS Keyboard LEDs: brightness bounds, idle cancellation on Layers 1/2/3, late callbacks, wake recovery, cached writes and error retry");

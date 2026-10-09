@@ -25,7 +25,11 @@
 #define DT_HAS_CHOSEN(x) 1
 #define DT_CHOSEN(x) 0
 #define DT_NODELABEL(x) 0
+#if defined(TEST_TWO_LEDS)
+#define DT_FOREACH_CHILD(x, fn) fn(0) fn(1)
+#else
 #define DT_FOREACH_CHILD(x, fn) fn(0)
+#endif
 #define DT_INST_FOREACH_STATUS_OKAY(fn) fn(0)
 #define DT_DRV_INST(n) 0
 #define DT_PROP_OR(n, p, d) (d)
@@ -104,11 +108,12 @@ static int input_report_rel(const struct device *d,int code,int value,bool sync,
 }
 static int fake_led_level;
 static unsigned fake_led_writes;
-static int fake_led_error;
+static int fake_led_error, fake_led_error_index=-1;
+static int fake_led_levels[2];
 static int led_set_brightness(const struct device *d,int index,uint8_t value) {
-    (void)d;(void)index;fake_led_writes++;
-    if(fake_led_error)return fake_led_error;
-    fake_led_level=value;return 0;
+    (void)d;fake_led_writes++;
+    if(fake_led_error && (fake_led_error_index<0 || index==fake_led_error_index))return fake_led_error;
+    fake_led_levels[index]=value;fake_led_level=value;return 0;
 }
 
 struct zmk_behavior_binding { const char *behavior_dev; uint32_t param1,param2; };

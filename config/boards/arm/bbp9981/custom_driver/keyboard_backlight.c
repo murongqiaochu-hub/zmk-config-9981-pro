@@ -69,9 +69,8 @@ static void set_led_brightness(uint8_t level) {
             LOG_ERR("Failed to set LED[%d] brightness: %d", i, err);
         }
     }
-    if (all_written) {
-        last_led_level = level;
-    }
+    /* A partial write also invalidates the previous cached level. */
+    last_led_level = all_written ? level : -1;
 }
 
 /* 层1/层3闪烁 */
