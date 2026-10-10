@@ -17,7 +17,7 @@ jobs:
     needs: regression
     uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
   deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/aa-sym-ctrl-review-20261009'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/cursor-fractional-motion-20261010'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -46,5 +46,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add "firmware-delivery/$SOURCE_SHA"
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: preserve verified aA SYM Ctrl firmware [skip ci]'
-          git push origin HEAD:codex/aa-sym-ctrl-review-20261009
+          git commit -m 'chore: preserve verified fractional cursor firmware [skip ci]'
+          git push origin HEAD:codex/cursor-fractional-motion-20261010

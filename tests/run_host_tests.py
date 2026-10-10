@@ -24,7 +24,7 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'combo', 'keyboard_led', 'trackpad_led']:
+for name in ['ctrl', 'sensor', 'pointer', 'combo', 'keyboard_led', 'trackpad_led']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
     subprocess.run([cc, *extra, '-std=c11', '-Wall', '-Wextra', '-Werror',
