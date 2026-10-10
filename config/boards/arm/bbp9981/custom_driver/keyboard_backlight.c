@@ -10,6 +10,7 @@
 #include <zephyr/drivers/led.h>
 #include <zephyr/logging/log.h>
 
+#include "indicator_brightness.h"
 #include <zmk/rgb_underglow.h>
 #include <zmk/event_manager.h>
 #include <zmk/activity.h>
@@ -73,6 +74,15 @@ static void set_led_brightness(uint8_t level) {
     last_led_level = all_written ? level : -1;
 }
 
+static uint8_t requested_pattern;
+static void set_mode_brightness(uint8_t pattern) {
+    requested_pattern = pattern;
+    bool on = false;
+    if (zmk_rgb_underglow_get_state(&on) < 0) { on = false; }
+    uint8_t setting = on ? zmk_rgb_underglow_calc_brt(0).b : 0;
+    set_led_brightness(indicator_pattern_level(pattern, setting));
+}
+
 /* 层1/层3闪烁 */
 static void blink_work_handler(struct k_work *work) {
     if (!prev_active || (prev_layer != 1 && prev_layer != 3)) {
@@ -80,7 +90,7 @@ static void blink_work_handler(struct k_work *work) {
     }
 
     blink_on = !blink_on;
-    set_led_brightness(blink_on ? BRT_BLINK_HIGH : BRT_BLINK_LOW);
+    set_mode_brightness(blink_on ? BRT_BLINK_HIGH : BRT_BLINK_LOW);
 
     uint32_t interval = (prev_layer == 3) ? (BLINK_INTERVAL_MS / 2) : BLINK_INTERVAL_MS;
     k_work_reschedule(&blink_work, K_MSEC(interval));
@@ -91,7 +101,7 @@ static void cycle_work_handler(struct k_work *work) {
         return;
     }
 
-    set_led_brightness(cycle_brightness);
+    set_mode_brightness(cycle_brightness);
 
     if (cycle_direction_up) {
         cycle_brightness += CYCLE_BRT_STEP;
@@ -125,8 +135,6 @@ ZMK_SUBSCRIPTION(kb_backlight_key_listener, zmk_position_state_changed);
 static void polling_work_handler(struct k_work *work) {
     bool active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     int current_layer = zmk_keymap_highest_layer_active();
-    struct zmk_led_hsb ug = zmk_rgb_underglow_calc_brt(0);
-    uint8_t ug_brt = ug.b;
     bool rgb_on = true;
 #if IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW)
     if (zmk_rgb_underglow_get_state(&rgb_on) < 0) {
@@ -141,7 +149,7 @@ static void polling_work_handler(struct k_work *work) {
         prev_layer = current_layer;
         k_work_cancel_delayable(&blink_work);
         k_work_cancel_delayable(&cycle_work);
-        set_led_brightness(0);
+        set_mode_brightness(0);
         k_work_reschedule(&polling_work, K_MSEC(100));
         return;
     }
@@ -159,15 +167,14 @@ static void polling_work_handler(struct k_work *work) {
         switch (current_layer) {
         case 0:
             /* Only turn on if active AND a key was pressed to authorize it */
-            uint8_t brt = (rgb_on && active && backlight_allowed) ? ug_brt : 0;
-            set_led_brightness(brt);
+            set_mode_brightness(backlight_allowed ? 100 : 0);
             break;
 
         case 1:
             blink_start_high = !rgb_on ? true : false;
             blink_on = blink_start_high;
             /* Allow blink if active */
-            set_led_brightness((active && blink_on) ? BRT_BLINK_HIGH : BRT_BLINK_LOW);
+            set_mode_brightness(blink_on ? BRT_BLINK_HIGH : BRT_BLINK_LOW);
 
             k_work_reschedule(&blink_work, K_MSEC(BLINK_INTERVAL_MS / 2));
             break;
@@ -178,23 +185,21 @@ static void polling_work_handler(struct k_work *work) {
 
         case 3:
             blink_on = false;
-            set_led_brightness(BRT_BLINK_LOW);
+            set_mode_brightness(BRT_BLINK_LOW);
             k_work_reschedule(&blink_work, K_MSEC(BLINK_INTERVAL_MS / 2));
             break;
 
         default:
-            set_led_brightness(0);
+            set_mode_brightness(0);
             break;
         }
     }
 
-    /* Refresh the default layer when RGB brightness or authorization changes. */
-    if (current_layer == 0 && active && backlight_allowed) {
-        /* Enforce brightness in case it was 0 before */
-        uint8_t brt = rgb_on ? ug_brt : 0;
-        set_led_brightness(brt);
-    } else if (current_layer == 0 && (!active || !backlight_allowed)) {
-        set_led_brightness(0);
+    /* Reapply the current pattern in EVERY layer when C/M/B changes the setting. */
+    if (current_layer == 0) {
+        set_mode_brightness(backlight_allowed ? 100 : 0);
+    } else {
+        set_mode_brightness(requested_pattern);
     }
 
     k_work_reschedule(&polling_work, K_MSEC(100));

@@ -13,6 +13,7 @@
 #include <zmk/endpoints.h>
 #include <zmk/backlight.h>
 #include <zmk/activity.h>
+#include "indicator_brightness.h"
 #include "trackpad_led.h"
 #include "a320_0x57.h"
 
@@ -49,7 +50,10 @@ static bool touch_active = false;
 static bool animation_increasing = true;
 static uint8_t brightness = BRT_MIN;
 
-static uint8_t last_valid_brt = BRT_MAX;
+/* User limit cache: also survives the upstream keyboard-idle auto-off. */
+static uint8_t last_valid_brt;
+static uint8_t requested_pattern;
+static int last_led_level = -1;
 static uint8_t last_backlight_brt = 0;
 static bool manual_override = false;
 static bool keyboard_active = false;
@@ -57,17 +61,23 @@ static bool keyboard_active = false;
 static bool usb_flash_state = false;
 static bool usb_mode = false;
 
-static void set_led_brightness(uint8_t level) {
+static void set_led_brightness(uint8_t pattern) {
+    requested_pattern = pattern;
+    uint8_t level = indicator_pattern_level(pattern, last_valid_brt);
     if (!device_is_ready(led_dev)) {
         LOG_ERR("LED device not ready");
         return;
     }
+    if (last_led_level == level) { return; }
+    bool all_written = true;
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
         int err = led_set_brightness(led_dev, i, level);
         if (err < 0) {
+            all_written = false;
             LOG_ERR("Failed to set LED[%d] brightness: %d", i, err);
         }
     }
+    last_led_level = all_written ? level : -1;
 }
 
 static void usb_flash_work_handler(struct k_work *work) {
@@ -117,6 +127,10 @@ static void polling_work_handler(struct k_work *work) {
     bool current_touch = tp_is_touched();
     bool current_active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     uint8_t current_brt = zmk_backlight_get_brt();
+    /* Physical V/N presses wake activity, so explicit zero is observed here.
+     * During idle, upstream returns zero automatically; retain the last user limit. */
+    if (current_active || current_brt > 0) { last_valid_brt = current_brt; }
+    set_led_brightness(requested_pattern); /* Live limit changes also apply in USB. */
 
     /* ---------------- USB Mode ---------------- */
     if (transport == ZMK_TRANSPORT_USB) {
@@ -166,10 +180,7 @@ static void polling_work_handler(struct k_work *work) {
             if (current_touch) {
                 touch_active = true;
                 manual_override = true;
-                if (keyboard_active) {
-                    last_valid_brt = MAX(BRT_MIN, current_brt);
-                }
-                set_led_brightness(last_valid_brt);
+                set_led_brightness(100);
                 k_work_cancel_delayable(&auto_off_work);
             } else {
                 set_led_brightness(0);
@@ -182,10 +193,7 @@ static void polling_work_handler(struct k_work *work) {
         touch_active = current_touch;
         if (touch_active) {
             manual_override = true;
-            if (keyboard_active) {
-                last_valid_brt = MAX(BRT_MIN, current_brt);
-            }
-            set_led_brightness(last_valid_brt);
+            set_led_brightness(100);
             k_work_cancel_delayable(&auto_off_work);
         } else {
             k_work_reschedule(&auto_off_work, K_MSEC(AUTO_OFF_DELAY_MS));
@@ -194,12 +202,9 @@ static void polling_work_handler(struct k_work *work) {
 
     if (!scroll_mode_on && !touch_active && current_brt != last_backlight_brt && keyboard_active) {
         last_backlight_brt = current_brt;
-        if (current_brt > 0) {
-            manual_override = true;
-            last_valid_brt = MAX(BRT_MIN, current_brt);
-            set_led_brightness(last_valid_brt);
-            k_work_reschedule(&auto_off_work, K_MSEC(AUTO_OFF_DELAY_MS));
-        }
+        manual_override = current_brt > 0;
+        set_led_brightness(current_brt > 0 ? 100 : 0);
+        k_work_reschedule(&auto_off_work, K_MSEC(AUTO_OFF_DELAY_MS));
     }
 
     k_work_reschedule(&polling_work, K_MSEC(POLLING_INTERVAL_MS));
@@ -213,6 +218,8 @@ static int indicator_tp_init(void) {
         return -ENODEV;
     }
 
+    last_valid_brt = zmk_backlight_get_brt();
+    last_led_level = -1;
     set_led_brightness(0);
     usb_mode = false;
     usb_flash_state = false;

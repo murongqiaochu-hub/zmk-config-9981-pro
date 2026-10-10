@@ -12,9 +12,9 @@ extern "C" {
 #endif
 
 /**
- * @brief Get last valid touch-mode brightness (not instantaneous animation brightness)
+ * @brief Get cached user brightness setting (zero allowed; not used for pointer speed)
  *
- * @return uint8_t valid LED brightness
+ * @return uint8_t user setting, before perceptual scaling
  */
 uint8_t indicator_tp_get_last_valid_brightness(void);
 

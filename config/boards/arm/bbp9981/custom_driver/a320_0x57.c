@@ -21,7 +21,6 @@
 #include <zmk/events/position_state_changed.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include "a320_0x57.h"
-#include "trackpad_led.h"
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
@@ -122,7 +121,6 @@ static void a320_poll_work_handler(struct k_work *work) {
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
     bool slow_pointer = (speed & 1U) != 0;
-    uint8_t pointer_brightness = indicator_tp_get_last_valid_brightness();
 
     /* Epoch also detects enter+exit entirely between two sensor polls. */
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
@@ -137,7 +135,7 @@ static void a320_poll_work_handler(struct k_work *work) {
     }
     last_scroll_snapshot = snapshot;
     last_cursor_speed_snapshot = speed;
-    tp_pointer_prepare(&cursor_motion, pointer_brightness, slow_pointer);
+    tp_pointer_prepare(&cursor_motion, slow_pointer);
     tp_pointer_expire(&cursor_motion, k_uptime_get_32());
 
     if (pin_state == 0) {
@@ -150,7 +148,7 @@ static void a320_poll_work_handler(struct k_work *work) {
             if (!scroll_mode) {
                 int16_t cursor_x, cursor_y;
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
-                                  pointer_brightness, slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
+                                  slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
                 input_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
             }

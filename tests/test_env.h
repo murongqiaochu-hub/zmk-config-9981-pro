@@ -151,7 +151,8 @@ static uint8_t fake_brightness=40;
 static bool fake_rgb_on=true;
 static struct zmk_led_hsb zmk_rgb_underglow_calc_brt(int i) { (void)i;return (struct zmk_led_hsb){.b=fake_brightness}; }
 static int zmk_rgb_underglow_get_state(bool *on) { *on=fake_rgb_on;return 0; }
-static uint8_t zmk_backlight_get_brt(void) { return fake_brightness; }
+static uint8_t fake_tp_brightness=40;
+static uint8_t zmk_backlight_get_brt(void) { return fake_tp_brightness; }
 enum zmk_transport { ZMK_TRANSPORT_USB, ZMK_TRANSPORT_BLE };
 static enum zmk_transport fake_transport=ZMK_TRANSPORT_BLE;
 struct zmk_endpoint_instance { enum zmk_transport transport; };

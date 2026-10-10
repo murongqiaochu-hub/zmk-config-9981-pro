@@ -6,10 +6,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Exact rational form of the existing continuous gain:
- * 1.5 * (0.4 + brightness / 100), halved for physical Ctrl.
- * A common denominator preserves fractions without intermediate truncation.
- */
+/* Fixed gain at the factory default reference of 40: normal 1.2, Ctrl 0.6.
+ * LED brightness has no input into pointer motion. */
+#define TP_POINTER_NORMAL_GAIN 480U
 #define TP_POINTER_DENOMINATOR 400
 #define TP_POINTER_IDLE_MS 50U
 
@@ -59,14 +58,13 @@ static inline int16_t tp_pointer_axis_motion(struct tp_pointer_axis *axis, int8_
     axis->remainder = scaled - whole * TP_POINTER_DENOMINATOR;
     axis->last_motion_time = now;
     axis->active = true;
-    /* Sensor deltas are int8; even brightness=255 remains safely within int16. */
+    /* Sensor deltas are int8; fixed gain remains safely within int16. */
     return (int16_t)whole;
 }
 
-/* Run even on no-motion polls: an observed gain round-trip is a transition too. */
-static inline void tp_pointer_prepare(struct tp_pointer_state *state, uint8_t brightness,
-                                       bool slow) {
-    uint16_t gain = 3U * (40U + brightness) * (slow ? 1U : 2U);
+/* Run even on no-motion polls; speed transitions still clear fractions. */
+static inline void tp_pointer_prepare(struct tp_pointer_state *state, bool slow) {
+    uint16_t gain = slow ? TP_POINTER_NORMAL_GAIN / 2U : TP_POINTER_NORMAL_GAIN;
     if (!state->gain_valid || state->gain != gain) {
         tp_pointer_reset(state);
         state->gain = gain;
@@ -75,9 +73,9 @@ static inline void tp_pointer_prepare(struct tp_pointer_state *state, uint8_t br
 }
 
 static inline void tp_pointer_motion(struct tp_pointer_state *state, int8_t dx, int8_t dy,
-                                      uint8_t brightness, bool slow, uint32_t now,
+                                      bool slow, uint32_t now,
                                       int16_t *out_x, int16_t *out_y) {
-    tp_pointer_prepare(state, brightness, slow);
+    tp_pointer_prepare(state, slow);
     *out_x = tp_pointer_axis_motion(&state->x, dx, state->gain, now);
     *out_y = tp_pointer_axis_motion(&state->y, dy, state->gain, now);
 }
