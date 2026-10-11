@@ -29,6 +29,9 @@
 #include <zmk/usb.h>
 #include <string.h>
 #include "trackpad_contact_probe.h"
+#ifdef CONFIG_A320_BUS_COMPARE
+#include "trackpad_bus_probe.h"
+#endif
 #endif
 
 
@@ -82,10 +85,36 @@ static bool probe_open;
 static uint32_t probe_at, probe_session;
 static uint8_t legacy_bytes[7];
 static uint32_t legacy_at, legacy_seq, legacy_errors;
+#ifndef CONFIG_A320_BUS_COMPARE
 static int probe_read_one(void *ctx, uint8_t reg, uint8_t *out) {
     /* Register-pointer/read transaction only; never writes configuration values. */
     return i2c_reg_read_byte_dt((const struct i2c_dt_spec *)ctx, reg, out);
 }
+#else
+static uint32_t bus_compare_at, bus_compare_round;
+static int compare_pointer_stop(void *ctx, uint8_t reg) {
+    return i2c_write_dt((const struct i2c_dt_spec *)ctx, &reg, 1);
+}
+static int compare_read_only(void *ctx, uint8_t *out) {
+    return i2c_read_dt((const struct i2c_dt_spec *)ctx, out, 1);
+}
+static int compare_combined(void *ctx, uint8_t reg, uint8_t *out) {
+    return i2c_reg_read_byte_dt((const struct i2c_dt_spec *)ctx, reg, out);
+}
+static void compare_bus(const struct i2c_dt_spec *bus, uint32_t now) {
+    if ((uint32_t)(now-bus_compare_at) < CONFIG_A320_BUS_COMPARE_INTERVAL_MS) { return; }
+    bus_compare_at=now;
+    const struct tp_bus_ops ops={compare_pointer_stop,compare_read_only,compare_combined};
+    /* Rotate order to expose previous-transaction dependence. SAME pointer 00 only. */
+    for (unsigned slot=0;slot<TP_BUS_MODE_COUNT;slot++) {
+        enum tp_bus_mode mode=(enum tp_bus_mode)((bus_compare_round+slot)%TP_BUS_MODE_COUNT);
+        struct tp_bus_observation r=tp_bus_observe(&ops,(void *)bus,mode,0x00);
+        LOG_INF("TPB t=%u round=%u slot=%u mode=%s reg=00 value=%02x obtained=%d err=%d",
+                now,bus_compare_round,slot,tp_bus_mode_name(mode),r.value,r.obtained,r.error);
+    }
+    bus_compare_round++;
+}
+#endif
 static void probe_legacy(const uint8_t *bytes, size_t size) {
     if (!probe_open || size != sizeof(legacy_bytes)) { return; }
     memcpy(legacy_bytes, bytes, sizeof(legacy_bytes));
@@ -107,15 +136,24 @@ static void probe_poll(const struct i2c_dt_spec *bus, int motion_gpio) {
         legacy_seq = legacy_errors = 0;legacy_at = now;
         memset(legacy_bytes, 0, sizeof(legacy_bytes));
         probe_at = now - CONFIG_A320_CONTACT_PROBE_INTERVAL_MS;
+#ifdef CONFIG_A320_BUS_COMPARE
+        bus_compare_at=now-CONFIG_A320_BUS_COMPARE_INTERVAL_MS;
+        bus_compare_round=0;
+        LOG_INF("TPMODE compare=1 register=00 readonly=1 click=0 contact_decoded=0");
+#endif
         LOG_INF("TPBEGIN session=%u readonly=1 click=0 interval_ms=%u", probe_session,
                 (unsigned)CONFIG_A320_CONTACT_PROBE_INTERVAL_MS);
     }
     if ((uint32_t)(now - probe_at) < CONFIG_A320_CONTACT_PROBE_INTERVAL_MS) { return; }
     probe_at = now;
+#ifdef CONFIG_A320_BUS_COMPARE
+    compare_bus(bus,now);
+#else
     struct tp_probe_sample f = tp_probe_sample(&contact_probe, now, probe_read_one, (void *)bus);
     LOG_INF("TPID t=%u pid=%02x rev=%02x match=%d err=%d", now, f.pid, f.revision, f.matched, f.error);
     LOG_INF("TPD t=%u valid=%d contact=%d engine=%02x cfg=%02x status=%02x quality=%u shutter=%u err=%d",
             now, f.valid, f.contact, f.engine, f.fpd_control, f.motion, f.quality, f.shutter, f.error);
+#endif
     LOG_INF("TPL t=%u seq=%u age=%u errors=%u irq=%d b=%02x%02x%02x%02x%02x%02x%02x",
             now, legacy_seq, (uint32_t)(now-legacy_at), legacy_errors, motion_gpio,
             legacy_bytes[0],legacy_bytes[1],legacy_bytes[2],legacy_bytes[3],

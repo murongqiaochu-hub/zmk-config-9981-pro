@@ -40,4 +40,15 @@ config A320_CONTACT_PROBE_INTERVAL_MS
     default 20
     range 20 500
 
+config A320_BUS_COMPARE
+    bool "Compare reg00 pointer/read transaction methods (read-only)"
+    depends on A320_CONTACT_PROBE
+    default n
+
+config A320_BUS_COMPARE_INTERVAL_MS
+    int "Transaction comparison interval"
+    depends on A320_BUS_COMPARE
+    default 500
+    range 200 2000
+
 endmenu
