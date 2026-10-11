@@ -21,7 +21,7 @@ static void fixture(void) {
     memset(&sensor_data, 0, sizeof(sensor_data)); sensor_data.dev = &sensor;
     memset(&scroll_keys, 0, sizeof(scroll_keys));
     atomic_set(&scroll_mode_snapshot, 0); last_scroll_snapshot = 0;
-    atomic_set(&cursor_speed_snapshot, 0); last_cursor_speed_snapshot = 0;
+    atomic_set(&cursor_speed_snapshot, 0); modifier_refs = 0;
     atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
     sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
     fake_now = 1000; pointer_brightness = 40; brightness_reads = 0;
@@ -59,12 +59,12 @@ static void test_conservation(void) {
             poll(1, -1, 1000 + i * 10); assert(report_count == 2);
             total_x += report_values[0]; total_y += report_values[1];
         }
-        assert(total_x == (slow ? 600 : 1200) && total_y == -total_x);
+        assert(total_x == 1200 && total_y == -total_x);
     }
     /* Exhaust all sensor input and uint8 brightness values with the real helper. */
     for (unsigned brightness = 0; brightness <= 255; brightness++) {
         for (unsigned slow = 0; slow <= 1; slow++) {
-            const int64_t gain = slow ? 240 : 480;
+            const int64_t gain = 480;
             pointer_brightness = (uint8_t)brightness;
             for (int raw = -128; raw <= 127; raw++) {
                 struct tp_pointer_state state = {0};
@@ -73,7 +73,7 @@ static void test_conservation(void) {
                 for (unsigned n = 1; n <= 16; n++) {
                     int16_t x, y;
                     tp_pointer_motion(&state, (int8_t)raw, (int8_t)other,
-                                      slow != 0, n * 10, &x, &y);
+                                      n * 10, &x, &y);
                     sx += x; sy += y;
                     int64_t rx = (int64_t)raw * gain * n - sx * 400;
                     int64_t ry = (int64_t)other * gain * n - sy * 400;
@@ -85,55 +85,61 @@ static void test_conservation(void) {
             }
         }
     }
-    puts("PASS Pointer arithmetic: +/-1 x1000, both axes, Ctrl, all 256 brightness x 256 raw deltas x both speeds, exact conservation and bounded residuals");
+    puts("PASS Pointer arithmetic: +/-1 x1000, both axes, Ctrl, all 256 brightness x 256 raw deltas x Ctrl held/released, exact conservation and bounded residuals");
 }
 
-static void slow_fixture(void) { fixture(); key(37, true, 900); }
 static void test_idle_reverse(void) {
-    slow_fixture(); poll(1,0,1000); expect_xy(0,0);
-    idle(1010); poll(0,0,1020); expect_xy(0,0); poll(1,0,1030); expect_xy(1,0);
+    fixture();poll(4,0,1000);expect_xy(4,0);
+    idle(1010);poll(0,0,1020);expect_xy(0,0);poll(1,0,1030);expect_xy(2,0);
     for(unsigned i=1;i<=20;i++){poll(0,0,1030+i*10);expect_xy(0,0);}
-    idle(1300);poll(1,0,1310);expect_xy(0,0);
-    slow_fixture();poll(1,0,1000);poll(1,0,1050);expect_xy(1,0);
-    slow_fixture();poll(1,0,1000);poll(1,0,1051);expect_xy(0,0);
-    slow_fixture();poll(1,1,1000);
+    idle(1300);poll(1,0,1310);expect_xy(1,0);
+    fixture();poll(4,0,1000);poll(1,0,1050);expect_xy(2,0);
+    fixture();poll(4,0,1000);poll(1,0,1051);expect_xy(1,0);
+    fixture();poll(4,4,1000);
     for(unsigned i=1;i<=6;i++){poll(0,1,1000+i*10);}
-    poll(1,1,1070);assert(report_values[0]==0);
-    slow_fixture();poll(1,0,1000);expect_xy(0,0);poll(-1,0,1010);expect_xy(0,0);
-    poll(-1,0,1020);expect_xy(-1,0);poll(0,1,1030);expect_xy(0,0);
-    slow_fixture();poll(1,0,UINT32_MAX-20);poll(1,0,9);expect_xy(1,0);
-    slow_fixture();poll(1,0,UINT32_MAX-20);poll(1,0,30);expect_xy(0,0);
+    poll(1,1,1070);assert(report_values[0]==1);
+    fixture();poll(4,0,1000);expect_xy(4,0);poll(-1,0,1010);expect_xy(-1,0);
+    poll(-4,0,1020);expect_xy(-5,0);poll(0,1,1030);expect_xy(0,1);
+    fixture();poll(4,0,UINT32_MAX-20);poll(1,0,9);expect_xy(2,0);
+    fixture();poll(4,0,UINT32_MAX-20);poll(1,0,30);expect_xy(1,0);
     puts("PASS Pointer lifecycle: zero/GPIO gaps, no drift, per-axis 50/51ms, reversal, uptime rollover");
 }
 static void test_transitions_faults(void) {
-    /* Changing or turning off LEDs must neither change gain nor clear fractions. */
-    slow_fixture();poll(1,0,1000);expect_xy(0,0);
+    fixture();poll(4,0,1000);expect_xy(4,0);
     pointer_brightness=0;fake_brightness=0;idle(1010);
     pointer_brightness=255;fake_brightness=100;idle(1020);
-    poll(1,0,1030);expect_xy(1,0);assert(brightness_reads==0);
-    for(int slow=0;slow<=1;slow++){
-        fixture();if(slow){key(37,true,900);} int sum=0;
+    poll(1,0,1030);expect_xy(2,0);assert(brightness_reads==0);
+    for(int held=0;held<=1;held++){
+        fixture();if(held){key(37,true,900);}int sum=0;
         for(unsigned b=0;b<=255;b++){
             pointer_brightness=(uint8_t)b;fake_brightness=(uint8_t)(255-b);
             poll(1,0,1000+b*10);sum+=report_values[0];
-            assert(sum==(int)((b+1)*(slow?240U:480U)/400U));
+            assert(sum==(int)((b+1)*480U/400U));
         }
         assert(brightness_reads==0);
     }
-    fixture();poll(4,0,1000);expect_xy(4,0);
-    key(37,true,1001);key(37,false,1002);poll(1,0,1010);expect_xy(1,0);
-    key(37,true,1011);poll(1,0,1020);expect_xy(0,0);
-    key(37,false,1021);poll(4,0,1030);expect_xy(4,0);
-    key(41,true,1031);key(41,false,1032);poll(1,0,1040);expect_xy(1,0);
+    /* Press, release, or a complete Ctrl round-trip must retain pointer fractions. */
+    for(int transition=0;transition<3;transition++){
+        fixture();if(transition==1){key(37,true,900);}
+        poll(4,0,1000);expect_xy(4,0);
+        if(transition==0){key(37,true,1001);}
+        if(transition==1){key(37,false,1001);}
+        if(transition==2){key(37,true,1001);key(37,false,1002);}
+        modifier_refs=transition==0?1:0;poll(1,0,1010);expect_xy(2,0);
+        assert(report_modifier_snapshot[0]==modifier_refs && report_modifier_snapshot[1]==modifier_refs);
+    }
+    /* Scroll mode still invalidates fractions; real Ctrl modifier is not consumed. */
+    fixture();poll(4,0,1000);key(41,true,1001);key(41,false,1002);
+    poll(1,0,1010);expect_xy(1,0);
     for(unsigned kind=0;kind<3;kind++){
-        slow_fixture();poll(1,0,1000);expect_xy(0,0);fake_now=1010;report_count=0;
+        fixture();poll(4,0,1000);expect_xy(4,0);fake_now=1010;report_count=0;
         if(kind==0){fake_i2c_error=-EIO;}if(kind==1){burst_error=-EIO;}
         if(kind==2){fake_gpio_state=-EIO;}
         a320_poll_work_handler(&sensor_data.poll_work.work);
         assert(report_count==0&&!tp_is_touched());fake_i2c_error=burst_error=0;
-        poll(1,0,1020);expect_xy(0,0);
+        poll(1,0,1020);expect_xy(1,0);
     }
-    puts("PASS Pointer independent of both lights: all brightness values, LED zero, fractions preserved, Ctrl/mode epochs and I2C/GPIO faults");
+    puts("PASS Plain Ctrl: identical cursor gain, press/release/round-trip retains fractions and modifiers; LED independence, mode reset and faults");
 }
 
 static void legacy_wheel(int sx, int sy, int *horizontal, int *vertical) {

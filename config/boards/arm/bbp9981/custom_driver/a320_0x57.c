@@ -44,7 +44,6 @@ static uint16_t sample_cnt = 0;
 static uint32_t last_scroll_snapshot;
 static uint32_t last_read_time = 0;
 static struct tp_pointer_state cursor_motion;
-static uint32_t last_cursor_speed_snapshot;
 
 /* =========================
  *   Data & Config structs
@@ -69,9 +68,8 @@ BUILD_ASSERT(CONFIG_A320_POLL_INTERVAL_MS > 0, "A320 poll interval must be posit
 static void a320_poll_work_handler(struct k_work *work);
 static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
 
-/* Bit 0 is physical Ctrl; upper bits record every speed transition.
- * Detect press+release between polls without clearing pointer state in the listener.
- */
+/* Legacy snapshot is now used ONLY for the existing scroll-side Ctrl scaling.
+ * Ctrl events still bubble to the normal key behavior; cursor gain is independent. */
 static atomic_t cursor_speed_snapshot;
 
 /* ==== position_state_changed event listener ==== */
@@ -82,7 +80,7 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
     }
 
     if (ev->position == 37) {
-        /* Keep original physical Ctrl slow-pointer behavior, separate from SYM Ctrl. */
+        /* Preserve original physical Ctrl scroll scaling, separate from SYM Ctrl. */
         uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
         if (((speed & 1U) != 0) != ev->state) {
             uint32_t next = ((speed + 2U) & ~1U) | (ev->state ? 1U : 0U);
@@ -120,7 +118,7 @@ static void a320_poll_work_handler(struct k_work *work) {
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
-    bool slow_pointer = (speed & 1U) != 0;
+    bool slow_scroll = (speed & 1U) != 0;
 
     /* Epoch also detects enter+exit entirely between two sensor polls. */
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
@@ -130,12 +128,8 @@ static void a320_poll_work_handler(struct k_work *work) {
         last_read_time = 0;
         tp_pointer_reset(&cursor_motion);
     }
-    if (speed != last_cursor_speed_snapshot) {
-        tp_pointer_reset(&cursor_motion);
-    }
     last_scroll_snapshot = snapshot;
-    last_cursor_speed_snapshot = speed;
-    tp_pointer_prepare(&cursor_motion, slow_pointer);
+    tp_pointer_prepare(&cursor_motion);
     tp_pointer_expire(&cursor_motion, k_uptime_get_32());
 
     if (pin_state == 0) {
@@ -148,7 +142,7 @@ static void a320_poll_work_handler(struct k_work *work) {
             if (!scroll_mode) {
                 int16_t cursor_x, cursor_y;
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
-                                  slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
+                                  k_uptime_get_32(), &cursor_x, &cursor_y);
                 input_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
             }
@@ -156,7 +150,7 @@ static void a320_poll_work_handler(struct k_work *work) {
             /* === Scroll mode while aA is held or latched on === */
             else {
                 /* Keep the original scroll-side Ctrl truncation and curve unchanged. */
-                if (slow_pointer) {
+                if (slow_scroll) {
                     dx /= 2;
                     dy /= 2;
                 }

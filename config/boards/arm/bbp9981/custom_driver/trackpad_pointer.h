@@ -6,8 +6,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Fixed gain at the factory default reference of 40: normal 1.2, Ctrl 0.6.
- * LED brightness has no input into pointer motion. */
+/* Fixed gain at the factory default reference of 40: always 1.2, including Ctrl.
+ * LED brightness and Ctrl have no input into pointer gain. */
 #define TP_POINTER_NORMAL_GAIN 480U
 #define TP_POINTER_DENOMINATOR 400
 #define TP_POINTER_IDLE_MS 50U
@@ -62,9 +62,9 @@ static inline int16_t tp_pointer_axis_motion(struct tp_pointer_axis *axis, int8_
     return (int16_t)whole;
 }
 
-/* Run even on no-motion polls; speed transitions still clear fractions. */
-static inline void tp_pointer_prepare(struct tp_pointer_state *state, bool slow) {
-    uint16_t gain = slow ? TP_POINTER_NORMAL_GAIN / 2U : TP_POINTER_NORMAL_GAIN;
+/* Initialize fixed gain after resets; no modifier-driven speed transitions. */
+static inline void tp_pointer_prepare(struct tp_pointer_state *state) {
+    uint16_t gain = TP_POINTER_NORMAL_GAIN;
     if (!state->gain_valid || state->gain != gain) {
         tp_pointer_reset(state);
         state->gain = gain;
@@ -73,9 +73,9 @@ static inline void tp_pointer_prepare(struct tp_pointer_state *state, bool slow)
 }
 
 static inline void tp_pointer_motion(struct tp_pointer_state *state, int8_t dx, int8_t dy,
-                                      bool slow, uint32_t now,
+                                      uint32_t now,
                                       int16_t *out_x, int16_t *out_y) {
-    tp_pointer_prepare(state, slow);
+    tp_pointer_prepare(state);
     *out_x = tp_pointer_axis_motion(&state->x, dx, state->gain, now);
     *out_y = tp_pointer_axis_motion(&state->y, dy, state->gain, now);
 }
