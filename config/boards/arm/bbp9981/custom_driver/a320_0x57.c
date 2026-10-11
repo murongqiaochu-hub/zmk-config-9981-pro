@@ -24,6 +24,12 @@
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
+#ifdef CONFIG_A320_CONTACT_PROBE
+#include <zephyr/drivers/uart.h>
+#include <string.h>
+#include "trackpad_contact_probe.h"
+#endif
+
 
 LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 
@@ -68,6 +74,55 @@ BUILD_ASSERT(CONFIG_A320_POLL_INTERVAL_MS > 0, "A320 poll interval must be posit
 
 static void a320_poll_work_handler(struct k_work *work);
 static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
+
+#ifdef CONFIG_A320_CONTACT_PROBE
+static struct tp_probe_cache contact_probe;
+static bool probe_open;
+static uint32_t probe_at, probe_session;
+static uint8_t legacy_bytes[7];
+static uint32_t legacy_at, legacy_seq, legacy_errors;
+static int probe_read_one(void *ctx, uint8_t reg, uint8_t *out) {
+    /* Register-pointer/read transaction only; never writes configuration values. */
+    return i2c_reg_read_byte_dt((const struct i2c_dt_spec *)ctx, reg, out);
+}
+static void probe_legacy(const uint8_t *bytes, size_t size) {
+    if (!probe_open || size != sizeof(legacy_bytes)) { return; }
+    memcpy(legacy_bytes, bytes, sizeof(legacy_bytes));
+    legacy_at = k_uptime_get_32();
+    legacy_seq++;
+}
+static void probe_poll(const struct i2c_dt_spec *bus, int motion_gpio) {
+    const struct device *console = DEVICE_DT_GET(DT_NODELABEL(debug_cdc_acm_uart));
+    uint32_t dtr = 0, now = k_uptime_get_32();
+    if (!device_is_ready(console) || uart_line_ctrl_get(console, UART_LINE_CTRL_DTR, &dtr) || !dtr) {
+        if (probe_open) { tp_probe_reset(&contact_probe); }
+        probe_open = false;
+        return; /* No blocking wait and no extra sensor reads without the log port. */
+    }
+    if (!probe_open) {
+        tp_probe_reset(&contact_probe);
+        probe_open = true;probe_session++;
+        legacy_seq = legacy_errors = 0;legacy_at = now;
+        memset(legacy_bytes, 0, sizeof(legacy_bytes));
+        probe_at = now - CONFIG_A320_CONTACT_PROBE_INTERVAL_MS;
+        LOG_INF("TPBEGIN session=%u readonly=1 click=0 interval_ms=%u", probe_session,
+                (unsigned)CONFIG_A320_CONTACT_PROBE_INTERVAL_MS);
+    }
+    if ((uint32_t)(now - probe_at) < CONFIG_A320_CONTACT_PROBE_INTERVAL_MS) { return; }
+    probe_at = now;
+    struct tp_probe_sample f = tp_probe_sample(&contact_probe, now, probe_read_one, (void *)bus);
+    LOG_INF("TPID t=%u pid=%02x rev=%02x match=%d err=%d", now, f.pid, f.revision, f.matched, f.error);
+    LOG_INF("TPD t=%u valid=%d contact=%d engine=%02x cfg=%02x status=%02x quality=%u shutter=%u err=%d",
+            now, f.valid, f.contact, f.engine, f.fpd_control, f.motion, f.quality, f.shutter, f.error);
+    LOG_INF("TPL t=%u seq=%u age=%u errors=%u irq=%d b=%02x%02x%02x%02x%02x%02x%02x",
+            now, legacy_seq, (uint32_t)(now-legacy_at), legacy_errors, motion_gpio,
+            legacy_bytes[0],legacy_bytes[1],legacy_bytes[2],legacy_bytes[3],
+            legacy_bytes[4],legacy_bytes[5],legacy_bytes[6]);
+}
+#else
+#define probe_legacy(bytes, size) do { } while (0)
+#endif
+
 
 /* Bit 0 is physical Ctrl; upper bits record every speed transition.
  * Detect press+release between polls without clearing pointer state in the listener.
@@ -239,6 +294,10 @@ static void a320_poll_work_handler(struct k_work *work) {
         }
     }
 
+#ifdef CONFIG_A320_CONTACT_PROBE
+    const struct a320_dev_config *probe_cfg = data->dev->config;
+    probe_poll(&probe_cfg->i2c, pin_state);
+#endif
     k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
 }
 
@@ -253,16 +312,23 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
 
     ret = i2c_write_dt(&cfg->i2c, &reg, 1);
     if (ret < 0) {
+#ifdef CONFIG_A320_CONTACT_PROBE
+        if (probe_open) { legacy_errors++; }
+#endif
         LOG_ERR("i2c write 0x0A failed: %d", ret);
         return ret;
     }
 
     ret = i2c_burst_read_dt(&cfg->i2c, 0x0A, buf, sizeof(buf));
     if (ret < 0) {
+#ifdef CONFIG_A320_CONTACT_PROBE
+        if (probe_open) { legacy_errors++; }
+#endif
         LOG_ERR("i2c burst read from 0x0A failed: %d", ret);
         return ret;
     }
 
+    probe_legacy(buf, sizeof(buf));
     *dy = (int8_t)buf[1];
     *dx = (int8_t)buf[3];
     return 0;

@@ -29,4 +29,15 @@ config INPUT_A320_INIT_PRIORITY
     int "A320 Initialization Priority"
     default 90
 
+config A320_CONTACT_PROBE
+    bool "Read-only contact diagnostics (no tap-click output)"
+    depends on I2C && ZMK_USB && UART_LINE_CTRL
+    default n
+
+config A320_CONTACT_PROBE_INTERVAL_MS
+    int "Contact diagnostic polling interval in milliseconds"
+    depends on A320_CONTACT_PROBE
+    default 20
+    range 20 500
+
 endmenu

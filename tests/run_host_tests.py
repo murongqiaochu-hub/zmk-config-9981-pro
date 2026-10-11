@@ -11,7 +11,7 @@ STUBS = BUILD / 'include'
 HEADERS = [
     'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h',
     'zephyr/logging/log.h', 'zephyr/sys/atomic.h', 'zephyr/sys/byteorder.h',
-    'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h',
+    'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h', 'zephyr/drivers/uart.h',
     'zephyr/input/input.h', 'zephyr/dt-bindings/input/input-event-codes.h',
     'drivers/behavior.h', 'dt-bindings/zmk/keys.h',
     'zmk/behavior.h', 'zmk/keymap.h', 'zmk/event_manager.h', 'zmk/endpoints.h',
@@ -24,7 +24,7 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'combo', 'keyboard_led', 'trackpad_led']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'combo', 'keyboard_led', 'trackpad_led']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
     subprocess.run([cc, *extra, '-std=c11', '-Wall', '-Wextra', '-Werror',
