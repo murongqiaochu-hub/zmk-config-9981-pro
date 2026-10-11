@@ -23,6 +23,7 @@
 #include "a320_0x57.h"
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
+#include "trackpad_spike.h"
 #include "aa_sym_ctrl.h"
 
 LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
@@ -44,6 +45,7 @@ static uint16_t sample_cnt = 0;
 static uint32_t last_scroll_snapshot;
 static uint32_t last_read_time = 0;
 static struct tp_pointer_state cursor_motion;
+static struct tp_spike_state cursor_spike;
 
 /* =========================
  *   Data & Config structs
@@ -127,6 +129,7 @@ static void a320_poll_work_handler(struct k_work *work) {
         sample_cnt = 0;
         last_read_time = 0;
         tp_pointer_reset(&cursor_motion);
+        tp_spike_reset(&cursor_spike);
     }
     last_scroll_snapshot = snapshot;
     tp_pointer_prepare(&cursor_motion);
@@ -141,6 +144,7 @@ static void a320_poll_work_handler(struct k_work *work) {
             /* === Normal cursor movement while local scroll mode is off === */
             if (!scroll_mode) {
                 int16_t cursor_x, cursor_y;
+                tp_spike_apply(&cursor_spike, &dx, &dy, k_uptime_get_32());
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
                                   k_uptime_get_32(), &cursor_x, &cursor_y);
                 input_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
@@ -225,11 +229,16 @@ static void a320_poll_work_handler(struct k_work *work) {
             sample_cnt = 0;
             last_read_time = 0;
             tp_pointer_reset(&cursor_motion);
+            tp_spike_reset(&cursor_spike);
         }
     } else {
         atomic_set(&touched, 0);
         if (pin_state < 0) {
             tp_pointer_reset(&cursor_motion);
+            tp_spike_reset(&cursor_spike);
+        } else if (!scroll_mode) {
+            int16_t idle_x = 0, idle_y = 0;
+            tp_spike_apply(&cursor_spike, &idle_x, &idle_y, k_uptime_get_32());
         }
     }
 

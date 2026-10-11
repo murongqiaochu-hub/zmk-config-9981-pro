@@ -22,7 +22,7 @@ static void fixture(void) {
     memset(&scroll_keys, 0, sizeof(scroll_keys));
     atomic_set(&scroll_mode_snapshot, 0); last_scroll_snapshot = 0;
     atomic_set(&cursor_speed_snapshot, 0); modifier_refs = 0;
-    atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
+    atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion); tp_spike_reset(&cursor_spike);
     sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
     fake_now = 1000; pointer_brightness = 40; brightness_reads = 0;
     fake_gpio_state = 0; fake_i2c_error = 0; burst_error = 0;
@@ -186,7 +186,29 @@ static void test_wheel_unchanged(void) {
     }
     puts("PASS Wheel unchanged: original Ctrl integer halving, zero/window behavior, all sensor deltas and every gain boundary +/-1");
 }
+static void test_spike_pipeline(void) {
+    for(int held=0;held<=1;held++){
+        fixture();if(held){key(37,true,900);}
+        for(unsigned i=0;i<4;i++){idle(1000+i*10);}
+        poll(20,0,1040);expect_xy(12,0); /* Only this sample is halved. */
+        poll(20,0,1050);expect_xy(24,0); /* RAW-speed history preserves sustained fast motion. */
+        poll(0,0,1060);expect_xy(0,0);idle(1070);
+        assert(cursor_motion.gain==480 && brightness_reads==0);
+    }
+    fixture();for(unsigned i=0;i<4;i++){poll(0,0,1000+i*10);}
+    key(41,true,1031);key(41,false,1032);poll(20,0,1040);expect_xy(24,0);
+    for(unsigned fault=0;fault<3;fault++){
+        fixture();for(unsigned i=0;i<4;i++){idle(1000+i*10);}
+        fake_now=1040;fake_gpio_state=0;
+        if(fault==0){fake_i2c_error=-EIO;}if(fault==1){burst_error=-EIO;}
+        if(fault==2){fake_gpio_state=-EIO;}
+        a320_poll_work_handler(&sensor_data.poll_work.work);
+        assert(cursor_spike.count==0);fake_i2c_error=burst_error=0;
+        poll(20,0,1050);expect_xy(24,0);
+    }
+    puts("PASS Spike actual pipeline: GPIO/zero arming, one sample limit, sustained fast bypass, Ctrl independence, no tail, mode/fault reset");
+}
 int main(void) {
-    test_conservation(); test_idle_reverse(); test_transitions_faults(); test_wheel_unchanged();
+    test_conservation(); test_idle_reverse(); test_transitions_faults(); test_wheel_unchanged(); test_spike_pipeline();
     return 0;
 }
