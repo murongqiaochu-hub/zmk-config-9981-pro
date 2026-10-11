@@ -15,7 +15,7 @@ HEADERS = [
     'zephyr/input/input.h', 'zephyr/dt-bindings/input/input-event-codes.h',
     'drivers/behavior.h', 'dt-bindings/zmk/keys.h',
     'zmk/behavior.h', 'zmk/keymap.h', 'zmk/event_manager.h', 'zmk/endpoints.h',
-    'zmk/activity.h', 'zmk/backlight.h', 'zmk/rgb_underglow.h',
+    'zmk/activity.h', 'zmk/backlight.h', 'zmk/rgb_underglow.h', 'zmk/usb.h',
     'zmk/events/keycode_state_changed.h', 'zmk/events/position_state_changed.h',
     'zmk/events/activity_state_changed.h',
 ]

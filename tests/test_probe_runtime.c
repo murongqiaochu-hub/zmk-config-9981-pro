@@ -5,6 +5,8 @@
 static unsigned register_reads;
 static uint8_t probe_registers[256];
 static uint32_t test_dtr;
+static bool test_usb_ready=true;
+static bool zmk_usb_is_hid_ready(void) { return test_usb_ready; }
 static int test_uart_error;
 static int uart_line_ctrl_get(const struct device *dev,int ctrl,uint32_t *out) {
     (void)dev;assert(ctrl==UART_LINE_CTRL_DTR);*out=test_dtr;return test_uart_error;
@@ -29,6 +31,8 @@ int main(void) {
     test_uart_error=-5;idle(1070);assert(register_reads==22&&!probe_open&&!contact_probe.checked);
     test_uart_error=0;idle(UINT32_MAX-10);assert(register_reads==30&&probe_session==3);
     idle(9);assert(register_reads==36); /* 20ms across rollover; no forced re-identification */
-    puts("PASS Diagnostic runtime: source68 pointer suite unchanged with probe ON, no reads when DTR closed/error, independent idle polling, 20ms cadence, raw frame snapshot, reopen and rollover; zero click generation");
+    test_usb_ready=false;idle(29);assert(register_reads==36&&!probe_open&&!contact_probe.checked);
+    test_usb_ready=true;idle(49);assert(register_reads==44&&probe_session==4); /* Stale DTR cannot keep probe running after USB disconnect. */
+    puts("PASS Diagnostic runtime: source68 pointer suite unchanged with probe ON, no reads when DTR closed/error or USB disconnected, independent idle polling, 20ms cadence, raw frame snapshot, reopen and rollover; zero click generation");
     return 0;
 }

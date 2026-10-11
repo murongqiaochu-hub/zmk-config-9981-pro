@@ -26,6 +26,7 @@
 #include "aa_sym_ctrl.h"
 #ifdef CONFIG_A320_CONTACT_PROBE
 #include <zephyr/drivers/uart.h>
+#include <zmk/usb.h>
 #include <string.h>
 #include "trackpad_contact_probe.h"
 #endif
@@ -94,7 +95,8 @@ static void probe_legacy(const uint8_t *bytes, size_t size) {
 static void probe_poll(const struct i2c_dt_spec *bus, int motion_gpio) {
     const struct device *console = DEVICE_DT_GET(DT_NODELABEL(debug_cdc_acm_uart));
     uint32_t dtr = 0, now = k_uptime_get_32();
-    if (!device_is_ready(console) || uart_line_ctrl_get(console, UART_LINE_CTRL_DTR, &dtr) || !dtr) {
+    if (!zmk_usb_is_hid_ready() || !device_is_ready(console) ||
+        uart_line_ctrl_get(console, UART_LINE_CTRL_DTR, &dtr) || !dtr) {
         if (probe_open) { tp_probe_reset(&contact_probe); }
         probe_open = false;
         return; /* No blocking wait and no extra sensor reads without the log port. */
