@@ -51,4 +51,13 @@ config A320_BUS_COMPARE_INTERVAL_MS
     default 500
     range 200 2000
 
+config A320_TAP_OUTPUT
+    bool "Compile real tap output integration (unverified contact stays disabled)"
+    depends on ZMK_POINTING && I2C && GPIO && (ZMK_USB || ZMK_BLE)
+    default n
+    help
+      Compile the real verified-contact/FSM/output bridge and SDK snapshots.
+      This is NOT confirmation of a 9380 contact protocol. Unknown providers
+      remain disabled and produce no synthetic clicks.
+
 endmenu

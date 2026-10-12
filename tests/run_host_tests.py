@@ -24,14 +24,18 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'combo', 'keyboard_led', 'trackpad_led']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'combo', 'keyboard_led', 'trackpad_led']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
+    special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
+    include = ROOT / 'tests' / special[name] if name in special else STUBS
+    sources = [str(ROOT / 'tests' / ('test_' + name + '.c'))]
+    if name == 'tap_pipeline':
+        sources.append(str(ROOT / 'config/boards/arm/bbp9981/custom_driver/trackpad_tap_pipeline.c'))
     subprocess.run([cc, *extra, '-std=c11', '-Wall', '-Wextra', '-Werror',
                     '-Wno-unused-parameter', '-Wno-unused-function', '-Wno-unused-variable',
                     '-fsanitize=undefined', '-fno-sanitize-recover=all',
-                    '-I', str(STUBS), str(ROOT / 'tests' / ('test_' + name + '.c')),
-                    '-o', str(exe)], check=True)
+                    '-I', str(include), *sources, '-o', str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
 
 # Ensure both stock keymaps preserve every other key and all other layers.

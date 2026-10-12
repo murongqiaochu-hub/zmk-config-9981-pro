@@ -24,6 +24,9 @@
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
+#ifdef CONFIG_A320_TAP_OUTPUT
+#include "trackpad_tap_pipeline.h"
+#endif
 #ifdef CONFIG_A320_CONTACT_PROBE
 #include <zephyr/drivers/uart.h>
 #include <zmk/usb.h>
@@ -211,6 +214,10 @@ static void a320_poll_work_handler(struct k_work *work) {
     const struct device *dev = data->dev;
 
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
+#ifdef CONFIG_A320_TAP_OUTPUT
+    int32_t tap_dx=0,tap_dy=0;
+    bool tap_motion_fault=pin_state<0;
+#endif
 
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
@@ -237,6 +244,9 @@ static void a320_poll_work_handler(struct k_work *work) {
         int16_t dx = 0, dy = 0;
 
         if (a320_read_motion(dev, &dx, &dy) == 0) {
+#ifdef CONFIG_A320_TAP_OUTPUT
+            tap_dx=dx;tap_dy=dy; /* RAW, before gain/scroll changes. */
+#endif
             atomic_set(&touched, 1);
 
             /* === Normal cursor movement while local scroll mode is off === */
@@ -320,6 +330,9 @@ static void a320_poll_work_handler(struct k_work *work) {
                 }
             }
         } else {
+#ifdef CONFIG_A320_TAP_OUTPUT
+            tap_motion_fault=true;
+#endif
             /* Do not leave touch/scroll residue latched after a sensor read failure. */
             atomic_set(&touched, 0);
             sum_dx = sum_dy = 0;
@@ -337,6 +350,9 @@ static void a320_poll_work_handler(struct k_work *work) {
 #ifdef CONFIG_A320_CONTACT_PROBE
     const struct a320_dev_config *probe_cfg = data->dev->config;
     probe_poll(&probe_cfg->i2c, pin_state);
+#endif
+#ifdef CONFIG_A320_TAP_OUTPUT
+    tp_tap_pipeline_poll(k_uptime_get_32(),tap_dx,tap_dy,tap_motion_fault,scroll_mode,snapshot);
 #endif
     k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
 }
@@ -408,6 +424,9 @@ static int a320_init(const struct device *dev) {
     }
 
     data->dev = dev;
+#ifdef CONFIG_A320_TAP_OUTPUT
+    tp_tap_pipeline_init();
+#endif
 
     k_work_init_delayable(&data->poll_work, a320_poll_work_handler);
     k_work_schedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));

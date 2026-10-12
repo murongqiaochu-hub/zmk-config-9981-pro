@@ -17,7 +17,7 @@ jobs:
     needs: regression
     uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
   deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/tap-input-validation-20261011_231412'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/tap-output-integration-20261012_081203'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -46,5 +46,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add "firmware-delivery/$SOURCE_SHA"
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: preserve verified read-only transaction-comparison firmware [skip ci]'
-          git push origin HEAD:codex/tap-input-validation-20261011_231412
+          git commit -m 'chore: preserve verified inactive tap-output integration firmware [skip ci]'
+          git push origin HEAD:codex/tap-output-integration-20261012_081203
