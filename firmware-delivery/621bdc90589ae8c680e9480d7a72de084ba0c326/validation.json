@@ -1,0 +1,12 @@
+{
+  "bytes": 560128,
+  "blocks": 1094,
+  "family": "0xada52840",
+  "address_start": "0x1000",
+  "address_end_exclusive": "0x45600",
+  "sha256": "82ba7684b1287a494599d6f2932a705cf78188e91e99cc41b34ba438203adec6",
+  "source_commit": "621bdc90589ae8c680e9480d7a72de084ba0c326",
+  "source_run": 38246933257,
+  "file": "bbp9981-zmk.uf2",
+  "device_tested": false
+}
