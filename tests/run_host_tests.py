@@ -60,3 +60,4 @@ for relative in paths:
 assert updated[0] == updated[1]
 print('PASS Keymaps: exactly one binding changed per keymap, all standalone SYM/aA and arrow bindings preserved')
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
+subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
