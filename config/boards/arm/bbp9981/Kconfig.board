@@ -51,4 +51,25 @@ config A320_BUS_COMPARE_INTERVAL_MS
     default 500
     range 200 2000
 
+config A320_RAW_CAPTURE
+    bool "Bounded original 0A raw capture, including motion-idle reads (no clicks)"
+    depends on I2C && ZMK_USB && UART_LINE_CTRL
+    default n
+    help
+      Read the factory 0A seven-byte packet even while Motion is high.
+      Extra reads only occur during a USB debug CDC DTR-triggered window.
+      This observes raw transactions, not confirmed finger contact.
+
+config A320_RAW_CAPTURE_INTERVAL_MS
+    int "Raw idle capture interval"
+    depends on A320_RAW_CAPTURE
+    default 20
+    range 20 100
+
+config A320_RAW_CAPTURE_WINDOW_MS
+    int "Hard capture window"
+    depends on A320_RAW_CAPTURE
+    default 20000
+    range 2000 20000
+
 endmenu

@@ -24,7 +24,13 @@
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
-#ifdef CONFIG_A320_CONTACT_PROBE
+#ifdef CONFIG_A320_RAW_CAPTURE
+#include <zephyr/drivers/uart.h>
+#include <zmk/usb.h>
+#include "trackpad_raw_capture.h"
+#endif
+/* Raw mode must never execute the old multi-register/contact/bus probes. */
+#if defined(CONFIG_A320_CONTACT_PROBE) && !defined(CONFIG_A320_RAW_CAPTURE)
 #include <zephyr/drivers/uart.h>
 #include <zmk/usb.h>
 #include <string.h>
@@ -78,8 +84,64 @@ BUILD_ASSERT(CONFIG_A320_POLL_INTERVAL_MS > 0, "A320 poll interval must be posit
 
 static void a320_poll_work_handler(struct k_work *work);
 static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
+static int a320_read_raw_frame(const struct device *dev, uint8_t *buf);
 
-#ifdef CONFIG_A320_CONTACT_PROBE
+#ifdef CONFIG_A320_RAW_CAPTURE
+BUILD_ASSERT(CONFIG_A320_RAW_CAPTURE_INTERVAL_MS > 0, "Raw interval must be positive");
+BUILD_ASSERT(CONFIG_A320_RAW_CAPTURE_WINDOW_MS > 0, "Raw window must be positive");
+static struct tp_raw_capture raw_capture;
+
+static void raw_poll_begin(void) {
+    const struct device *console = DEVICE_DT_GET(DT_NODELABEL(debug_cdc_acm_uart));
+    uint32_t dtr = 0, now = k_uptime_get_32();
+    /* Query independent debug CDC, not the USB UART bridge. Unknown is not low. */
+    int error = device_is_ready(console) ?
+        uart_line_ctrl_get(console, UART_LINE_CTRL_DTR, &dtr) : -ENODEV;
+    struct tp_raw_gate_event event = tp_raw_capture_poll_begin(&raw_capture, now,
+        zmk_usb_is_hid_ready(), error, dtr != 0, CONFIG_A320_RAW_CAPTURE_WINDOW_MS);
+    if (event.event == TP_RAW_BEGIN) {
+        LOG_INF("TPRAW_MODE readonly=1 click=0 window_ms=%u interval_ms=%u",
+                (unsigned)CONFIG_A320_RAW_CAPTURE_WINDOW_MS,
+                (unsigned)CONFIG_A320_RAW_CAPTURE_INTERVAL_MS);
+        LOG_INF("CAP_BEGIN session=%u t=%u", raw_capture.session, now);
+    } else if (event.event == TP_RAW_END) {
+        LOG_INF("CAP_END session=%u t=%u reason=%s attempt=%u seq=%u",
+                raw_capture.session, now, tp_raw_reason_name(event.reason),
+                raw_capture.attempt, raw_capture.seq);
+    }
+}
+
+static void raw_record_transaction(const uint8_t *buf, int error, int irq,
+                                   enum tp_raw_source source) {
+    uint32_t now = k_uptime_get_32();
+    if (!tp_raw_capture_record(&raw_capture, now, error)) { return; }
+    if (error != 0) {
+        LOG_INF("TPR session=%u attempt=%u seq=%u t=%u irq=%d obtained=0 err=%d source=%s b=na raw_dx=na raw_dy=na",
+                raw_capture.session, raw_capture.attempt, raw_capture.seq, now,
+                irq, error, tp_raw_source_name(source));
+        return;
+    }
+    /* Snapshot raw int8 deltas before cursor gain, Ctrl halving or scroll. */
+    LOG_INF("TPR session=%u attempt=%u seq=%u t=%u irq=%d obtained=1 err=0 source=%s b=%02x%02x%02x%02x%02x%02x%02x raw_dx=%d raw_dy=%d",
+            raw_capture.session, raw_capture.attempt, raw_capture.seq, now, irq,
+            tp_raw_source_name(source), buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6],
+            (int)(int8_t)buf[3], (int)(int8_t)buf[1]);
+}
+
+static void raw_poll_idle(const struct device *dev, int irq, bool motion_read_this_poll) {
+    if (!tp_raw_capture_idle_due(&raw_capture, k_uptime_get_32(), irq,
+            motion_read_this_poll, CONFIG_A320_RAW_CAPTURE_INTERVAL_MS)) { return; }
+    uint8_t buf[TP_RAW_FRAME_SIZE];
+    int error = a320_read_raw_frame(dev, buf);
+    raw_record_transaction(buf, error, irq, TP_RAW_IDLE);
+    /* Do not feed these bytes into cursor, wheel, touch, or HID. Extra idle reads
+     * can change read-clear timing and consume racing deltas only in this window.
+     * A new transaction does not prove new silicon data or physical contact.
+     */
+}
+#endif
+
+#if defined(CONFIG_A320_CONTACT_PROBE) && !defined(CONFIG_A320_RAW_CAPTURE)
 static struct tp_probe_cache contact_probe;
 static bool probe_open;
 static uint32_t probe_at, probe_session;
@@ -210,6 +272,10 @@ static void a320_poll_work_handler(struct k_work *work) {
     struct a320_data *data = CONTAINER_OF(dwork, struct a320_data, poll_work);
     const struct device *dev = data->dev;
 
+#ifdef CONFIG_A320_RAW_CAPTURE
+    raw_poll_begin(); /* Gate first, so this poll's normal read is captured too. */
+    bool raw_motion_read_this_poll = false;
+#endif
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
 
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
@@ -235,7 +301,9 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     if (pin_state == 0) {
         int16_t dx = 0, dy = 0;
-
+#ifdef CONFIG_A320_RAW_CAPTURE
+        raw_motion_read_this_poll = true;
+#endif
         if (a320_read_motion(dev, &dx, &dy) == 0) {
             atomic_set(&touched, 1);
 
@@ -334,7 +402,10 @@ static void a320_poll_work_handler(struct k_work *work) {
         }
     }
 
-#ifdef CONFIG_A320_CONTACT_PROBE
+#ifdef CONFIG_A320_RAW_CAPTURE
+    raw_poll_idle(dev, pin_state, raw_motion_read_this_poll);
+#endif
+#if defined(CONFIG_A320_CONTACT_PROBE) && !defined(CONFIG_A320_RAW_CAPTURE)
     const struct a320_dev_config *probe_cfg = data->dev->config;
     probe_poll(&probe_cfg->i2c, pin_state);
 #endif
@@ -344,30 +415,40 @@ static void a320_poll_work_handler(struct k_work *work) {
 /* =========================
  *   I2C read sequence
  * ========================= */
-static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) {
+static int a320_read_raw_frame(const struct device *dev, uint8_t *buf) {
     const struct a320_dev_config *cfg = dev->config;
-    uint8_t buf[7] = {0};
     uint8_t reg = 0x0A;
     int ret;
 
     ret = i2c_write_dt(&cfg->i2c, &reg, 1);
     if (ret < 0) {
-#ifdef CONFIG_A320_CONTACT_PROBE
+#if defined(CONFIG_A320_CONTACT_PROBE) && !defined(CONFIG_A320_RAW_CAPTURE)
         if (probe_open) { legacy_errors++; }
 #endif
         LOG_ERR("i2c write 0x0A failed: %d", ret);
         return ret;
     }
 
-    ret = i2c_burst_read_dt(&cfg->i2c, 0x0A, buf, sizeof(buf));
+    /* Preserve the vendor's exact pointer0A write (STOP), then burst(0A,7). */
+    ret = i2c_burst_read_dt(&cfg->i2c, 0x0A, buf, 7);
     if (ret < 0) {
-#ifdef CONFIG_A320_CONTACT_PROBE
+#if defined(CONFIG_A320_CONTACT_PROBE) && !defined(CONFIG_A320_RAW_CAPTURE)
         if (probe_open) { legacy_errors++; }
 #endif
         LOG_ERR("i2c burst read from 0x0A failed: %d", ret);
         return ret;
     }
 
+    return 0;
+}
+
+static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) {
+    uint8_t buf[7] = {0};
+    int ret = a320_read_raw_frame(dev, buf);
+#ifdef CONFIG_A320_RAW_CAPTURE
+    raw_record_transaction(buf, ret, 0, TP_RAW_MOTION);
+#endif
+    if (ret < 0) { return ret; }
     probe_legacy(buf, sizeof(buf));
     *dy = (int8_t)buf[1];
     *dx = (int8_t)buf[3];
