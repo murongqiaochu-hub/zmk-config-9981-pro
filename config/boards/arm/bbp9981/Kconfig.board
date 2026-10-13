@@ -26,7 +26,7 @@ config A320
 
 config A320_DIAGNOSTIC_CAPTURE
     bool "A320 raw diagnostic capture"
-    depends on A320
+    depends on I2C && GPIO
     default n
     help
       Log only existing motion-triggered A320 reads for temporary diagnostics.
