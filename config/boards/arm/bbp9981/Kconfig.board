@@ -24,6 +24,13 @@ config A320
     help
       Projected capacitive trackpad/touchscreen controller.
 
+config A320_DIAGNOSTIC_CAPTURE
+    bool "A320 raw diagnostic capture"
+    depends on A320
+    default n
+    help
+      Log only existing motion-triggered A320 reads for temporary diagnostics.
+
 config INPUT_A320_INIT_PRIORITY
     int "A320 Initialization Priority"
     default 90

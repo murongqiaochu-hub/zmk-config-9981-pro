@@ -17,6 +17,7 @@
 #include <zephyr/sys/byteorder.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <zmk/event_manager.h>
 #include <zmk/events/position_state_changed.h>
 #include <zephyr/dt-bindings/input/input-event-codes.h>
@@ -64,8 +65,22 @@ struct a320_data {
 #define CONFIG_A320_POLL_INTERVAL_MS 10
 #endif
 
+enum a320_read_phase {
+    A320_READ_PHASE_NONE = 0,
+    A320_READ_PHASE_REGISTER_WRITE = 1,
+    A320_READ_PHASE_BURST_READ = 2,
+};
+
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+static uint32_t a320_diag_read_sequence;
+static uint32_t a320_diag_last_state_ms;
+static int a320_diag_last_gpio;
+static bool a320_diag_gpio_seen;
+#endif
+
 static void a320_poll_work_handler(struct k_work *work);
-static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
+static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy,
+                            uint8_t raw[7], uint8_t *failed_phase);
 
 static bool ctrl_pressed = false;
 
@@ -117,6 +132,19 @@ static void a320_poll_work_handler(struct k_work *work) {
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
 
     bool scroll_mode = tp_scroll_mode_active();
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+    uint32_t diag_now_ms = k_uptime_get_32();
+    if (!a320_diag_gpio_seen || pin_state != a320_diag_last_gpio ||
+        (uint32_t)(diag_now_ms - a320_diag_last_state_ms) >= 1000U) {
+        int gpio_err = pin_state < 0 ? pin_state : 0;
+        LOG_INF("DIAG gpio uptime_ms=%u gpio=%d gpio_err=%d raw=none scroll=%u last_seq=%u",
+                (unsigned int)diag_now_ms, pin_state, gpio_err, scroll_mode ? 1U : 0U,
+                (unsigned int)a320_diag_read_sequence);
+        a320_diag_gpio_seen = true;
+        a320_diag_last_gpio = pin_state;
+        a320_diag_last_state_ms = diag_now_ms;
+    }
+#endif
 
     /* Only this poll worker owns the accumulated motion state. */
     if (scroll_mode != last_scroll_mode) {
@@ -129,8 +157,28 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     if (pin_state == 0) {
         int16_t dx = 0, dy = 0;
+        uint8_t raw[7] = {0};
+        uint8_t failed_phase = A320_READ_PHASE_NONE;
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+        uint32_t read_seq = ++a320_diag_read_sequence;
+        uint32_t read_ms = k_uptime_get_32();
+        uint32_t read_start_cycles = k_cycle_get_32();
+#endif
+        int read_ret = a320_read_motion(dev, &dx, &dy, raw, &failed_phase);
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+        uint32_t read_elapsed_us =
+            k_cyc_to_us_floor32(k_cycle_get_32() - read_start_cycles);
+#endif
 
-        if (a320_read_motion(dev, &dx, &dy) == 0) {
+        if (read_ret == 0) {
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+            LOG_INF("DIAG sample seq=%u uptime_ms=%u gpio=%d gpio_err=0 read=ok read_elapsed_us=%u raw=%02x,%02x,%02x,%02x,%02x,%02x,%02x dx=%d dy=%d scroll=%u",
+                    (unsigned int)read_seq, (unsigned int)read_ms, pin_state,
+                    (unsigned int)read_elapsed_us,
+                    (unsigned int)raw[0], (unsigned int)raw[1], (unsigned int)raw[2],
+                    (unsigned int)raw[3], (unsigned int)raw[4], (unsigned int)raw[5],
+                    (unsigned int)raw[6], (int)dx, (int)dy, scroll_mode ? 1U : 0U);
+#endif
             touched = true;
 
             if (ctrl_pressed) {
@@ -215,6 +263,13 @@ static void a320_poll_work_handler(struct k_work *work) {
                     input_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);
                 }
             }
+        } else {
+#if defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) && CONFIG_A320_DIAGNOSTIC_CAPTURE
+            LOG_WRN("DIAG sample seq=%u uptime_ms=%u gpio=%d gpio_err=0 read=error phase=%u rc=%d read_elapsed_us=%u raw=none scroll=%u",
+                    (unsigned int)read_seq, (unsigned int)read_ms, pin_state,
+                    (unsigned int)failed_phase, read_ret, (unsigned int)read_elapsed_us,
+                    scroll_mode ? 1U : 0U);
+#endif
         }
     } else {
         touched = false;
@@ -226,24 +281,33 @@ static void a320_poll_work_handler(struct k_work *work) {
 /* =========================
  *   I2C read sequence
  * ========================= */
-static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) {
+static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy,
+                            uint8_t raw[7], uint8_t *failed_phase) {
     const struct a320_dev_config *cfg = dev->config;
     uint8_t buf[7] = {0};
     uint8_t reg = 0x0A;
     int ret;
 
+    *failed_phase = A320_READ_PHASE_REGISTER_WRITE;
     ret = i2c_write_dt(&cfg->i2c, &reg, 1);
     if (ret < 0) {
+#if !defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) || !CONFIG_A320_DIAGNOSTIC_CAPTURE
         LOG_ERR("i2c write 0x0A failed: %d", ret);
+#endif
         return ret;
     }
 
+    *failed_phase = A320_READ_PHASE_BURST_READ;
     ret = i2c_burst_read_dt(&cfg->i2c, 0x0A, buf, sizeof(buf));
     if (ret < 0) {
+#if !defined(CONFIG_A320_DIAGNOSTIC_CAPTURE) || !CONFIG_A320_DIAGNOSTIC_CAPTURE
         LOG_ERR("i2c burst read from 0x0A failed: %d", ret);
+#endif
         return ret;
     }
 
+    memcpy(raw, buf, sizeof(buf));
+    *failed_phase = A320_READ_PHASE_NONE;
     *dy = (int8_t)buf[1];
     *dx = (int8_t)buf[3];
     return 0;
