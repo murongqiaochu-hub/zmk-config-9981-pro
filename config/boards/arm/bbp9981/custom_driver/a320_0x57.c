@@ -27,6 +27,10 @@
 #ifdef CONFIG_A320_TAP_OUTPUT
 #include "trackpad_tap_pipeline.h"
 #endif
+#ifdef CONFIG_A320_MICROTAP
+#include "trackpad_microtap_runtime.h"
+extern void tp_microtap_shoulder_motion(uint32_t now);
+#endif
 #ifdef CONFIG_A320_CONTACT_PROBE
 #include <zephyr/drivers/uart.h>
 #include <zmk/usb.h>
@@ -208,6 +212,18 @@ ZMK_SUBSCRIPTION(a320_ctrl_listener, zmk_position_state_changed);
  *   Work handler (polling)
  * ========================= */
 
+#ifdef CONFIG_A320_MICROTAP
+struct micro_cursor_context { const struct device *dev; bool slow; };
+static void micro_emit_cursor(void *opaque, int16_t dx, int16_t dy, uint32_t at_ms) {
+    const struct micro_cursor_context *ctx = opaque;
+    int16_t x, y;
+    /* Only committed raw frames reach the ORIGINAL fractional pointer state.
+     * A discarded gesture has never spent a fraction or moved the host cursor. */
+    tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy, ctx->slow, at_ms, &x, &y);
+    input_report_rel(ctx->dev, INPUT_REL_X, x, false, K_FOREVER);
+    input_report_rel(ctx->dev, INPUT_REL_Y, y, true, K_FOREVER);
+}
+#endif
 static void a320_poll_work_handler(struct k_work *work) {
     struct k_work_delayable *dwork = CONTAINER_OF(work, struct k_work_delayable, work);
     struct a320_data *data = CONTAINER_OF(dwork, struct a320_data, poll_work);
@@ -238,7 +254,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     last_scroll_snapshot = snapshot;
     last_cursor_speed_snapshot = speed;
     tp_pointer_prepare(&cursor_motion, slow_pointer);
+#ifndef CONFIG_A320_MICROTAP
     tp_pointer_expire(&cursor_motion, k_uptime_get_32());
+#endif
 
     if (pin_state == 0) {
         int16_t dx = 0, dy = 0;
@@ -251,11 +269,17 @@ static void a320_poll_work_handler(struct k_work *work) {
 
             /* === Normal cursor movement while local scroll mode is off === */
             if (!scroll_mode) {
+#ifdef CONFIG_A320_MICROTAP
+                if (dx != 0 || dy != 0) {
+                    tp_microtap_shoulder_motion(k_uptime_get_32());
+                }
+#else
                 int16_t cursor_x, cursor_y;
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
                                   slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
                 input_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
                 input_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
+#endif
             }
 
             /* === Scroll mode while aA is held or latched on === */
@@ -351,7 +375,20 @@ static void a320_poll_work_handler(struct k_work *work) {
     const struct a320_dev_config *probe_cfg = data->dev->config;
     probe_poll(&probe_cfg->i2c, pin_state);
 #endif
-#ifdef CONFIG_A320_TAP_OUTPUT
+#ifdef CONFIG_A320_MICROTAP
+    struct micro_cursor_context cursor_ctx = {.dev = dev, .slow = slow_pointer};
+    tp_microtap_runtime_poll(k_uptime_get_32(), (int16_t)tap_dx, (int16_t)tap_dy,
+                            !tap_motion_fault, scroll_mode, snapshot, speed,
+                            micro_emit_cursor, &cursor_ctx);
+    if (!scroll_mode && pin_state == 0 && !tap_motion_fault && tap_dx == 0 && tap_dy == 0 &&
+        !tp_microtap_runtime_enabled() && !tp_microtap_runtime_pending()) {
+        /* Preserve the stock successful zero-frame report while the feature is OFF. */
+        micro_emit_cursor(&cursor_ctx, 0, 0, k_uptime_get_32());
+    }
+    if (!tp_microtap_runtime_pending()) {
+        tp_pointer_expire(&cursor_motion, k_uptime_get_32());
+    }
+#elif defined(CONFIG_A320_TAP_OUTPUT)
     tp_tap_pipeline_poll(k_uptime_get_32(),tap_dx,tap_dy,tap_motion_fault,scroll_mode,snapshot);
 #endif
     k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
@@ -424,7 +461,9 @@ static int a320_init(const struct device *dev) {
     }
 
     data->dev = dev;
-#ifdef CONFIG_A320_TAP_OUTPUT
+#ifdef CONFIG_A320_MICROTAP
+    tp_microtap_runtime_init();
+#elif defined(CONFIG_A320_TAP_OUTPUT)
     tp_tap_pipeline_init();
 #endif
 

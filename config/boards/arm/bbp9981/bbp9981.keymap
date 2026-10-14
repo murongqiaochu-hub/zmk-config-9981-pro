@@ -26,6 +26,11 @@
 
 / {
     behaviors {
+        microtap_shoulder: microtap_shoulder {
+            compatible = "zmk,behavior-microtap-shoulder";
+            #binding-cells = <0>;
+            display-name = "Left shoulder: triple motion-click toggle";
+        };
         aa_sym_ctrl: aa_sym_ctrl {
             compatible = "zmk,behavior-aa-sym-ctrl";
             #binding-cells = <0>;
@@ -113,7 +118,7 @@
 //        |         aA     |         0           |           SPACE              |         SYM         |        aA          |
 //        -----------------------------------------------------------------------------------------------------------------
 
-                 &mkp LCLK                                                                                          &mkp RCLK
+                 &microtap_shoulder                                                                                 &mkp RCLK
     &kp CLCK                &kp LGUI                            &mkp LCLK                          &mt ESC K_BACK                    &mt F4 TAB
     &kp Q        &kp W      &kp E       &kp R     &kp T         &kp Y             &kp U            &kp I            &kp O            &kp P
     &kp A        &kp S      &kp D       &kp F     &kp G         &kp H             &kp J            &kp K            &kp L            &kp BSPC

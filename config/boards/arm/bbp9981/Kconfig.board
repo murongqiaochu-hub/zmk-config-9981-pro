@@ -52,12 +52,21 @@ config A320_BUS_COMPARE_INTERVAL_MS
     range 200 2000
 
 config A320_TAP_OUTPUT
-    bool "Compile real tap output integration (unverified contact stays disabled)"
+    bool "Compile mouse click bridge and transport snapshots"
     depends on ZMK_POINTING && I2C && GPIO && (ZMK_USB || ZMK_BLE)
     default n
     help
       Compile the real verified-contact/FSM/output bridge and SDK snapshots.
       This is NOT confirmation of a 9380 contact protocol. Unknown providers
       remain disabled and produce no synthetic clicks.
+
+config A320_MICROTAP
+    bool "Experimental opt-in motion gesture with left shoulder triple toggle"
+    depends on A320_TAP_OUTPUT
+    default n
+    help
+      Compile the micro-motion gesture buffer. Runtime is OFF after reboot.
+      Default-layer left shoulder triple tap toggles it without a sensor probe.
+      This is a motion heuristic, not verified finger contact recognition.
 
 endmenu

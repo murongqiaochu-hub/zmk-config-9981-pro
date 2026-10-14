@@ -17,14 +17,16 @@ HEADERS = [
     'zmk/behavior.h', 'zmk/keymap.h', 'zmk/event_manager.h', 'zmk/endpoints.h',
     'zmk/activity.h', 'zmk/backlight.h', 'zmk/rgb_underglow.h', 'zmk/usb.h',
     'zmk/events/keycode_state_changed.h', 'zmk/events/position_state_changed.h',
-    'zmk/events/activity_state_changed.h',
+    'zmk/events/activity_state_changed.h', 'zmk/events/endpoint_changed.h',
+    'zmk/events/layer_state_changed.h',
+    'zmk/hid.h', 'dt-bindings/zmk/mouse.h',
 ]
 for relative in HEADERS:
     p = STUBS / relative
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
     special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
@@ -55,9 +57,10 @@ for relative in paths:
     after = layers((ROOT / relative).read_text())
     assert before['upper_layer'][40] == '&to DEFAULT'
     before['upper_layer'][40] = '&aa_sym_ctrl'
+    before['default_layer'][0] = '&microtap_shoulder'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: exactly one binding changed per keymap, all standalone SYM/aA and arrow bindings preserved')
+print('PASS Keymaps: only default left shoulder and source68 SYM Ctrl differ from original, all other bindings preserved')
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

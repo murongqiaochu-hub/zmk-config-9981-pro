@@ -1,0 +1,3 @@
+description: Default left shoulder mouse click with triple-tap micro-motion toggle
+compatible: "zmk,behavior-microtap-shoulder"
+include: zero_param.yaml

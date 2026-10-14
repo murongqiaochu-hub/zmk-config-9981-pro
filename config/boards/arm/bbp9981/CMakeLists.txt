@@ -10,6 +10,10 @@ if(CONFIG_BOARD_BBP9981)
     zephyr_library_include_directories(${ZEPHYR_BASE}/drivers)
     zephyr_library_include_directories(${CMAKE_CURRENT_SOURCE_DIR}/custom_driver)
     zephyr_library_include_directories(${CMAKE_SOURCE_DIR}/include)
+    if(CONFIG_A320_MICROTAP)
+        zephyr_library_sources(custom_driver/trackpad_microtap_runtime.c
+                               custom_driver/behavior_microtap_shoulder.c)
+    endif()
     if(CONFIG_A320_TAP_OUTPUT)
         zephyr_library_sources(custom_driver/trackpad_tap_output.c custom_driver/trackpad_tap_pipeline.c)
         # Source-specific extension, no SDK checkout edits or global force-include.
