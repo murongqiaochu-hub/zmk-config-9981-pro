@@ -282,6 +282,9 @@ int tp_tap_output_init(void) {
 }
 
 int tp_tap_output_submit(void) {
+#ifdef CONFIG_A320_RAW_CAPTURE
+    return -EPERM; /* Independent final barrier: no synthetic DOWN can be queued. */
+#endif
     struct zmk_endpoint_instance endpoint = zmk_endpoints_selected();
     bool ready = endpoint_ready(endpoint);
     k_spinlock_key_t key = k_spin_lock(&tap_output.lock);

@@ -82,6 +82,9 @@ struct a320_data {
 #define CONFIG_A320_POLL_INTERVAL_MS 10
 #endif
 BUILD_ASSERT(CONFIG_A320_POLL_INTERVAL_MS > 0, "A320 poll interval must be positive");
+#ifdef CONFIG_A320_RAW_CAPTURE
+#include "trackpad_raw_log.h"
+#endif
 
 static void a320_poll_work_handler(struct k_work *work);
 static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy);
@@ -237,6 +240,9 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
+#ifdef CONFIG_A320_RAW_CAPTURE
+    raw_capture_poll(pin_state, scroll_mode); /* Before the existing read, no extra I2C. */
+#endif
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
     bool slow_pointer = (speed & 1U) != 0;
 
@@ -402,9 +408,15 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
     uint8_t buf[7] = {0};
     uint8_t reg = 0x0A;
     int ret;
+#ifdef CONFIG_A320_RAW_CAPTURE
+    const uint32_t raw_started_ms = k_uptime_get_32();
+#endif
 
     ret = i2c_write_dt(&cfg->i2c, &reg, 1);
     if (ret < 0) {
+#ifdef CONFIG_A320_RAW_CAPTURE
+        raw_capture_read(raw_started_ms, TP_RAW_CAPTURE_POINTER, ret, NULL);
+#endif
 #ifdef CONFIG_A320_CONTACT_PROBE
         if (probe_open) { legacy_errors++; }
 #endif
@@ -414,6 +426,9 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
 
     ret = i2c_burst_read_dt(&cfg->i2c, 0x0A, buf, sizeof(buf));
     if (ret < 0) {
+#ifdef CONFIG_A320_RAW_CAPTURE
+        raw_capture_read(raw_started_ms, TP_RAW_CAPTURE_BURST, ret, NULL);
+#endif
 #ifdef CONFIG_A320_CONTACT_PROBE
         if (probe_open) { legacy_errors++; }
 #endif
@@ -421,6 +436,9 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
         return ret;
     }
 
+#ifdef CONFIG_A320_RAW_CAPTURE
+    raw_capture_read(raw_started_ms, TP_RAW_CAPTURE_OK, 0, buf);
+#endif
     probe_legacy(buf, sizeof(buf));
     *dy = (int8_t)buf[1];
     *dx = (int8_t)buf[3];

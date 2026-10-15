@@ -26,10 +26,10 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'raw_capture', 'raw_driver', 'raw_output']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
-    special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
+    special = {'raw_output': 'tap_output_mocks', 'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
     include = ROOT / 'tests' / special[name] if name in special else STUBS
     sources = [str(ROOT / 'tests' / ('test_' + name + '.c'))]
     if name == 'tap_pipeline':
@@ -62,5 +62,6 @@ for relative in paths:
     updated.append(after)
 assert updated[0] == updated[1]
 print('PASS Keymaps: only default left shoulder and source68 SYM Ctrl differ from original, all other bindings preserved')
+subprocess.run([os.sys.executable, str(ROOT / 'tests/test_continuous_capture.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

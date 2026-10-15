@@ -69,4 +69,15 @@ config A320_MICROTAP
       Default-layer left shoulder triple tap toggles it without a sensor probe.
       This is a motion heuristic, not verified finger contact recognition.
 
+config A320_RAW_CAPTURE
+    bool "Read-only observations of existing 0x0A transactions; synthetic click locked off"
+    depends on I2C && GPIO && ZMK_USB && ZMK_USB_LOGGING && UART_LINE_CTRL
+    depends on !A320_CONTACT_PROBE
+    default n
+    help
+      Log each existing motion-gated pointer/burst transaction to the separate
+      debug CDC. No new sensor transactions, configuration writes or contact
+      decoding. Synthetic click runtime and submit are hard-disabled. Studio,
+      keymap, pointer, scroll and lighting remain unchanged.
+
 endmenu

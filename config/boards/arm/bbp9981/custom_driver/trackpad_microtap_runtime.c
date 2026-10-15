@@ -43,9 +43,21 @@ static struct zmk_endpoint_instance seen_endpoint;
 static bool initialized, have_context;
 static uint32_t context_epoch = 1;
 
-bool tp_microtap_runtime_enabled(void) { return atomic_get(&enabled) != 0; }
+bool tp_microtap_runtime_enabled(void) {
+#ifdef CONFIG_A320_RAW_CAPTURE
+    return false; /* Diagnostic build: cannot be enabled by shoulder or state. */
+#else
+    return atomic_get(&enabled) != 0;
+#endif
+}
 void tp_microtap_runtime_interrupt(void) { (void)atomic_inc(&change_epoch); }
 void tp_microtap_runtime_toggle(void) {
+#ifdef CONFIG_A320_RAW_CAPTURE
+    atomic_set(&enabled, 0);
+    tp_microtap_runtime_interrupt();
+    LOG_INF("TPRAW synthetic click locked OFF");
+    return;
+#endif
     atomic_set(&enabled, tp_microtap_runtime_enabled() ? 0 : 1);
     tp_microtap_runtime_interrupt();
     LOG_INF("Motion click %s", tp_microtap_runtime_enabled() ? "ON" : "OFF");
