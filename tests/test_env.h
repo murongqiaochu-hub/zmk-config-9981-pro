@@ -116,6 +116,27 @@ static int led_set_brightness(const struct device *d,int index,uint8_t value) {
     fake_led_levels[index]=value;fake_led_level=value;return 0;
 }
 
+/* Hardware PWM mock preserves nanoseconds AND nRF 16 MHz hardware ticks;
+ * integer LED percentages alone cannot detect low-brightness regression. */
+struct pwm_dt_spec { const struct device *dev; uint32_t channel, period; uint16_t flags; };
+#define PWM_DT_SPEC_GET(n) {.dev=&fake_device,.channel=(n),.period=500000U,.flags=0}
+static bool fake_pwm_ready=true;
+static uint32_t fake_pwm_period_ns, fake_pwm_pulse_ns, fake_pwm_ticks;
+static unsigned int fake_pwm_writes;
+static uint32_t fake_pwm_pulses[2];
+static bool pwm_is_ready_dt(const struct pwm_dt_spec *p) { return p->dev!=NULL&&fake_pwm_ready; }
+static int pwm_set_dt(const struct pwm_dt_spec *p,uint32_t period,uint32_t pulse) {
+    assert(period==500000U&&pulse<=period&&p->channel<2U);
+    fake_pwm_writes++;fake_led_writes++;
+    if(fake_led_error&&(fake_led_error_index<0||(int)p->channel==fake_led_error_index))return fake_led_error;
+    fake_pwm_period_ns=period;fake_pwm_pulse_ns=pulse;
+    fake_pwm_ticks=(uint32_t)((uint64_t)pulse*16U/1000U);
+    fake_pwm_pulses[p->channel]=pulse;
+    fake_led_level=(int)(((uint64_t)pulse*100U+period/2U)/period);
+    fake_led_levels[p->channel]=fake_led_level;
+    return 0;
+}
+
 struct zmk_behavior_binding { const char *behavior_dev; uint32_t param1,param2; };
 struct zmk_behavior_binding_event { int layer; uint32_t position; int64_t timestamp; };
 struct behavior_parameter_metadata { int dummy; };

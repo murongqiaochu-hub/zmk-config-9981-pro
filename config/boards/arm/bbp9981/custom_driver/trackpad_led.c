@@ -7,7 +7,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/drivers/led.h>
+#include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
 
 #include <zmk/endpoints.h>
@@ -22,11 +22,15 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 BUILD_ASSERT(DT_HAS_CHOSEN(zmk_trackpad_led),
              "CONFIG_ZMK_TRACKPAD_LED enabled but no zmk,trackpad_led chosen node found");
 
-static const struct device *const led_dev = DEVICE_DT_GET(DT_CHOSEN(zmk_trackpad_led));
-
 #define CHILD_COUNT(...) +1
 #define DT_NUM_CHILD(node_id) (DT_FOREACH_CHILD(node_id, CHILD_COUNT))
 #define INDICATOR_LED_NUM_LEDS (DT_NUM_CHILD(DT_CHOSEN(zmk_trackpad_led)))
+#define TRACKPAD_PWM_SPEC(node_id) PWM_DT_SPEC_GET(node_id),
+static const struct pwm_dt_spec trackpad_pwms[] = {
+    DT_FOREACH_CHILD(DT_CHOSEN(zmk_trackpad_led), TRACKPAD_PWM_SPEC)
+};
+static uint32_t last_pwm_pulse_ns[INDICATOR_LED_NUM_LEDS];
+static bool pwm_cache_valid;
 
 #define BRT_MIN 10
 #define BRT_MAX 100
@@ -67,18 +71,33 @@ static bool usb_mode = false;
 static void set_led_brightness(uint8_t pattern) {
     requested_pattern = pattern;
     uint8_t level = indicator_pattern_level(pattern, last_valid_brt);
-    if (!device_is_ready(led_dev)) {
-        LOG_ERR("LED device not ready");
-        return;
+    uint32_t pulses[INDICATOR_LED_NUM_LEDS];
+    bool changed = !pwm_cache_valid;
+    const uint32_t bounded_pattern = pattern > 100U ? 100U : pattern;
+    const uint32_t limit = indicator_user_limit(last_valid_brt);
+    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+        /* Keep sub-percent precision through to the hardware. The old LED API
+         * rounded this to integer percent first: at limit=1, only OFF/ON remain.
+         * BLE's existing integer levels are preserved; only USB envelope gains
+         * fractional duty. No low-frequency software dithering or higher cap. */
+        uint64_t scaled = (uint64_t)trackpad_pwms[i].period *
+                          (usb_mode ? bounded_pattern * limit : (uint32_t)level * 100U);
+        pulses[i] = (uint32_t)(scaled / 10000U);
+        if (last_pwm_pulse_ns[i] != pulses[i]) { changed = true; }
     }
-    if (last_led_level == level) { return; }
+    if (!changed) { return; }
     bool all_written = true;
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        int err = led_set_brightness(led_dev, i, level);
+        int err = pwm_is_ready_dt(&trackpad_pwms[i]) ?
+                  pwm_set_dt(&trackpad_pwms[i], trackpad_pwms[i].period, pulses[i]) : -ENODEV;
         if (err < 0) {
             all_written = false;
-            LOG_ERR("Failed to set LED[%d] brightness: %d", i, err);
+            LOG_ERR("Failed to set trackpad PWM[%d]: %d", i, err);
         }
+    }
+    pwm_cache_valid = all_written;
+    if (all_written) {
+        for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) { last_pwm_pulse_ns[i] = pulses[i]; }
     }
     last_led_level = all_written ? level : -1;
 }
@@ -236,15 +255,18 @@ static void polling_work_handler(struct k_work *work) {
 uint8_t indicator_tp_get_last_valid_brightness(void) { return last_valid_brt; }
 
 static int indicator_tp_init(void) {
-    if (!device_is_ready(led_dev)) {
-        LOG_ERR("LED indicator_tp device not ready");
-        return -ENODEV;
+    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+        if (!pwm_is_ready_dt(&trackpad_pwms[i])) {
+            LOG_ERR("Trackpad PWM device not ready");
+            return -ENODEV;
+        }
     }
 
     last_valid_brt = zmk_backlight_get_brt();
     last_led_level = -1;
-    set_led_brightness(0);
+    pwm_cache_valid = false;
     usb_mode = false;
+    set_led_brightness(0);
     usb_breath_last_ms = k_uptime_get_32();
     usb_breath_phase_ms = 0;
     last_backlight_brt = zmk_backlight_get_brt();

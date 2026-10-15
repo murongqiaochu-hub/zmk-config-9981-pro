@@ -12,6 +12,7 @@ static void reset_usb(uint32_t now, uint8_t setting) {
     fake_tp_brightness=setting;
     fake_brightness=73; /* Independent keyboard/RGB setting must not be changed. */
     fake_led_error=0;fake_led_error_index=-1;
+    fake_pwm_ready=true;
     assert(indicator_tp_init()==0);
     assert(fake_led_level==0);
     unsigned writes=fake_led_writes;
@@ -197,4 +198,5 @@ int main(void) {
     test_usb_curve_and_timing();
     test_usb_limits_retry_and_reentry();
     puts("PASS Trackpad LEDs: 1000ms smoothstep USB 0/50/100/50/0, 20ms max step 6, repeat/late/wrap, full scaling, zero/1%, cache/retry, stale BLE/reentry, no startup flash, unchanged scroll/touch/auto-off/independent controls");
+    return 0;
 }

@@ -11,7 +11,7 @@ STUBS = BUILD / 'include'
 HEADERS = [
     'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h',
     'zephyr/logging/log.h', 'zephyr/sys/atomic.h', 'zephyr/sys/byteorder.h',
-    'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h', 'zephyr/drivers/uart.h',
+    'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h', 'zephyr/drivers/uart.h', 'zephyr/drivers/pwm.h',
     'zephyr/input/input.h', 'zephyr/dt-bindings/input/input-event-codes.h',
     'drivers/behavior.h', 'dt-bindings/zmk/keys.h',
     'zmk/behavior.h', 'zmk/keymap.h', 'zmk/event_manager.h', 'zmk/endpoints.h',
@@ -26,7 +26,7 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'keyboard_led', 'trackpad_led', 'trackpad_low_pwm', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name == 'keyboard_led' else []
     special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
@@ -39,6 +39,14 @@ for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus
                     '-fsanitize=undefined', '-fno-sanitize-recover=all',
                     '-I', str(include), *sources, '-o', str(exe)], check=True)
     subprocess.run([str(exe)], check=True)
+
+# Exercise fractional trackpad PWM and partial write failures with two channels.
+exe = BUILD / 'test_trackpad_led_two'
+subprocess.run([cc, '-DTEST_TWO_LEDS=1', '-std=c11', '-Wall', '-Wextra', '-Werror',
+                '-Wno-unused-parameter', '-Wno-unused-function', '-Wno-unused-variable',
+                '-fsanitize=undefined', '-fno-sanitize-recover=all', '-I', str(STUBS),
+                str(ROOT / 'tests/test_trackpad_low_pwm.c'), '-o', str(exe)], check=True)
+subprocess.run([str(exe)], check=True)
 
 # Ensure both stock keymaps preserve every other key and all other layers.
 BASE = 'd7e535e'

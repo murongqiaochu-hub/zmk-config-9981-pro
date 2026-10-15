@@ -44,7 +44,9 @@
     trackpad_led: pwmledo{
         compatible = "pwm-leds";
         pwm_led_0 {
-            pwms = <&pwm1 0 PWM_USEC(20) PWM_POLARITY_NORMAL>;
+            /* 2 kHz carrier: 8000 ticks at nRF's 16 MHz clock, including
+             * 80 duty steps below the existing 1% minimum user cap. */
+            pwms = <&pwm1 0 PWM_USEC(500) PWM_POLARITY_NORMAL>;
         };
     };
 
