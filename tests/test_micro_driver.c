@@ -14,12 +14,11 @@ int main(void) {
     runtime_fixture(false);
     stock_pointer_suite(); /* entire source68 arithmetic, wheel, fault and LED independence */
     fixture();runtime_fixture(true);
-    poll(1,0,10);assert(report_count==0);
-    poll(1,0,20);assert(report_count==0);poll(1,0,30);assert(report_count==0);
-    idle(40);idle(50);idle(60);assert(submissions==1);
+    poll(-1,-1,10);assert(report_count==0);
+    idle(20);idle(30);idle(40);idle(50);idle(60);idle(70);assert(submissions==1);
     assert(cursor_motion.x.remainder==0&&cursor_motion.y.remainder==0);
-    complete();idle(70);
-    poll(20,0,80);expect_xy(24,0);
+    complete();idle(80);
+    poll(20,0,90);expect_xy(24,0);
     assert(submissions==1);
     puts("PASS Actual MICRO ON driver + runtime: full source68 suite while runtime OFF, discarded raw never reaches fractions, click at unchanged coordinates, normal movement early bypass");
     return 0;

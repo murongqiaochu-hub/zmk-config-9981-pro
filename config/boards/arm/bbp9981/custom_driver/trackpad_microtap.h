@@ -2,10 +2,12 @@
  * Opt-in raw-motion/quiet click heuristic (pure C11, no allocation).
  *
  * This does NOT detect physical contact or promise recognition of light taps.
- * Only a conservative short micro-swipe can qualify: >=3 valid nonzero frames,
- * >=3 Manhattan raw counts and >=15ms first-to-last motion span. On quiet,
- * weaker candidates replay as movement, not clicks. Zero motion, missing data,
- * faults and reset never create clicks.
+ * Historical tap windows contained isolated SINGLE-frame impulses, not the
+ * >=3-frame micro-swipes selected by the first experiment. Admit one impulse
+ * (2..24 Manhattan counts, <=16 per axis) only after 60ms without another frame.
+ * A second frame immediately makes this ordinary movement. This remains an
+ * experimental motion surrogate: isolated micro-adjustments can be identical.
+ * Zero motion, missing data, faults and reset never create clicks.
  * Call reset before first use. The caller owns and serializes each state.
  * enabled is supplied explicitly on EVERY step; blocked suppresses clicks.
  * valid=false means unknown/error, NOT a fabricated valid (0, 0) sample.
@@ -16,11 +18,10 @@
  * pointer pipeline. Never adjust pointer remainders or synthesize compensation.
  * A click deliberately discards ONLY the old candidate's buffered movement.
  *
- * At most 15 frames remain pending, reserving the 16th result slot for the
- * frame that triggers rejection. Capacity pressure fails safe to movement,
- * including the triggering frame; it never truncates or reorders movement.
+ * Only one frame may remain pending; the existing 16-frame result ABI stays
+ * unchanged. The next nonzero frame releases BOTH frames as ordinary movement.
  * Once rejected/passed through, a movement run stays passthrough until a
- * >=30ms quiet interval; its small tail cannot become a new click candidate.
+ * >=200ms quiet interval; its small tail cannot become a new click candidate.
  * There is no click cooldown: separated pulses can click on consecutive steps.
  *
  * A new nonzero frame first checks whether the OLD candidate is already quiet.
@@ -31,11 +32,10 @@
  * old click precedes ALL returned new movement; enqueue click before frames.
  * At most one click per step.
  *
- * Limits are inclusive; candidate age >100ms, motion span >80ms, traveled
- * Manhattan path >16 or ANY cumulative Linf offset >8 reject immediately.
- * Quiet is >=30ms since the last nonzero frame, not a contact-release claim.
- * The 100ms candidate cap includes waiting for quiet (so 70ms motion +30ms
- * quiet can qualify; 80ms motion +30ms quiet cannot). No late/retroactive click.
+ * Limits are inclusive; candidate age >100ms, a second nonzero frame, traveled
+ * Manhattan path >24 or ANY cumulative Linf offset >16 reject immediately.
+ * Quiet is >=60ms since the impulse, not a contact-release claim. The 100ms
+ * candidate cap includes this observation window. No late/retroactive click.
  *
  * uint32 milliseconds use modular subtraction, including natural rollover.
  * Poll gaps >100ms or backwards/half-range clock jumps flush without clicking.
@@ -53,14 +53,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define TP_MICROTAP_QUIET_MS 30U
-#define TP_MICROTAP_MIN_FRAMES 3U
-#define TP_MICROTAP_MIN_PATH 3U
-#define TP_MICROTAP_MIN_MOTION_SPAN_MS 15U
+#define TP_MICROTAP_QUIET_MS 60U
+#define TP_MICROTAP_NAV_QUIET_MS 200U
+#define TP_MICROTAP_MIN_FRAMES 1U
+#define TP_MICROTAP_MAX_FRAMES 1U
+#define TP_MICROTAP_MIN_PATH 2U
+#define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
 #define TP_MICROTAP_MAX_CANDIDATE_MS 100U
-#define TP_MICROTAP_MAX_MOTION_SPAN_MS 80U
-#define TP_MICROTAP_MAX_PATH 16U
-#define TP_MICROTAP_MAX_OFFSET 8U
+#define TP_MICROTAP_MAX_MOTION_SPAN_MS 25U
+#define TP_MICROTAP_MAX_PATH 24U
+#define TP_MICROTAP_MAX_OFFSET 16U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U
 #define TP_MICROTAP_MAX_PENDING (TP_MICROTAP_FRAME_CAPACITY - 1U)
@@ -162,7 +164,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
     }
 
     if (s->mode == TP_MICROTAP_PASSTHROUGH &&
-        (uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_QUIET_MS) {
+        (uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_NAV_QUIET_MS) {
         s->mode = TP_MICROTAP_IDLE;
     }
 
@@ -171,20 +173,18 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
             tp_microtap_flush(s, &out);
             s->mode = TP_MICROTAP_PASSTHROUGH;
         } else if ((uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_QUIET_MS) {
-            /* Upper bounds were checked per frame; lower bounds gate clicks.
-             * The old run is already quiet, so a new frame may start a separate
-             * candidate even when the old underfilled run replays as movement. */
-            const bool admitted = s->count >= TP_MICROTAP_MIN_FRAMES &&
-                                  s->path >= TP_MICROTAP_MIN_PATH &&
-                                  (uint32_t)(s->last_motion_ms - s->first_ms) >=
-                                      TP_MICROTAP_MIN_MOTION_SPAN_MS;
+            /* Admit an isolated nontrivial impulse; a weak rejected impulse is
+             * movement and enters the navigation guard, never a tap cooldown. */
+            const bool admitted = s->count == TP_MICROTAP_MAX_FRAMES &&
+                                  s->path >= TP_MICROTAP_MIN_PATH;
             if (admitted) {
                 tp_microtap_clear_candidate(s);
                 out.click = true;
+                s->mode = TP_MICROTAP_IDLE; /* No post-click cooldown. */
             } else {
                 tp_microtap_flush(s, &out);
+                s->mode = TP_MICROTAP_PASSTHROUGH;
             }
-            s->mode = TP_MICROTAP_IDLE;
         }
     }
 
@@ -205,7 +205,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         s->first_ms = now;
     }
 
-    /* Live candidates have |sum_x/y|<=8 and path<=16; even int16 extremes
+    /* Live candidates have |sum_x/y|<=16 and path<=24; even int16 extremes
      * added here remain safely within int32/uint32, before any narrowing. */
     const int32_t x = s->sum_x + (int32_t)dx;
     const int32_t y = s->sum_y + (int32_t)dy;
@@ -214,7 +214,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
     const uint32_t offset = ax > ay ? ax : ay;
     const uint32_t path = s->path + tp_microtap_magnitude((int32_t)dx) +
                           tp_microtap_magnitude((int32_t)dy);
-    if (s->count >= TP_MICROTAP_MAX_PENDING ||
+    if (s->count >= TP_MICROTAP_MAX_FRAMES || s->count >= TP_MICROTAP_MAX_PENDING ||
         (uint32_t)(now - s->first_ms) > TP_MICROTAP_MAX_MOTION_SPAN_MS ||
         path > TP_MICROTAP_MAX_PATH || offset > TP_MICROTAP_MAX_OFFSET) {
         tp_microtap_flush(s, &out);

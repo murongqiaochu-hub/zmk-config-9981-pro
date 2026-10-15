@@ -65,21 +65,20 @@ int main(void) {
     poll_at(20,1,1,true,false);assert(moves==2&&submissions==0);
 
     fixture(true);
-    poll_at(10,1,0,true,false);assert(moves==0&&tp_microtap_runtime_pending());
-    poll_at(20,1,0,true,false);poll_at(30,1,0,true,false);
-    poll_at(40,0,0,true,false);poll_at(50,0,0,true,false);poll_at(60,0,0,true,false);
+    poll_at(10,-1,-1,true,false);assert(moves==0&&tp_microtap_runtime_pending());
+    for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
     assert(submissions==1&&moves==0&&pointer_x==0&&pointer_y==0);
     assert(pointer.x.remainder==0&&pointer.y.remainder==0);
-    /* Successive three-frame gestures queue even while transport holds first. */
-    poll_at(70,1,0,true,false);poll_at(80,1,0,true,false);poll_at(90,1,0,true,false);
-    poll_at(100,0,0,true,false);poll_at(110,0,0,true,false);
-    poll_at(120,0,0,true,false);assert(submissions==1&&count==2);
-    complete();poll_at(130,0,0,true,false);assert(submissions==2);
-    poll_at(140,1,0,true,false);poll_at(150,1,0,true,false);poll_at(160,1,0,true,false);
-    poll_at(170,0,0,true,false);poll_at(180,0,0,true,false);
-    poll_at(190,0,0,true,false);assert(count==2);
-    complete();poll_at(200,0,0,true,false);assert(submissions==3);
-    complete();poll_at(210,0,0,true,false);
+    /* Recorded single-frame pulse shapes queue even while transport holds first. */
+    poll_at(80,5,-12,true,false);
+    for(uint32_t t=90;t<=140;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==1&&count==2);
+    complete();poll_at(150,0,0,true,false);assert(submissions==2);
+    poll_at(160,-1,-1,true,false);
+    for(uint32_t t=170;t<=220;t+=10)poll_at(t,0,0,true,false);
+    assert(count==2);
+    complete();poll_at(230,0,0,true,false);assert(submissions==3);
+    complete();poll_at(240,0,0,true,false);
     assert(moves==0&&count==0&&trace_count==6&&memcmp(trace,"DUDUDU",6)==0);
 
     fixture(true);
@@ -89,11 +88,11 @@ int main(void) {
     poll_at(60,0,0,true,false);assert(submissions==0); /* moving tail isn't a click */
 
     fixture(true);
-    poll_at(10,1,0,true,false);poll_at(20,1,0,true,false);poll_at(30,1,0,true,false);
-    poll_at(40,0,0,true,false);poll_at(50,0,0,true,false);
-    poll_at(60,0,0,true,false);assert(submissions==1);
-    poll_at(70,30,0,true,false);assert(moves==0&&count==2); /* no drag while synthetic held */
-    complete();poll_at(80,0,0,true,false);
+    poll_at(10,-1,-1,true,false);
+    for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==1);
+    poll_at(80,30,0,true,false);assert(moves==0&&count==2); /* no drag while synthetic held */
+    complete();poll_at(90,0,0,true,false);
     assert(moves==1&&pointer_x==36&&memcmp(trace,"DUM",3)==0);
 
     fixture(true);refs[0]=1;

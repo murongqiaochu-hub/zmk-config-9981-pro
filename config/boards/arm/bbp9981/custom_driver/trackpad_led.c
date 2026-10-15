@@ -37,13 +37,15 @@ static const struct device *const led_dev = DEVICE_DT_GET(DT_CHOSEN(zmk_trackpad
 #define POLLING_INTERVAL_MS 5
 #define AUTO_OFF_DELAY_MS 5000
 
-#define FLASH_ON_MS 100
-#define FLASH_PERIOD 1000
+/* Same full period and peak as the former 100 ms ON / 900 ms OFF flash.
+ * Smooth breathing changes the average brightness, not the user's peak limit. */
+#define USB_BREATH_PERIOD_MS 1000U
+#define USB_BREATH_INTERVAL_MS 20
 
 static struct k_work_delayable polling_work;
 static struct k_work_delayable animation_work;
 static struct k_work_delayable auto_off_work;
-static struct k_work_delayable usb_flash_work;
+static struct k_work_delayable usb_breath_work;
 
 static bool scroll_mode_on = false;
 static bool touch_active = false;
@@ -58,7 +60,8 @@ static uint8_t last_backlight_brt = 0;
 static bool manual_override = false;
 static bool keyboard_active = false;
 
-static bool usb_flash_state = false;
+static uint32_t usb_breath_last_ms;
+static uint32_t usb_breath_phase_ms;
 static bool usb_mode = false;
 
 static void set_led_brightness(uint8_t pattern) {
@@ -80,15 +83,30 @@ static void set_led_brightness(uint8_t pattern) {
     last_led_level = all_written ? level : -1;
 }
 
-static void usb_flash_work_handler(struct k_work *work) {
-    if (!usb_mode) {
+static uint8_t usb_breathing_pattern(uint32_t phase_ms) {
+    const uint32_t half_period = USB_BREATH_PERIOD_MS / 2U;
+    /* 100 * (3*t*t - 2*t*t*t), t in [0, 1], folded into each half.
+     * For the fixed 500 ms ramp all intermediates fit in uint32_t. */
+    phase_ms %= USB_BREATH_PERIOD_MS;
+    uint32_t ramp = phase_ms <= half_period ? phase_ms : USB_BREATH_PERIOD_MS - phase_ms;
+    const uint32_t divisor = half_period * half_period * half_period / BRT_MAX;
+    return (uint8_t)((ramp * ramp * (3U * half_period - 2U * ramp) + divisor / 2U) /
+                     divisor);
+}
+
+static void usb_breath_work_handler(struct k_work *work) {
+    /* Also guard the transport before the next 5 ms poll observes a switch. */
+    if (!usb_mode || zmk_endpoints_selected().transport != ZMK_TRANSPORT_USB) {
         return;
     }
 
-    usb_flash_state = !usb_flash_state;
-    set_led_brightness(usb_flash_state ? BRT_MAX : 0);
-    k_work_reschedule(&usb_flash_work,
-                      K_MSEC(usb_flash_state ? FLASH_ON_MS : (FLASH_PERIOD - FLASH_ON_MS)));
+    uint32_t now = k_uptime_get_32();
+    uint32_t elapsed = now - usb_breath_last_ms; /* Unsigned uptime rollover is intentional. */
+    usb_breath_last_ms = now;
+    usb_breath_phase_ms = (usb_breath_phase_ms + elapsed % USB_BREATH_PERIOD_MS) %
+                          USB_BREATH_PERIOD_MS;
+    set_led_brightness(usb_breathing_pattern(usb_breath_phase_ms));
+    k_work_reschedule(&usb_breath_work, K_MSEC(USB_BREATH_INTERVAL_MS));
 }
 
 static void auto_off_work_handler(struct k_work *work) {
@@ -130,19 +148,22 @@ static void polling_work_handler(struct k_work *work) {
     /* Physical V/N presses wake activity, so explicit zero is observed here.
      * During idle, upstream returns zero automatically; retain the last user limit. */
     if (current_active || current_brt > 0) { last_valid_brt = current_brt; }
-    set_led_brightness(requested_pattern); /* Live limit changes also apply in USB. */
 
     /* ---------------- USB Mode ---------------- */
     if (transport == ZMK_TRANSPORT_USB) {
         if (!usb_mode) {
-            /* USB blink takes precedence over the local scroll animation. */
+            /* USB breathing takes precedence over the local scroll animation. */
             usb_mode = true;
             scroll_mode_on = false;
             k_work_cancel_delayable(&animation_work);
             k_work_cancel_delayable(&auto_off_work);
-            usb_flash_state = false;
-            k_work_reschedule(&usb_flash_work, K_NO_WAIT);
-            LOG_INF("Entered USB flash mode");
+            usb_breath_last_ms = k_uptime_get_32();
+            usb_breath_phase_ms = 0;
+            set_led_brightness(0); /* Never replay the previous mode's peak on entry. */
+            k_work_reschedule(&usb_breath_work, K_MSEC(USB_BREATH_INTERVAL_MS));
+            LOG_INF("Entered USB breathing mode");
+        } else {
+            set_led_brightness(requested_pattern); /* Live user limit and write retry. */
         }
         k_work_reschedule(&polling_work, K_MSEC(POLLING_INTERVAL_MS));
         return;
@@ -151,12 +172,14 @@ static void polling_work_handler(struct k_work *work) {
     /* ---------------- BLE Output Mode ---------------- */
     if (usb_mode) {
         usb_mode = false;
-        k_work_cancel_delayable(&usb_flash_work);
+        k_work_cancel_delayable(&usb_breath_work);
         scroll_mode_on = false;
         touch_active = false;
         manual_override = false;
         set_led_brightness(0);
-        LOG_INF("Exited USB flash mode");
+        LOG_INF("Exited USB breathing mode");
+    } else {
+        set_led_brightness(requested_pattern);
     }
 
     if (current_active != keyboard_active) {
@@ -222,14 +245,15 @@ static int indicator_tp_init(void) {
     last_led_level = -1;
     set_led_brightness(0);
     usb_mode = false;
-    usb_flash_state = false;
+    usb_breath_last_ms = k_uptime_get_32();
+    usb_breath_phase_ms = 0;
     last_backlight_brt = zmk_backlight_get_brt();
     scroll_mode_on = touch_active = manual_override = keyboard_active = false;
 
     k_work_init_delayable(&polling_work, polling_work_handler);
     k_work_init_delayable(&animation_work, animation_work_handler);
     k_work_init_delayable(&auto_off_work, auto_off_work_handler);
-    k_work_init_delayable(&usb_flash_work, usb_flash_work_handler);
+    k_work_init_delayable(&usb_breath_work, usb_breath_work_handler);
 
     k_work_reschedule(&polling_work, K_NO_WAIT);
     return 0;
