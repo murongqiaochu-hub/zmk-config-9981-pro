@@ -4,7 +4,9 @@
  * This does NOT detect physical contact or promise recognition of light taps.
  * Historical tap windows contained isolated SINGLE-frame impulses, not the
  * >=3-frame micro-swipes selected by the first experiment. Admit one impulse
- * (2..24 Manhattan counts, <=16 per axis) only after 60ms without another frame.
+ * (1..256 Manhattan counts, <=128 per axis) after 60ms without another frame.
+ * HIGH-RISK USER TEST: accepts every nonzero signed-8-bit sensor impulse; ordinary
+ * brief movements can now become clicks and have their pointer movement dropped.
  * A second frame immediately makes this ordinary movement. This remains an
  * experimental motion surrogate: isolated micro-adjustments can be identical.
  * Zero motion, missing data, faults and reset never create clicks.
@@ -33,7 +35,7 @@
  * At most one click per step.
  *
  * Limits are inclusive; candidate age >100ms, a second nonzero frame, traveled
- * Manhattan path >24 or ANY cumulative Linf offset >16 reject immediately.
+ * Manhattan path >256 or ANY cumulative Linf offset >128 reject immediately.
  * Quiet is >=60ms since the impulse, not a contact-release claim. The 100ms
  * candidate cap includes this observation window. No late/retroactive click.
  *
@@ -57,12 +59,13 @@
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 1U
 #define TP_MICROTAP_MAX_FRAMES 1U
-#define TP_MICROTAP_MIN_PATH 2U
+#define TP_MICROTAP_MIN_PATH 1U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
 #define TP_MICROTAP_MAX_CANDIDATE_MS 100U
 #define TP_MICROTAP_MAX_MOTION_SPAN_MS 25U
-#define TP_MICROTAP_MAX_PATH 24U
-#define TP_MICROTAP_MAX_OFFSET 16U
+/* HIGH-RISK TEST: accept the entire signed-8-bit sensor frame range. */
+#define TP_MICROTAP_MAX_PATH 256U
+#define TP_MICROTAP_MAX_OFFSET 128U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U
 #define TP_MICROTAP_MAX_PENDING (TP_MICROTAP_FRAME_CAPACITY - 1U)
@@ -205,7 +208,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         s->first_ms = now;
     }
 
-    /* Live candidates have |sum_x/y|<=16 and path<=24; even int16 extremes
+    /* Live candidates have |sum_x/y|<=128 and path<=256; even int16 extremes
      * added here remain safely within int32/uint32, before any narrowing. */
     const int32_t x = s->sum_x + (int32_t)dx;
     const int32_t y = s->sum_y + (int32_t)dy;

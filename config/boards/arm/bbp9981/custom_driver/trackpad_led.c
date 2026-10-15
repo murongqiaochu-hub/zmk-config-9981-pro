@@ -76,12 +76,8 @@ static void set_led_brightness(uint8_t pattern) {
     const uint32_t bounded_pattern = pattern > 100U ? 100U : pattern;
     const uint32_t limit = indicator_user_limit(last_valid_brt);
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        /* Keep sub-percent precision through to the hardware. The old LED API
-         * rounded this to integer percent first: at limit=1, only OFF/ON remain.
-         * BLE's existing integer levels are preserved; only USB envelope gains
-         * fractional duty. No low-frequency software dithering or higher cap. */
-        uint64_t scaled = (uint64_t)trackpad_pwms[i].period *
-                          (usb_mode ? bounded_pattern * limit : (uint32_t)level * 100U);
+        /* Preserve sub-percent duty in USB AND BLE/scroll animations. */
+        uint64_t scaled = (uint64_t)trackpad_pwms[i].period * bounded_pattern * limit;
         pulses[i] = (uint32_t)(scaled / 10000U);
         if (last_pwm_pulse_ns[i] != pulses[i]) { changed = true; }
     }

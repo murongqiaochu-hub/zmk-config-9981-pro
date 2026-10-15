@@ -18,7 +18,9 @@ int main(void) {
     idle(20);idle(30);idle(40);idle(50);idle(60);idle(70);assert(submissions==1);
     assert(cursor_motion.x.remainder==0&&cursor_motion.y.remainder==0);
     complete();idle(80);
-    poll(20,0,90);expect_xy(24,0);
+    poll(20,0,90);assert(report_count==0);
+    poll(1,0,100);assert(report_count==4);
+    assert(report_values[INPUT_REL_X-1]==1&&report_values[INPUT_REL_Y-1]==0);
     assert(submissions==1);
     puts("PASS Actual MICRO ON driver + runtime: full source68 suite while runtime OFF, discarded raw never reaches fractions, click at unchanged coordinates, normal movement early bypass");
     return 0;

@@ -169,6 +169,12 @@ static enum zmk_activity_state fake_activity=ZMK_ACTIVITY_ACTIVE;
 static enum zmk_activity_state zmk_activity_get_state(void) { return fake_activity; }
 struct zmk_led_hsb { uint8_t h,s,b; };
 static uint8_t fake_brightness=40;
+static int fake_rgb_set_error;
+static int zmk_rgb_underglow_set_hsb(struct zmk_led_hsb c) {
+    if(fake_rgb_set_error)return fake_rgb_set_error;
+    fake_brightness=c.b;return 0;
+}
+#include "brightness_settings_mocks.h"
 static bool fake_rgb_on=true;
 static struct zmk_led_hsb zmk_rgb_underglow_calc_brt(int i) { (void)i;return (struct zmk_led_hsb){.b=fake_brightness}; }
 static int zmk_rgb_underglow_get_state(bool *on) { *on=fake_rgb_on;return 0; }

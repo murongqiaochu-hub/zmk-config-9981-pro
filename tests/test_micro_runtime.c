@@ -91,9 +91,10 @@ int main(void) {
     poll_at(10,-1,-1,true,false);
     for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
     assert(submissions==1);
-    poll_at(80,30,0,true,false);assert(moves==0&&count==2); /* no drag while synthetic held */
-    complete();poll_at(90,0,0,true,false);
-    assert(moves==1&&pointer_x==36&&memcmp(trace,"DUM",3)==0);
+    poll_at(80,30,0,true,false);assert(moves==0&&count==1); /* pending high-risk pulse */
+    poll_at(90,1,0,true,false);assert(moves==0&&count==3); /* second frame flushes, no drag */
+    complete();poll_at(100,0,0,true,false);
+    assert(moves==2&&pointer_x==37&&memcmp(trace,"DUMM",4)==0);
 
     fixture(true);refs[0]=1;
     poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);

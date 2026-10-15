@@ -23,8 +23,8 @@ static struct tp_microtap_result feed(struct fixture *f,uint32_t t,int16_t x,int
     steps++;CHECK(r.count<=2U);CHECK(f->s.count<=1U);
     if(!valid||!enabled||blocked||(before.have_time&&(uint32_t)(t-before.last_poll_ms)>100U))CHECK(!r.click);
     if(r.click) {
-        CHECK(before.count==1U&&f->n==1U&&before.path>=2U&&before.path<=24U);
-        CHECK(before.max_offset<=16U&&(uint32_t)(t-before.last_motion_ms)>=60U);
+        CHECK(before.count==1U&&f->n==1U&&before.path>=1U&&before.path<=256U);
+        CHECK(before.max_offset<=128U&&(uint32_t)(t-before.last_motion_ms)>=60U);
         CHECK((uint32_t)(t-before.first_ms)<=100U);
         f->tx+=f->ledger[0].dx;f->ty+=f->ledger[0].dy;
         f->discarded++;f->clicks++;f->n=0;
@@ -76,7 +76,7 @@ static void moving_not_tapping(void) {
     /* A second frame even at59ms invalidates the isolated-pulse hypothesis. */
     (void)packet(&f,0,-1,-1);r=packet(&f,59,1,1);CHECK(r.count==2U&&!r.click);
     zeros(&f,59,20);CHECK(f.clicks==0U);
-    init(&f);(void)packet(&f,0,20,0);zeros(&f,0,18);
+    init(&f);(void)packet(&f,0,129,0);zeros(&f,0,18);
     r=packet(&f,190,2,0);CHECK(r.count==1U&&!tp_microtap_pending(&f.s));
     zeros(&f,190,20);(void)packet(&f,400,-1,-1);zeros(&f,400,6);
     CHECK(f.clicks==1U); /* only after ordinary-motion quiet>=200ms */
@@ -84,13 +84,17 @@ static void moving_not_tapping(void) {
 }
 static void boundaries_and_extremes(void) {
     struct fixture f;init(&f);
-    (void)packet(&f,0,1,0);zeros(&f,0,6);CHECK(f.clicks==0U&&f.replayed==1U);
-    init(&f);(void)packet(&f,0,16,8);zeros(&f,0,6);CHECK(f.clicks==1U);
-    init(&f);(void)packet(&f,0,16,9);CHECK(f.replayed==1U);zeros(&f,0,6);CHECK(f.clicks==0U);
-    init(&f);(void)packet(&f,0,17,0);CHECK(f.replayed==1U);
+    (void)packet(&f,0,1,0);zeros(&f,0,6);CHECK(f.clicks==1U&&f.discarded==1U);
+    init(&f);(void)packet(&f,0,-128,-128);zeros(&f,0,6);CHECK(f.clicks==1U);
+    init(&f);(void)packet(&f,0,128,129);CHECK(f.replayed==1U);zeros(&f,0,6);CHECK(f.clicks==0U);
+    init(&f);(void)packet(&f,0,129,0);CHECK(f.replayed==1U);
+    for(int x=-128;x<=127;x++)for(int y=-128;y<=127;y++) {
+        init(&f);(void)packet(&f,0,(int16_t)x,(int16_t)y);zeros(&f,0,6);
+        CHECK(f.clicks==((x!=0||y!=0)?1U:0U));
+    }
     for(int v=INT16_MIN;v<=INT16_MAX;v++) {
         init(&f);(void)packet(&f,0,(int16_t)v,0);zeros(&f,0,6);
-        bool eligible=(v<=-2&&v>=-16)||(v>=2&&v<=16);
+        bool eligible=(v<=-1&&v>=-128)||(v>=1&&v<=128);
         CHECK(f.clicks==(eligible?1U:0U));
     }
     puts("PASS energy/offset/quiet boundaries and all65536 int16 impulses");

@@ -62,6 +62,18 @@ static void all_caps_and_live_changes(void) {
 int main(void) {
     assert(legacy_trackpad_suite()==0);
     low_brightness_curve(1);low_brightness_curve(10);all_caps_and_live_changes();
+    fake_transport=ZMK_TRANSPORT_BLE;fake_scroll=true;fake_touch=false;
+    fake_tp_brightness=1;fake_activity=ZMK_ACTIVITY_ACTIVE;
+    polling_work_handler(&polling_work.work);
+    bool seen[81]={0};unsigned distinct=0;
+    for(unsigned i=0;i<200U;i++) {
+        animation_work_handler(&animation_work.work);
+        uint32_t ns=(uint32_t)((uint64_t)500000U*requested_pattern/10000U);
+        assert(fake_pwm_pulse_ns==ns&&fake_pwm_ticks>0U&&fake_pwm_ticks<=80U);
+        if(!seen[fake_pwm_ticks]){seen[fake_pwm_ticks]=true;distinct++;}
+    }
+    assert(distinct>=15U);
+    printf("PASS BLE/scroll fractional duty: %u distinct low-brightness tick levels, not integer OFF/ON\n",distinct);
     puts("PASS fractional trackpad PWM; hardware response/visual smoothness not asserted");
     return 0;
 }

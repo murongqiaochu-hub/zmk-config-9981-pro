@@ -7,7 +7,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/drivers/led.h>
+#include <zephyr/drivers/pwm.h>
 #include <zephyr/logging/log.h>
 
 #include "indicator_brightness.h"
@@ -25,7 +25,7 @@ BUILD_ASSERT(DT_HAS_CHOSEN(zmk_keyboard_backlight),
 BUILD_ASSERT(IS_ENABLED(CONFIG_ZMK_RGB_UNDERGLOW) && IS_ENABLED(CONFIG_LED_PWM),
              "9981 Pro indicators require RGB state controls and LED_PWM");
 
-static const struct device *const indiled_dev = DEVICE_DT_GET(DT_CHOSEN(zmk_keyboard_backlight));
+#include "keyboard_light_memory.h"
 
 #define CHILD_COUNT(...) +1
 #define DT_NUM_CHILD(node_id) (DT_FOREACH_CHILD(node_id, CHILD_COUNT))
@@ -52,26 +52,36 @@ static struct k_work_delayable polling_work;
 static struct k_work_delayable blink_work;
 static struct k_work_delayable cycle_work;
 
+#define KB_PWM_SPEC(node_id) PWM_DT_SPEC_GET(node_id),
+static const struct pwm_dt_spec kb_pwms[] = {
+    DT_FOREACH_CHILD(DT_CHOSEN(zmk_keyboard_backlight), KB_PWM_SPEC)
+};
 static int last_led_level = -1;
-
+static uint32_t kb_last_pulses[INDICATOR_LED_NUM_LEDS];
+static bool kb_pwm_valid;
+static void kb_set_fraction(uint32_t fraction) {
+    if (fraction > 10000U) { fraction = 10000U; }
+    uint32_t pulses[INDICATOR_LED_NUM_LEDS];
+    bool changed = !kb_pwm_valid;
+    for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) {
+        pulses[i] = (uint32_t)((uint64_t)kb_pwms[i].period * fraction / 10000U);
+        if (pulses[i] != kb_last_pulses[i]) { changed = true; }
+    }
+    if (!changed) { return; }
+    bool ok = true;
+    for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) {
+        int ret = pwm_is_ready_dt(&kb_pwms[i]) ?
+            pwm_set_dt(&kb_pwms[i],kb_pwms[i].period,pulses[i]) : -ENODEV;
+        if (ret < 0) { ok=false;LOG_ERR("Keyboard PWM[%d] failed: %d",i,ret); }
+    }
+    kb_pwm_valid=ok;
+    if (ok) {
+        for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) { kb_last_pulses[i]=pulses[i]; }
+    }
+    last_led_level=ok?(int)((fraction+50U)/100U):-1;
+}
 static void set_led_brightness(uint8_t level) {
-    if (!device_is_ready(indiled_dev)) {
-        LOG_ERR("Indicator LED device not ready");
-        return;
-    }
-    if (last_led_level == level) {
-        return;
-    }
-    bool all_written = true;
-    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        int err = led_set_brightness(indiled_dev, i, level);
-        if (err < 0) {
-            all_written = false;
-            LOG_ERR("Failed to set LED[%d] brightness: %d", i, err);
-        }
-    }
-    /* A partial write also invalidates the previous cached level. */
-    last_led_level = all_written ? level : -1;
+    kb_set_fraction((uint32_t)(level>100U?100U:level)*100U);
 }
 
 static uint8_t requested_pattern;
@@ -80,7 +90,7 @@ static void set_mode_brightness(uint8_t pattern) {
     bool on = false;
     if (zmk_rgb_underglow_get_state(&on) < 0) { on = false; }
     uint8_t setting = on ? zmk_rgb_underglow_calc_brt(0).b : 0;
-    set_led_brightness(indicator_pattern_level(pattern, setting));
+    kb_set_fraction((uint32_t)(pattern>100U?100U:pattern)*indicator_user_limit(setting));
 }
 
 /* 层1/层3闪烁 */
@@ -133,6 +143,7 @@ ZMK_LISTENER(kb_backlight_key_listener, key_listener_cb);
 ZMK_SUBSCRIPTION(kb_backlight_key_listener, zmk_position_state_changed);
 
 static void polling_work_handler(struct k_work *work) {
+    kb_mem_observe();
     bool active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     int current_layer = zmk_keymap_highest_layer_active();
     bool rgb_on = true;
@@ -206,11 +217,11 @@ static void polling_work_handler(struct k_work *work) {
 }
 
 static int keyboardbacklight_init(void) {
-    if (!device_is_ready(indiled_dev)) {
-        LOG_ERR("LED indicator device not ready");
-        return -ENODEV;
+    for (int i=0;i<INDICATOR_LED_NUM_LEDS;i++) {
+        if (!pwm_is_ready_dt(&kb_pwms[i])) { return -ENODEV; }
     }
-
+    kb_pwm_valid=false;
+    kb_mem_init();
     prev_active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     prev_layer = -1;
 
