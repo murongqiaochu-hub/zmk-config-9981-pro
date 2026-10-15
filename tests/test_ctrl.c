@@ -22,9 +22,29 @@ int main(void) {
     fake_aa=false;tp_sym_ctrl_release(300);assert(modifier_refs==1);
     sym_released(&b,e);assert(modifier_refs==1 && last_key_timestamp==300);
     assert(layer_to_calls==1);
-    /* A new aA press alone must not reactivate a still-held SYM. */
+    /* Changing a fake readback alone is not a physical position event. */
     fake_aa=true;assert(!ctrl_owned && modifier_refs==1);
     key_event_error=-EIO;sym_pressed(&b,e);assert(!ctrl_owned && modifier_refs==1);
     key_event_error=0;sym_released(&b,e);assert(modifier_refs==1);
-    puts("PASS Ctrl: sticky fallback, both release orders, duplicate release, independent Ctrl ownership, failure");
+    assert(tp_sym_ctrl_update(false,false,400)==0&&modifier_refs==1);
+    assert(tp_sym_ctrl_update(false,true,410)==0&&modifier_refs==1);
+    assert(tp_sym_ctrl_update(true,false,420)==0&&modifier_refs==1);
+    assert(tp_sym_ctrl_update(true,true,430)==0&&modifier_refs==2);
+    assert(tp_sym_ctrl_update(true,true,440)==0&&modifier_refs==2);
+    key_event_error=-EIO;
+    assert(tp_sym_ctrl_update(false,true,450)==-EIO&&ctrl_owned&&modifier_refs==2);
+    key_event_error=0;
+    assert(tp_sym_ctrl_update(false,false,460)==0&&!ctrl_owned&&modifier_refs==1);
+    key_event_error=-EIO;
+    assert(tp_sym_ctrl_update(true,true,470)==-EIO&&!ctrl_owned&&modifier_refs==1);
+    key_event_error=0;
+    fake_layer=3;
+    assert(tp_sym_ctrl_update(true,true,480)==0&&!ctrl_owned&&modifier_refs==1);
+    fake_layer=1;
+    assert(tp_sym_ctrl_update(true,true,490)==0&&ctrl_owned&&modifier_refs==2);
+    fake_layer=3;
+    assert(tp_sym_ctrl_update(true,true,500)==0&&ctrl_owned&&modifier_refs==2);
+    assert(tp_sym_ctrl_update(true,false,510)==0&&!ctrl_owned&&modifier_refs==1);
+    puts("PASS Ctrl: both physical press orders, both releases, idempotence, independent Ctrl ownership, media exclusion and failure retry");
+    return 0;
 }

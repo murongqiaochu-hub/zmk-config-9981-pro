@@ -1,6 +1,7 @@
 #include "test_env.h"
 static unsigned sym_release_count;
 int tp_sym_ctrl_release(int64_t t) { (void)t;sym_release_count++;return 0; }
+int tp_sym_ctrl_update(bool aa,bool sym,int64_t t) { (void)sym;return aa?0:tp_sym_ctrl_release(t); }
 uint8_t indicator_tp_get_last_valid_brightness(void) { return 40; }
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 
@@ -8,7 +9,7 @@ static void key(uint32_t p,bool down,int64_t t) {
     zmk_event_t e={.valid=true,.data={.position=p,.state=down,.timestamp=t}};
     assert(ctrl_listener_cb(&e)==0);
 }
-static void reset_keys(void) { memset(&scroll_keys,0,sizeof(scroll_keys));atomic_set(&scroll_mode_snapshot,0); }
+static void reset_keys(void) { memset(&scroll_keys,0,sizeof(scroll_keys));sym_physically_pressed=false;atomic_set(&scroll_mode_snapshot,0); }
 int main(void) {
     /* Actual listener uses original timestamp, independent of dispatch clock. */
     fake_now=90000;key(41,true,0);key(41,false,100);

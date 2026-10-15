@@ -28,4 +28,5 @@ int main(void) {
     sym_released(&b,e);key(40,false,230);assert(modifier_refs==0 && tp_scroll_mode_active());
     key(41,false,240);assert(modifier_refs==0 && !scroll_keys.tap_pending);
     puts("PASS Driver+behavior integration: Ctrl accompanies both wheel axes, first-aA-release reaches actual Ctrl owner, reverse release order, no chord-as-double-tap");
+    return 0;
 }

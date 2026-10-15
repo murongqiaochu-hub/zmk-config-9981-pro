@@ -20,9 +20,26 @@ int tp_sym_ctrl_release(int64_t timestamp) {
     if (!ctrl_owned) {
         return 0;
     }
-    ctrl_owned = false;
-    /* Use the standard key event path and ZMK's reference-counted modifiers. */
-    return raise_zmk_keycode_state_changed_from_encoded(LCTRL, false, timestamp);
+    /* Keep ownership on failure so a later physical/binding edge can retry.
+     * Never decrement another physical/sticky Ctrl key's reference. */
+    int ret = raise_zmk_keycode_state_changed_from_encoded(LCTRL, false, timestamp);
+    if (ret >= 0) { ctrl_owned = false; }
+    return ret;
+}
+
+static int tp_sym_ctrl_press(int64_t timestamp) {
+    if (ctrl_owned) { return ZMK_BEHAVIOR_OPAQUE; }
+    int ret = raise_zmk_keycode_state_changed_from_encoded(LCTRL, true, timestamp);
+    if (ret >= 0) { ctrl_owned = true; }
+    return ret;
+}
+
+int tp_sym_ctrl_update(bool aa_down, bool sym_down, int64_t timestamp) {
+    if (!aa_down || !sym_down) { return tp_sym_ctrl_release(timestamp); }
+    /* Normal/default, SYM and UPPER layers only; don't add a Ctrl chord to MEDIA.
+     * Once owned, only physical release ends it, even if another layer changes. */
+    if (!ctrl_owned && zmk_keymap_highest_layer_active() > 2) { return 0; }
+    return tp_sym_ctrl_press(timestamp);
 }
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
@@ -33,15 +50,7 @@ static int sym_pressed(struct zmk_behavior_binding *binding,
         /* Sticky Layer 2 with aA already released: preserve &to DEFAULT. */
         return zmk_keymap_layer_to(0);
     }
-    if (ctrl_owned) {
-        return ZMK_BEHAVIOR_OPAQUE;
-    }
-    ctrl_owned = true;
-    int ret = raise_zmk_keycode_state_changed_from_encoded(LCTRL, true, event.timestamp);
-    if (ret < 0) {
-        ctrl_owned = false;
-    }
-    return ret;
+    return tp_sym_ctrl_press(event.timestamp);
 }
 
 static int sym_released(struct zmk_behavior_binding *binding,

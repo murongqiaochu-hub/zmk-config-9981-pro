@@ -5,6 +5,7 @@ static int burst_error;
 static unsigned brightness_reads;
 uint8_t indicator_tp_get_last_valid_brightness(void) { brightness_reads++; return pointer_brightness; }
 int tp_sym_ctrl_release(int64_t timestamp) { (void)timestamp; return 0; }
+int tp_sym_ctrl_update(bool aa,bool sym,int64_t timestamp) { (void)aa;(void)sym;(void)timestamp;return 0; }
 static int pointer_burst(const struct i2c_dt_spec *spec, int reg, uint8_t *buf, size_t n) {
     if (burst_error) { return burst_error; }
     return i2c_burst_read_dt(spec, reg, buf, n);

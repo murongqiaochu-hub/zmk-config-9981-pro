@@ -175,6 +175,8 @@ static void probe_poll(const struct i2c_dt_spec *bus, int motion_gpio) {
  * Detect press+release between polls without clearing pointer state in the listener.
  */
 static atomic_t cursor_speed_snapshot;
+static bool sym_physically_pressed;
+#define TP_SYM_POSITION 40
 
 /* ==== position_state_changed event listener ==== */
 static int ctrl_listener_cb(const zmk_event_t *eh) {
@@ -197,10 +199,17 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
     if (was_latched != scroll_keys.latched) {
         LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
     }
-    if (ev->position == TP_AA_POSITION && !ev->state) {
-        int err = tp_sym_ctrl_release(ev->timestamp);
+    if (ev->position == TP_SYM_POSITION) { sym_physically_pressed = ev->state; }
+    if (ev->position == TP_AA_POSITION || ev->position == TP_SYM_POSITION) {
+        if (scroll_keys.pressed && sym_physically_pressed) {
+            /* SYM-first is also a chord, never an aA double-tap scroll toggle. */
+            scroll_keys.interrupted = true;
+            scroll_keys.tap_pending = false;
+            scroll_keys.double_candidate = false;
+        }
+        int err = tp_sym_ctrl_update(scroll_keys.pressed, sym_physically_pressed, ev->timestamp);
         if (err < 0) {
-            LOG_ERR("aA release could not release SYM Ctrl: %d", err);
+            LOG_ERR("aA/SYM Ctrl state update failed: %d", err);
         }
     }
     return ZMK_EV_EVENT_BUBBLE;
