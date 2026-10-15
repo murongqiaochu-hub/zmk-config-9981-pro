@@ -81,6 +81,26 @@ int main(void) {
     complete();poll_at(240,0,0,true,false);
     assert(moves==0&&count==0&&trace_count==6&&memcmp(trace,"DUDUDU",6)==0);
 
+    /* A two-frame rebound is discarded as one click, with no pointer drift. */
+    fixture(true);
+    poll_at(10,4,1,true,false);poll_at(30,-2,-1,true,false);
+    for(uint32_t t=40;t<=90;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==1&&moves==0&&pointer_x==0&&pointer_y==0);
+    assert(pointer.x.remainder==0&&pointer.y.remainder==0);
+    complete();
+    /* A second 3-frame rebound can immediately follow; there is no cooldown. */
+    poll_at(100,3,0,true,false);poll_at(120,1,1,true,false);poll_at(140,-2,-1,true,false);
+    for(uint32_t t=150;t<=200;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==2&&moves==0);complete();
+    assert(trace_count==4&&memcmp(trace,"DUDU",4)==0);
+
+    /* Monotonic short micro-movement must return all original timestamped raw
+     * frames through the unchanged pointer arithmetic, not a guessed click. */
+    fixture(true);
+    poll_at(10,2,0,true,false);poll_at(30,1,0,true,false);
+    for(uint32_t t=40;t<=90;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==0&&moves==2&&pointer_x==3&&pointer_y==0);
+
     fixture(true);
     poll_at(10,2,0,true,false);poll_at(20,20,0,true,false);
     assert(submissions==0&&moves==2&&pointer_x==26);

@@ -2,11 +2,12 @@
  * Opt-in raw-motion/quiet click heuristic (pure C11, no allocation).
  *
  * This does NOT detect physical contact or promise recognition of light taps.
- * Historical tap windows contained isolated SINGLE-frame impulses, not the
- * >=3-frame micro-swipes selected by the first experiment. Admit one impulse
- * (2..24 Manhattan counts, <=16 per axis) only after 60ms without another frame.
- * A second frame immediately makes this ordinary movement. This remains an
- * experimental motion surrogate: isolated micro-adjustments can be identical.
+ * Keep the historical single-frame impulse policy and admit bounded 2/3-frame
+ * pulses ONLY with opposing motion: path - Manhattan(net) >=4 raw counts.
+ * This measures at least 2 counts of retraced movement, NOT physical contact.
+ * Monotonic short micro-swipes and weak +/-1 jitter do not qualify as multi-
+ * frame pulses. Single-frame micro-adjustments remain an unresolved ambiguity.
+ * All pulses require >=60ms without new motion; max span=50ms, age=120ms.
  * Zero motion, missing data, faults and reset never create clicks.
  * Call reset before first use. The caller owns and serializes each state.
  * enabled is supplied explicitly on EVERY step; blocked suppresses clicks.
@@ -18,8 +19,8 @@
  * pointer pipeline. Never adjust pointer remainders or synthesize compensation.
  * A click deliberately discards ONLY the old candidate's buffered movement.
  *
- * Only one frame may remain pending; the existing 16-frame result ABI stays
- * unchanged. The next nonzero frame releases BOTH frames as ordinary movement.
+ * Up to three frames may remain pending; the existing 16-frame result ABI stays
+ * unchanged. A fourth/oversize/late frame releases ALL frames as movement.
  * Once rejected/passed through, a movement run stays passthrough until a
  * >=200ms quiet interval; its small tail cannot become a new click candidate.
  * There is no click cooldown: separated pulses can click on consecutive steps.
@@ -32,9 +33,9 @@
  * old click precedes ALL returned new movement; enqueue click before frames.
  * At most one click per step.
  *
- * Limits are inclusive; candidate age >100ms, a second nonzero frame, traveled
- * Manhattan path >24 or ANY cumulative Linf offset >16 reject immediately.
- * Quiet is >=60ms since the impulse, not a contact-release claim. The 100ms
+ * Limits are inclusive; candidate age >120ms, a fourth nonzero frame, span
+ * >50ms, path >24 or ANY cumulative Linf offset >16 reject immediately.
+ * Quiet is >=60ms since the last motion, not a contact-release claim. The 120ms
  * candidate cap includes this observation window. No late/retroactive click.
  *
  * uint32 milliseconds use modular subtraction, including natural rollover.
@@ -56,11 +57,13 @@
 #define TP_MICROTAP_QUIET_MS 60U
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 1U
-#define TP_MICROTAP_MAX_FRAMES 1U
+#define TP_MICROTAP_MAX_FRAMES 3U
 #define TP_MICROTAP_MIN_PATH 2U
+#define TP_MICROTAP_MULTI_MIN_PATH 4U
+#define TP_MICROTAP_MIN_CANCELLED_PATH 4U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
-#define TP_MICROTAP_MAX_CANDIDATE_MS 100U
-#define TP_MICROTAP_MAX_MOTION_SPAN_MS 25U
+#define TP_MICROTAP_MAX_CANDIDATE_MS 120U
+#define TP_MICROTAP_MAX_MOTION_SPAN_MS 50U
 #define TP_MICROTAP_MAX_PATH 24U
 #define TP_MICROTAP_MAX_OFFSET 16U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
@@ -173,10 +176,16 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
             tp_microtap_flush(s, &out);
             s->mode = TP_MICROTAP_PASSTHROUGH;
         } else if ((uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_QUIET_MS) {
-            /* Admit an isolated nontrivial impulse; a weak rejected impulse is
-             * movement and enters the navigation guard, never a tap cooldown. */
-            const bool admitted = s->count == TP_MICROTAP_MAX_FRAMES &&
-                                  s->path >= TP_MICROTAP_MIN_PATH;
+            /* A bounded multi-frame pulse must retrace nontrivial motion.
+             * Directional micro-swipes are not admitted just for being short.
+             * This is a geometric feature, NOT evidence of finger release. */
+            const uint32_t net = tp_microtap_magnitude(s->sum_x) +
+                                 tp_microtap_magnitude(s->sum_y);
+            const bool single = s->count == 1U && s->path >= TP_MICROTAP_MIN_PATH;
+            const bool rebound = s->count >= 2U &&
+                                 s->path >= TP_MICROTAP_MULTI_MIN_PATH &&
+                                 s->path >= net + TP_MICROTAP_MIN_CANCELLED_PATH;
+            const bool admitted = single || rebound;
             if (admitted) {
                 tp_microtap_clear_candidate(s);
                 out.click = true;
