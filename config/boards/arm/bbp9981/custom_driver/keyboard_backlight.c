@@ -217,11 +217,12 @@ static void polling_work_handler(struct k_work *work) {
 }
 
 static int keyboardbacklight_init(void) {
+    /* Settings h_commit may still run if the LED device fails initialization. */
+    kb_mem_init();
     for (int i=0;i<INDICATOR_LED_NUM_LEDS;i++) {
         if (!pwm_is_ready_dt(&kb_pwms[i])) { return -ENODEV; }
     }
     kb_pwm_valid=false;
-    kb_mem_init();
     prev_active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
     prev_layer = -1;
 

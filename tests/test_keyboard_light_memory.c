@@ -12,6 +12,9 @@ static void reboot_ram(void) {
     assert(keyboardbacklight_init()==0);
 }
 int main(void) {
+    fake_pwm_ready=false;kb_mem_work.schedules=999;
+    assert(keyboardbacklight_init()==-ENODEV&&kb_mem_work.schedules==0U);
+    fake_pwm_ready=true;
     reboot_ram();fake_brightness=70;kb_mem_observe();assert(!kb_mem_dirty&&fake_flash_writes==0U);
     uint8_t saved=17;
     assert(kb_mem_set("bad",1,read_value,&saved)==-ENOENT);
