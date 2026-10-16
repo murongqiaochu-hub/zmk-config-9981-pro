@@ -39,6 +39,14 @@ if(CONFIG_BOARD_BBP9981)
     endif()
     if(CONFIG_BBP9981_MENU_DIAG)
         zephyr_library_sources(custom_driver/menu_click_diag.c)
+        if(CMAKE_VERSION VERSION_LESS 3.18)
+            message(FATAL_ERROR "Endpoint diagnostic extension requires CMake >= 3.18")
+        endif()
+        # Same source-only APP-directory scope as HID above; no global prefix.
+        # The worker's snapshot reference requires this injection at link time.
+        set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/endpoints.c"
+            DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
+            "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/menu_diag_endpoints.h")
         set_property(GLOBAL PROPERTY BBP9981_DIAG_PREFIX_DIR "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver")
         # Defer until module/library targets exist; amend only the pinned matrix TU.
         function(bbp9981_inject_matrix_diag)

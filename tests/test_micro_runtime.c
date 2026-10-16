@@ -22,7 +22,7 @@ struct tp_tap_output_inflight tp_tap_output_read_inflight(void) {
 int tp_tap_output_submit(void) {
     if(status.phase!=TP_TAP_OUTPUT_IDLE)return -EBUSY;
     status.phase=TP_TAP_OUTPUT_HOLDING;status.owns_left=true;refs[0]++;
-    status.down_reports++;submissions++;trace[trace_count++]='D';return 0;
+    status.down_reports++;status.accepted_at=fake_now;submissions++;trace[trace_count++]='D';return 0;
 }
 static void complete(void) {
     assert(status.owns_left && refs[0]>0);
@@ -64,46 +64,58 @@ int main(void) {
     poll_at(10,1,-1,true,false);assert(moves==1&&pointer_x==1&&pointer_y==-1&&submissions==0);
     poll_at(20,1,1,true,false);assert(moves==2&&submissions==0);
 
+    fixture(true);poll_at(10,-1,-1,true,false);
+    for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==0&&moves==1&&pointer_x==-1&&pointer_y==-1);
+
     fixture(true);
-    poll_at(10,-1,-1,true,false);assert(moves==0&&tp_microtap_runtime_pending());
+    poll_at(10,3,0,true,false);assert(moves==0&&tp_microtap_runtime_pending());
     for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
     assert(submissions==1&&moves==0&&pointer_x==0&&pointer_y==0);
     assert(pointer.x.remainder==0&&pointer.y.remainder==0);
-    /* Recorded single-frame pulse shapes queue even while transport holds first. */
-    poll_at(80,5,-12,true,false);
-    for(uint32_t t=90;t<=140;t+=10)poll_at(t,0,0,true,false);
-    assert(submissions==1&&count==2);
-    complete();poll_at(150,0,0,true,false);assert(submissions==2);
-    poll_at(160,-1,-1,true,false);
-    for(uint32_t t=170;t<=220;t+=10)poll_at(t,0,0,true,false);
-    assert(count==2);
-    complete();poll_at(230,0,0,true,false);assert(submissions==3);
-    complete();poll_at(240,0,0,true,false);
+    complete();poll_at(80,0,0,true,false);
+    for(uint32_t t=90;t<=200;t+=10)poll_at(t,0,0,true,false);
+    poll_at(210,3,0,true,false);
+    for(uint32_t t=220;t<=270;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==2);complete();poll_at(280,0,0,true,false);
+    for(uint32_t t=290;t<=400;t+=10)poll_at(t,0,0,true,false);
+    poll_at(410,3,0,true,false);
+    for(uint32_t t=420;t<=470;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==3);complete();poll_at(480,0,0,true,false);
     assert(moves==0&&count==0&&trace_count==6&&memcmp(trace,"DUDUDU",6)==0);
 
     fixture(true);
-    poll_at(10,2,0,true,false);poll_at(20,20,0,true,false);
+    poll_at(10,2,0,true,false);poll_at(20,20,0,true,false);poll_at(30,1,0,true,false);
     assert(submissions==0&&moves==0&&tp_microtap_runtime_pending());
-    poll_at(30,1,0,true,false);assert(moves==3&&pointer_x==27);
-    poll_at(40,0,0,true,false);poll_at(50,0,0,true,false);
-    poll_at(60,0,0,true,false);assert(submissions==0); /* moving tail isn't a click */
+    poll_at(40,1,0,true,false);assert(moves==4&&pointer_x==28);
+    for(uint32_t t=50;t<=120;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==0);
 
-    fixture(true);
-    poll_at(10,-1,-1,true,false);
+    fixture(true);poll_at(10,3,0,true,false);
     for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
     assert(submissions==1);
-    poll_at(80,30,0,true,false);assert(moves==0&&count==1); /* pending high-risk pulse */
-    poll_at(90,1,0,true,false);assert(moves==0&&count==1); /* two frames pending */
-    poll_at(100,1,0,true,false);assert(moves==0&&count==4); /* third flushes, no drag */
+    poll_at(80,30,0,true,false);assert(moves==0&&count==2);
+    poll_at(90,1,0,true,false);poll_at(100,1,0,true,false);assert(count==4);
     complete();poll_at(110,0,0,true,false);
     assert(moves==3&&pointer_x==38&&memcmp(trace,"DUMMM",5)==0);
+    for(uint32_t t=120;t<=400;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==1&&count==0); /* Rebound was movement, never deferred click. */
+
+    fixture(true); /* Deliberate decisions200ms apart; slow bridge must not bunch them. */
+    poll_at(10,3,0,true,false);
+    for(uint32_t t=20;t<=470;t+=10){
+        poll_at(t,(t==210U||t==410U)?3:0,0,true,false);
+    }
+    assert(submissions==1&&count==3);
+    fake_now=500;complete();poll_at(500,0,0,true,false);assert(submissions==2);
+    fake_now=510;complete();poll_at(510,0,0,true,false);assert(submissions==2&&count==0);
+    for(uint32_t t=520;t<=800;t+=10)poll_at(t,0,0,true,false);
+    assert(submissions==2); /* Too-close queued submission dropped, not postponed. */
 
     fixture(true);refs[0]=1;
     poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);
     poll_at(40,0,0,true,false);assert(submissions==0&&refs[0]==1);
-    fixture(true);refs[1]=1;
-    poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);
-
+    fixture(true);refs[1]=1;poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);
     fixture(true);poll_at(10,2,0,true,false);poll_at(20,0,0,false,false);
     assert(moves==1&&submissions==0);poll_at(50,0,0,true,false);assert(submissions==0);
     fixture(true);poll_at(10,2,0,true,false);tp_microtap_runtime_toggle();
@@ -116,6 +128,6 @@ int main(void) {
     poll_at(50,0,0,true,true);assert(submissions==0&&moves==0);
     fixture(true);tp_microtap_runtime_shoulder_busy(true);
     poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);
-    puts("PASS Actual micro runtime: off-transparent pointer, triple click FIFO, zero candidate drift, early flush, no tail click, no synthetic drag, physical owners, error/mode/endpoint/toggle cancellation");
+    puts("PASS Actual runtime: weak movement replay, first60ms/three deliberate taps200ms apart, fourth-frame flush, no rebound click/drag/catch-up, slow-bridge submission guard, physical/mode/clock guards; no host ACK claim");
     return 0;
 }

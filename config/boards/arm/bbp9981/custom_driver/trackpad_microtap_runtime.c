@@ -121,6 +121,15 @@ static void drain(uint32_t now, bool allow_click, tp_microtap_emit_fn emit, void
                 continue;
             }
             if (out.busy) { return; }
+            /* A delayed queue must not compress two decisions into a rapid
+             * second submission. Drop it now; never wait then catch up.
+             * accepted_at is the last bridge/SDK acceptance, NOT host ACK. */
+            if (out.down_reports != 0U &&
+                (uint32_t)(now - out.accepted_at) < TP_MICROTAP_CLICK_INTERVAL_MS) {
+                bbp_menu_diag_note(MD_MICRO,3,(int32_t)count,0,0);
+                pop_event();
+                continue;
+            }
             int ret = tp_tap_output_submit();
             if (ret == -EBUSY) { return; }
             if (ret != 0) {
