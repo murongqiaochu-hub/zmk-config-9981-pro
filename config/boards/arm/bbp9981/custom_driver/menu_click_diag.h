@@ -4,6 +4,7 @@
 #include <stdbool.h>
 enum md_kind {MD_RAW=1,MD_DB,MD_POS,MD_HID,MD_KBD,MD_ENQUEUE,MD_NOTIFY,MD_CANCEL,MD_MICRO,MD_BEGIN};
 #if defined(CONFIG_BBP9981_MENU_DIAG) && CONFIG_BBP9981_MENU_DIAG
+int bbp_menu_diag_matrix_ready(void);
 bool bbp_menu_diag_active(void);
 void bbp_menu_diag_arm(void);
 void bbp_menu_diag_note(uint8_t kind,int32_t a,int32_t b,int32_t c,int32_t d);

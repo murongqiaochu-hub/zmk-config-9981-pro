@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: MIT -- event snapshots only; never log inside IRQ lock. */
+#include <errno.h>
 #include <zephyr/kernel.h>
+#include <zephyr/init.h>
 #include <zephyr/irq.h>
 #include <zephyr/logging/log.h>
 #include <zmk/event_manager.h>
@@ -48,7 +50,7 @@ static void drain(struct k_work *work) {
  (void)work;struct md_event e;
  for(unsigned i=0;i<16U;i++) {
   unsigned key=irq_lock();bool have=md_pop(&ring,&e);irq_unlock(key);if(!have)break;
-  LOG_INF("MDIAG v=1 t=%u k=%u a=%d b=%d c=%d d=%d",e.at,e.kind,e.a,e.b,e.c,e.d);
+  LOG_INF("MDIAG v=1 t=%u k=%u a=%d b=%d c=%d d=%d seq=%u",e.at,e.kind,e.a,e.b,e.c,e.d,e.seq);
  }
  static uint32_t last_status;uint32_t now=k_uptime_get_32();
  if(now-last_status>=2000U){
@@ -60,6 +62,7 @@ static void drain(struct k_work *work) {
  k_work_reschedule(&drain_work,K_MSEC(bbp_menu_diag_active()?100:500));
 }
 static int diag_init(void) {
+ if(bbp_menu_diag_matrix_ready()!=1)return -ENODEV;
  bbp_menu_diag_arm();k_work_init_delayable(&drain_work,drain);
  k_work_reschedule(&drain_work,K_MSEC(100));return 0;
 }

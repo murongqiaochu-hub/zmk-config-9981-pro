@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / '.host-test-build'
 STUBS = BUILD / 'include'
 HEADERS = [
-    'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h', 'zephyr/irq.h', 'zephyr/settings/settings.h',
+    'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h', 'zephyr/irq.h', 'zephyr/init.h', 'zephyr/settings/settings.h',
     'zephyr/logging/log.h', 'zephyr/sys/atomic.h', 'zephyr/sys/byteorder.h',
     'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h', 'zephyr/drivers/uart.h', 'zephyr/drivers/pwm.h',
     'zephyr/input/input.h', 'zephyr/dt-bindings/input/input-event-codes.h',

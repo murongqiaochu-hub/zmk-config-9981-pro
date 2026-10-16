@@ -6,6 +6,7 @@ static void irq_unlock(unsigned key){assert(irq_depth==key+1U);irq_depth--;}
 static void audit_log(const char *fmt,...){(void)fmt;assert(irq_depth==0U);log_calls++;}
 #undef LOG_INF
 #define LOG_INF(...) audit_log(__VA_ARGS__)
+int bbp_menu_diag_matrix_ready(void){return 1;}
 #include "../config/boards/arm/bbp9981/custom_driver/menu_click_diag.c"
 int main(void){
  assert(diag_init()==0&&bbp_menu_diag_active());

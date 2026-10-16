@@ -5,6 +5,8 @@
 #include <zmk/debounce.h>
 #include <zephyr/kernel.h>
 #include "menu_click_diag.h"
+/* Link guard: the diagnostic worker cannot link unless this TU prefix applied. */
+int bbp_menu_diag_matrix_ready(void){return 1;}
 static inline int md_slot(size_t col){return col==0U?0:(col==1U?1:(col==5U?2:-1));}
 static inline int md_matrix_get(const struct kscan_gpio *g,struct kscan_gpio_port_state *s,size_t col) {
  int value=kscan_gpio_pin_get(g,s);int slot=md_slot(col);
