@@ -5,6 +5,14 @@ static bool fake_scroll,fake_touch;
 bool tp_scroll_mode_active(void){return fake_scroll;}
 bool tp_is_touched(void){return fake_touch;}
 #include "../config/boards/arm/bbp9981/custom_driver/trackpad_led.c"
+/* Check output separately from every unchanged raw/settings assertion below. */
+static void assert_memory_output(unsigned pattern,unsigned raw){
+ unsigned limit=(raw*raw+50U)/100U;if(raw>0U&&limit==0U)limit=1U;
+ uint32_t ns=(uint32_t)((uint64_t)500000U*pattern*limit/30000U);
+ assert(fake_pwm_period_ns==500000U&&fake_pwm_pulse_ns==ns);
+ assert(fake_pwm_ticks==(uint32_t)((uint64_t)ns*16U/1000U));
+ for(unsigned i=0;i<(unsigned)INDICATOR_LED_NUM_LEDS;i++)assert(fake_pwm_pulses[i]==ns);
+}
 static ssize_t read_value(void *a,void *d,size_t n){assert(n==1);*(uint8_t *)d=*(uint8_t *)a;return 1;}
 static ssize_t partial(void *a,void *d,size_t n){(void)a;(void)d;(void)n;return 0;}
 static ssize_t fail_read(void *a,void *d,size_t n){(void)a;(void)d;(void)n;return -EIO;}
@@ -26,23 +34,28 @@ int main(void){
  assert(tp_mem_set("brightness",1,read_value,&bad)==-EINVAL);
  assert(tp_mem_set("brightness",1,read_value,&saved)==0);
  assert(tp_mem_commit()==0&&tp_mem_ready&&fake_tp_brightness==17&&last_valid_brt==17);
+ set_led_brightness(100);assert_memory_output(100,17);assert(tp_mem_value==17&&!tp_mem_dirty);
  fake_tp_brightness=27;polling_work_handler(&polling_work.work);
  fake_tp_brightness=37;polling_work_handler(&polling_work.work);
  assert(tp_mem_dirty&&tp_mem_work.delay==250);tp_mem_save(&tp_mem_work.work);
  assert(fake_tp_flash_has_value&&fake_tp_flash_value==37&&fake_tp_flash_writes==writes+1);
+ set_led_brightness(100);assert_memory_output(100,37);assert(fake_tp_brightness==37&&fake_tp_flash_value==37);
  reboot(false);assert(tp_mem_set("brightness",1,read_value,&fake_tp_flash_value)==0);
  assert(tp_mem_commit()==0&&fake_tp_brightness==37&&!fake_tp_on&&last_valid_brt==37);
+ set_led_brightness(100);assert_memory_output(100,37);assert(zmk_backlight_get_brt()==0&&zmk_backlight_calc_brt(0)==37);
  writes=fake_tp_flash_writes;
  fake_activity=ZMK_ACTIVITY_IDLE;fake_tp_on=false;
  for(unsigned i=0;i<1000;i++){
   fake_now=i*20U;polling_work_handler(&polling_work.work);usb_breath_work_handler(&usb_breath_work.work);
   assert(last_valid_brt==37&&tp_mem_value==37&&!tp_mem_dirty);
+  assert_memory_output(requested_pattern,37);assert(fake_tp_brightness==37&&!fake_tp_on&&fake_brightness==40);
  }
  tp_mem_save(&tp_mem_work.work);assert(fake_tp_flash_writes==writes);
  fake_tp_brightness=0;polling_work_handler(&polling_work.work);tp_mem_save(&tp_mem_work.work);
  assert(fake_tp_flash_value==0&&last_valid_brt==0&&fake_pwm_pulse_ns==0);
  reboot(true);assert(tp_mem_set("brightness",1,read_value,&fake_tp_flash_value)==0);
  assert(tp_mem_commit()==0&&fake_tp_brightness==0&&!fake_tp_on&&last_valid_brt==0);
+ set_led_brightness(100);assert_memory_output(100,0);assert(tp_mem_value==0&&fake_tp_flash_value==0);
  uint8_t kb=73;assert(settings_save_one("bbp9981/kb/brightness",&kb,1)==0);
  fake_tp_brightness=77;tp_mem_observe();fake_tp_flash_error=-EIO;
  tp_mem_save(&tp_mem_work.work);tp_mem_save(&tp_mem_work.work);tp_mem_save(&tp_mem_work.work);
@@ -54,8 +67,10 @@ int main(void){
  reboot(true);assert(tp_mem_set("brightness",1,read_value,&saved)==0);
  fake_tp_set_error=-EIO;assert(tp_mem_commit()==-EIO&&!tp_mem_ready);fake_tp_set_error=0;
  assert(tp_mem_commit()==0&&last_valid_brt==17);
+ set_led_brightness(100);assert_memory_output(100,17);
+ assert(fake_tp_brightness==17&&tp_mem_value==17&&fake_flash_value==73&&fake_brightness==40);
  tp_mem_driver_ready=false;fake_pwm_ready=false;assert(indicator_tp_init()==-ENODEV);
  assert(tp_mem_initialized&&!tp_mem_driver_ready&&tp_mem_commit()==-ENODEV);
- puts("PASS TP memory: raw/effective distinction, pre-load gate, 250ms coalesce, simulated reboot/on/off/zero, 1000 idle animation frames no flash, invalid reads, bounded retries, KB isolation, failed native/PWM init");
+ puts("PASS TP memory: final PWM /3 with unchanged raw/settings keys, raw/effective distinction, pre-load gate, 250ms coalesce, simulated reboot/on/off/zero, 1000 idle animation frames no flash, invalid reads, bounded retries, KB isolation, failed native/PWM init");
  return 0;
 }

@@ -106,3 +106,5 @@ assert negative.returncode != 0 and 'bbp_menu_diag_endpoints_snapshot' in negati
 cmake = (ROOT / 'config/boards/arm/bbp9981/CMakeLists.txt').read_text()
 assert '"${APPLICATION_SOURCE_DIR}/src/endpoints.c"' in cmake and cmake.count('menu_diag_endpoints.h') == 1
 print('PASS endpoint diagnostics: four unchanged SDK fixtures, actual preinclude across USB/BLE variants, settings-off/fault-mock, missing-snapshot negative link, source-specific CMake target')
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_isolation_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_matrix_isolation.py'), '-v'], check=True)

@@ -77,9 +77,10 @@ static void set_led_brightness(uint8_t pattern) {
     const uint32_t bounded_pattern = pattern > 100U ? 100U : pattern;
     const uint32_t limit = indicator_user_limit(last_valid_brt);
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        /* Preserve sub-percent duty in USB AND BLE/scroll animations. */
+        /* TP-only 1/3 output gain; preserve fractional duty in every mode
+         * without changing the raw user limit or rounding it to zero first. */
         uint64_t scaled = (uint64_t)trackpad_pwms[i].period * bounded_pattern * limit;
-        pulses[i] = (uint32_t)(scaled / 10000U);
+        pulses[i] = (uint32_t)(scaled / (10000U * 3U));
         if (last_pwm_pulse_ns[i] != pulses[i]) { changed = true; }
     }
     if (!changed) { return; }
