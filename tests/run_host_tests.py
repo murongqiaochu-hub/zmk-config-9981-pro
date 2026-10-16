@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / '.host-test-build'
 STUBS = BUILD / 'include'
 HEADERS = [
-    'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h', 'zephyr/settings/settings.h',
+    'zephyr/device.h', 'zephyr/devicetree.h', 'zephyr/kernel.h', 'zephyr/irq.h', 'zephyr/settings/settings.h',
     'zephyr/logging/log.h', 'zephyr/sys/atomic.h', 'zephyr/sys/byteorder.h',
     'zephyr/drivers/i2c.h', 'zephyr/drivers/gpio.h', 'zephyr/drivers/led.h', 'zephyr/drivers/uart.h', 'zephyr/drivers/pwm.h',
     'zephyr/input/input.h', 'zephyr/dt-bindings/input/input-event-codes.h',
@@ -26,10 +26,10 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name in ['keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm'] else []
-    special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks'}
+    special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks'}
     include = ROOT / 'tests' / special[name] if name in special else STUBS
     sources = [str(ROOT / 'tests' / ('test_' + name + '.c'))]
     if name == 'tap_pipeline':
@@ -66,9 +66,12 @@ for relative in paths:
     assert before['upper_layer'][40] == '&to DEFAULT'
     before['upper_layer'][40] = '&aa_sym_ctrl'
     before['default_layer'][0] = '&microtap_shoulder'
+    assert before['upper_layer'][7] == '&none'
+    before['upper_layer'][7] = '&out OUT_BLE'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: only default left shoulder and source68 SYM Ctrl differ from original, all other bindings preserved')
+print('PASS Keymaps: only left shoulder, SYM Ctrl and unused UPPER-Q explicit OUT_BLE differ from original; all other bindings preserved')
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
+subprocess.run([os.sys.executable, str(ROOT / 'tests/run_diag_hid.py')], check=True)

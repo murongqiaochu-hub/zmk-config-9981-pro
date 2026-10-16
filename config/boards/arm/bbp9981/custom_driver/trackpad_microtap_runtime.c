@@ -20,6 +20,7 @@
 #include "trackpad_microtap_runtime.h"
 #include "trackpad_microtap.h"
 #include "trackpad_tap_output.h"
+#include "menu_click_diag.h"
 
 LOG_MODULE_REGISTER(tp_microtap, CONFIG_A320_LOG_LEVEL);
 extern int bbp9981_hid_mouse_button_references(unsigned int button);
@@ -150,6 +151,7 @@ void tp_microtap_runtime_poll(uint32_t now, int16_t dx, int16_t dy, bool valid,
         speed_epoch != seen_speed || usb != usb_generation ||
         !zmk_endpoint_instance_eq(endpoint, seen_endpoint));
     if (changed) {
+        bbp_menu_diag_note(MD_MICRO,2,(int32_t)epoch,(int32_t)mode_epoch,(int32_t)speed_epoch);
         /* Do not replay old pointer/click candidates across a layer/host/mode
          * switch. Runtime changes deliberately cancel undecided motion. */
         tp_microtap_reset(&gesture);
@@ -175,6 +177,7 @@ void tp_microtap_runtime_poll(uint32_t now, int16_t dx, int16_t dy, bool valid,
     /* An old candidate can click while this poll starts a NEW movement burst.
      * Queue the old click first; never reset that newly buffered burst. */
     if (result.click && allowed) {
+        bbp_menu_diag_note(MD_MICRO,1,allowed,(int32_t)count,0);
         (void)enqueue((struct micro_event){.click = true, .motion.at_ms = now});
     }
     for (unsigned int i = 0; i < result.count; i++) {

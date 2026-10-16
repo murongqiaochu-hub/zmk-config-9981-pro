@@ -20,14 +20,15 @@ static struct tp_microtap_result feed(struct fixture *f,uint32_t t,int16_t x,int
                                       bool valid,bool enabled,bool blocked) {
     struct tp_microtap_state before=f->s;
     struct tp_microtap_result r=tp_microtap_step(&f->s,t,x,y,valid,enabled,blocked);
-    steps++;CHECK(r.count<=2U);CHECK(f->s.count<=1U);
+    steps++;CHECK(r.count<=3U);CHECK(f->s.count<=2U);
     if(!valid||!enabled||blocked||(before.have_time&&(uint32_t)(t-before.last_poll_ms)>100U))CHECK(!r.click);
     if(r.click) {
-        CHECK(before.count==1U&&f->n==1U&&before.path>=1U&&before.path<=256U);
+        CHECK(before.count>=1U&&before.count<=2U&&f->n==before.count&&before.path>=1U&&before.path<=256U);
         CHECK(before.max_offset<=128U&&(uint32_t)(t-before.last_motion_ms)>=60U);
         CHECK((uint32_t)(t-before.first_ms)<=100U);
-        f->tx+=f->ledger[0].dx;f->ty+=f->ledger[0].dy;
-        f->discarded++;f->clicks++;f->n=0;
+        CHECK((uint32_t)(before.last_motion_ms-before.first_ms)<=25U);
+        for(unsigned j=0;j<f->n;j++){f->tx+=f->ledger[j].dx;f->ty+=f->ledger[j].dy;}
+        f->discarded+=f->n;f->clicks++;f->n=0;
     }
     if(valid&&(x!=0||y!=0)) {
         CHECK(f->n<16U);f->ledger[f->n++]=(struct tp_microtap_frame){t,x,y};
@@ -40,7 +41,8 @@ static struct tp_microtap_result feed(struct fixture *f,uint32_t t,int16_t x,int
         for(unsigned int j=0;j<f->n;j++)f->ledger[j]=f->ledger[j+1U];
     }
     CHECK(f->n==f->s.count&&tp_microtap_pending(&f->s)==(f->n!=0U));
-    int64_t px=f->n?f->ledger[0].dx:0,py=f->n?f->ledger[0].dy:0;
+    int64_t px=0,py=0;
+    for(unsigned j=0;j<f->n;j++){px+=f->ledger[j].dx;py+=f->ledger[j].dy;}
     CHECK(f->input==f->replayed+f->discarded+f->n);
     CHECK(f->ix==f->rx+f->tx+px&&f->iy==f->ry+f->ty+py);
     return r;
@@ -69,8 +71,10 @@ static void real_tap_and_multiclick(void) {
 static void moving_not_tapping(void) {
     struct fixture f;init(&f);
     (void)packet(&f,0,2,0);struct tp_microtap_result r=packet(&f,10,1,0);
-    CHECK(r.count==2U&&r.frames[0].at_ms==0U&&r.frames[1].at_ms==10U);
-    (void)packet(&f,20,1,0);zeros(&f,20,20);
+    CHECK(r.count==0U&&f.s.count==2U);
+    r=packet(&f,20,1,0);
+    CHECK(r.count==3U&&r.frames[0].at_ms==0U&&r.frames[1].at_ms==10U&&r.frames[2].at_ms==20U);
+    zeros(&f,20,20);
     CHECK(f.clicks==0U&&f.replayed==3U);
     init(&f);
     /* A second frame even at59ms invalidates the isolated-pulse hypothesis. */
@@ -80,7 +84,25 @@ static void moving_not_tapping(void) {
     r=packet(&f,190,2,0);CHECK(r.count==1U&&!tp_microtap_pending(&f.s));
     zeros(&f,190,20);(void)packet(&f,400,-1,-1);zeros(&f,400,6);
     CHECK(f.clicks==1U); /* only after ordinary-motion quiet>=200ms */
-    puts("PASS second-frame rejection, continuous micro-move/tail bypass and navigation-only guard");
+    puts("PASS third-frame/late-second rejection, continuous micro-move/tail bypass and navigation-only guard");
+}
+static void two_frame_boundaries(void) {
+    struct fixture f;
+    for(uint32_t span=0;span<=30U;span++) {
+        init(&f);(void)packet(&f,0,-1,0);(void)packet(&f,span,0,1);zeros(&f,span,6);
+        CHECK(f.clicks==(span<=25U?1U:0U));
+        CHECK(f.discarded==(span<=25U?2U:0U));
+    }
+    init(&f);(void)packet(&f,0,-128,-128);(void)packet(&f,10,1,0);zeros(&f,10,6);
+    CHECK(f.clicks==0U&&f.replayed==2U);
+    init(&f);(void)packet(&f,0,128,0);(void)packet(&f,10,1,0);zeros(&f,10,6);
+    CHECK(f.clicks==0U&&f.replayed==2U);
+    init(&f);
+    for(uint32_t i=0;i<1000U;i++) {
+        (void)packet(&f,i*100U,1,0);(void)packet(&f,i*100U+10U,0,1);zeros(&f,i*100U+10U,6);
+    }
+    CHECK(f.clicks==1000U&&f.discarded==2000U&&f.replayed==0U);
+    puts("PASS two-frame span0..25 inclusive/26 reject, path/offset limits, 1000 repeated 2-frame clicks, unchanged single-frame acceptance");
 }
 static void boundaries_and_extremes(void) {
     struct fixture f;init(&f);
@@ -130,7 +152,7 @@ static void randomized_ledger(void) {
     printf("PASS ordered ledger100000: input=%" PRIu64 " replay=%" PRIu64 " discarded=%" PRIu64 " clicks=%" PRIu64 "\n",f.input,f.replayed,f.discarded,f.clicks);
 }
 int main(void) {
-    real_tap_and_multiclick();moving_not_tapping();boundaries_and_extremes();
+    real_tap_and_multiclick();moving_not_tapping();two_frame_boundaries();boundaries_and_extremes();
     invalid_time_and_modes();randomized_ledger();
     printf("PASS pulse policy: %" PRIu64 " steps, %" PRIu64 " checks; host logic only, not contact accuracy\n",steps,checks);
     return 0;

@@ -22,6 +22,7 @@
 #include <zephyr/bluetooth/gatt.h>
 #include <zmk/ble.h>
 #include <zmk/hog.h>
+#include "menu_click_diag.h"
 
 #if IS_ENABLED(CONFIG_ZMK_POINTING)
 
@@ -146,6 +147,7 @@ static unsigned int bbp9981_hog_mouse_cancel_locked(struct bt_conn *only, int er
     bbp9981_hog_mouse_stats.outstanding -= count;
     bbp9981_hog_mouse_stats.canceled += count;
     bbp9981_hog_mouse_stats.last_send_error = error;
+    bbp_menu_diag_note(MD_CANCEL,error,(int32_t)count,(int32_t)bbp9981_hog_mouse_stats.outstanding,0);
     return count;
 }
 
@@ -235,6 +237,7 @@ static void bbp9981_hog_mouse_worker(struct k_work *work) {
         return;
     }
     struct bbp9981_hog_mouse_entry entry = bbp9981_hog_mouse_head.entry;
+    unsigned int diag_outstanding = bbp9981_hog_mouse_stats.outstanding;
     bbp9981_hog_mouse_head.sending = true;
     k_spin_unlock(&bbp9981_hog_mouse_lock, key);
 
@@ -255,9 +258,11 @@ static void bbp9981_hog_mouse_worker(struct k_work *work) {
             .len = sizeof(entry.body),
         };
         attempted_notify = true;
+        bbp_menu_diag_tx(MD_BEGIN,entry.body.buttons,0,diag_outstanding);
         err = bt_gatt_notify_cb(entry.conn, &params);
         terminal = (err == -ENOTCONN || err == -ECONNRESET);
     }
+    bbp_menu_diag_tx(MD_NOTIFY,entry.body.buttons,err,diag_outstanding);
     bool notify_failed = attempted_notify && err != 0;
     if (err == -EPERM) {
         key = k_spin_lock(&bbp9981_hog_mouse_lock);
@@ -380,8 +385,19 @@ static int bbp9981_hog_mouse_enqueue(const struct zmk_hid_mouse_report_body *bod
     return err;
 }
 
+static inline int bbp9981_diag_enqueue_result(const struct zmk_hid_mouse_report_body *body,int ret) {
+#if defined(CONFIG_BBP9981_MENU_DIAG) && CONFIG_BBP9981_MENU_DIAG
+    struct bbp9981_hog_mouse_stats s;
+    if(bbp9981_ble_hid_mouse_report_stats_get(&s)==0) {
+        bbp_menu_diag_tx(MD_ENQUEUE,body?body->buttons:0,ret,s.outstanding);
+    }
+#else
+    (void)body;
+#endif
+    return ret;
+}
 int zmk_hog_send_mouse_report(struct zmk_hid_mouse_report_body *body) {
-    return bbp9981_hog_mouse_enqueue(body, -1);
+    return bbp9981_diag_enqueue_result(body,bbp9981_hog_mouse_enqueue(body,-1));
 }
 
 int bbp9981_ble_hid_send_mouse_buttons_snapshot(struct zmk_hid_mouse_report_body *body,
@@ -390,7 +406,7 @@ int bbp9981_ble_hid_send_mouse_buttons_snapshot(struct zmk_hid_mouse_report_body
         return bbp9981_hog_mouse_reject(-EINVAL);
     }
     struct zmk_hid_mouse_report_body snapshot = {.buttons = body->buttons};
-    return bbp9981_hog_mouse_enqueue(&snapshot, expected_profile);
+    return bbp9981_diag_enqueue_result(&snapshot,bbp9981_hog_mouse_enqueue(&snapshot,expected_profile));
 }
 
 int bbp9981_ble_hid_mouse_report_stats_get(struct bbp9981_hog_mouse_stats *out) {
@@ -404,6 +420,18 @@ int bbp9981_ble_hid_mouse_report_stats_get(struct bbp9981_hog_mouse_stats *out) 
     k_spin_unlock(&bbp9981_hog_mouse_lock, key);
     return 0;
 }
+
+#if defined(CONFIG_BBP9981_MENU_DIAG) && CONFIG_BBP9981_MENU_DIAG
+int bbp9981_stock_hog_send_keyboard_report(struct zmk_hid_keyboard_report_body *body);
+int zmk_hog_send_keyboard_report(struct zmk_hid_keyboard_report_body *body) {
+    uint8_t mods=body?body->modifiers:0;
+    if(body) { bbp_menu_diag_note(MD_KBD,mods,0,0,0); }
+    int ret=bbp9981_stock_hog_send_keyboard_report(body);
+    if(body) { bbp_menu_diag_note(MD_KBD,mods,ret,1,0); }
+    return ret;
+}
+#define zmk_hog_send_keyboard_report bbp9981_stock_hog_send_keyboard_report
+#endif
 
 /* Intentionally left defined for the rest of hog.c, not for any other TU. */
 #define zmk_hog_send_mouse_report bbp9981_stock_hog_send_mouse_report

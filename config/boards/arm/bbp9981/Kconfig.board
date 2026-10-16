@@ -69,4 +69,12 @@ config A320_MICROTAP
       Default-layer left shoulder triple tap toggles it without a sensor probe.
       This is a motion heuristic, not verified finger contact recognition.
 
+config BBP9981_MENU_DIAG
+    bool "Bounded menu/left-button chain diagnostics"
+    depends on BOARD_BBP9981 && A320_TAP_OUTPUT && LOG
+    default n
+    help
+      Observe only three matrix keys, GUI/button snapshots and mouse TX outcomes.
+      Does not change GPIO, HID descriptors, key behavior or transport preference.
+
 endmenu

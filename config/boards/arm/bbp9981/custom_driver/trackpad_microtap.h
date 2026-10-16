@@ -2,13 +2,13 @@
  * Opt-in raw-motion/quiet click heuristic (pure C11, no allocation).
  *
  * This does NOT detect physical contact or promise recognition of light taps.
- * Historical tap windows contained isolated SINGLE-frame impulses, not the
- * >=3-frame micro-swipes selected by the first experiment. Admit one impulse
- * (1..256 Manhattan counts, <=128 per axis) after 60ms without another frame.
- * HIGH-RISK USER TEST: accepts every nonzero signed-8-bit sensor impulse; ordinary
- * brief movements can now become clicks and have their pointer movement dropped.
- * A second frame immediately makes this ordinary movement. This remains an
- * experimental motion surrogate: isolated micro-adjustments can be identical.
+ * User-tested single-frame full-range pulses still missed many physical taps.
+ * Admit ONE OR TWO nonzero frames spanning <=25ms, followed by >=60ms quiet;
+ * total L1 path 1..256 and cumulative per-axis offset <=128 stay unchanged.
+ * HIGH-RISK USER TEST: every isolated nonzero signed-8-bit single frame remains
+ * eligible; short two-frame movements can now become clicks and lose movement.
+ * A third frame or a second frame after25ms makes ordinary movement. This is an
+ * experimental motion surrogate: brief micro-swipes can be indistinguishable.
  * Zero motion, missing data, faults and reset never create clicks.
  * Call reset before first use. The caller owns and serializes each state.
  * enabled is supplied explicitly on EVERY step; blocked suppresses clicks.
@@ -20,8 +20,8 @@
  * pointer pipeline. Never adjust pointer remainders or synthesize compensation.
  * A click deliberately discards ONLY the old candidate's buffered movement.
  *
- * Only one frame may remain pending; the existing 16-frame result ABI stays
- * unchanged. The next nonzero frame releases BOTH frames as ordinary movement.
+ * At most two frames remain pending; the existing 16-frame result ABI stays
+ * unchanged. A third nonzero frame releases ALL THREE as ordinary movement.
  * Once rejected/passed through, a movement run stays passthrough until a
  * >=200ms quiet interval; its small tail cannot become a new click candidate.
  * There is no click cooldown: separated pulses can click on consecutive steps.
@@ -34,7 +34,7 @@
  * old click precedes ALL returned new movement; enqueue click before frames.
  * At most one click per step.
  *
- * Limits are inclusive; candidate age >100ms, a second nonzero frame, traveled
+ * Limits are inclusive; candidate age >100ms, a third frame, span >25ms, traveled
  * Manhattan path >256 or ANY cumulative Linf offset >128 reject immediately.
  * Quiet is >=60ms since the impulse, not a contact-release claim. The 100ms
  * candidate cap includes this observation window. No late/retroactive click.
@@ -58,7 +58,7 @@
 #define TP_MICROTAP_QUIET_MS 60U
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 1U
-#define TP_MICROTAP_MAX_FRAMES 1U
+#define TP_MICROTAP_MAX_FRAMES 2U
 #define TP_MICROTAP_MIN_PATH 1U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
 #define TP_MICROTAP_MAX_CANDIDATE_MS 100U
@@ -178,7 +178,8 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         } else if ((uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_QUIET_MS) {
             /* Admit an isolated nontrivial impulse; a weak rejected impulse is
              * movement and enters the navigation guard, never a tap cooldown. */
-            const bool admitted = s->count == TP_MICROTAP_MAX_FRAMES &&
+            const bool admitted = s->count >= TP_MICROTAP_MIN_FRAMES &&
+                                  s->count <= TP_MICROTAP_MAX_FRAMES &&
                                   s->path >= TP_MICROTAP_MIN_PATH;
             if (admitted) {
                 tp_microtap_clear_candidate(s);

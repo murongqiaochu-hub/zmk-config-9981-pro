@@ -83,8 +83,9 @@ int main(void) {
 
     fixture(true);
     poll_at(10,2,0,true,false);poll_at(20,20,0,true,false);
-    assert(submissions==0&&moves==2&&pointer_x==26);
-    poll_at(30,1,0,true,false);poll_at(40,0,0,true,false);poll_at(50,0,0,true,false);
+    assert(submissions==0&&moves==0&&tp_microtap_runtime_pending());
+    poll_at(30,1,0,true,false);assert(moves==3&&pointer_x==27);
+    poll_at(40,0,0,true,false);poll_at(50,0,0,true,false);
     poll_at(60,0,0,true,false);assert(submissions==0); /* moving tail isn't a click */
 
     fixture(true);
@@ -92,9 +93,10 @@ int main(void) {
     for(uint32_t t=20;t<=70;t+=10)poll_at(t,0,0,true,false);
     assert(submissions==1);
     poll_at(80,30,0,true,false);assert(moves==0&&count==1); /* pending high-risk pulse */
-    poll_at(90,1,0,true,false);assert(moves==0&&count==3); /* second frame flushes, no drag */
-    complete();poll_at(100,0,0,true,false);
-    assert(moves==2&&pointer_x==37&&memcmp(trace,"DUMM",4)==0);
+    poll_at(90,1,0,true,false);assert(moves==0&&count==1); /* two frames pending */
+    poll_at(100,1,0,true,false);assert(moves==0&&count==4); /* third flushes, no drag */
+    complete();poll_at(110,0,0,true,false);
+    assert(moves==3&&pointer_x==38&&memcmp(trace,"DUMMM",5)==0);
 
     fixture(true);refs[0]=1;
     poll_at(10,2,0,true,false);assert(moves==1&&submissions==0);

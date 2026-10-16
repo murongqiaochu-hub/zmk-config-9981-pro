@@ -9,6 +9,10 @@
 #include <errno.h>
 #include <stdlib.h>
 
+/* Legacy LED suites do not simulate settings_load(). Persistence suites opt in. */
+#ifndef CONFIG_SETTINGS
+#define CONFIG_SETTINGS 0
+#endif
 #define CONFIG_ZMK_BEHAVIOR_METADATA 1
 #define CONFIG_ZMK_RGB_UNDERGLOW 1
 #define CONFIG_LED_PWM 1
@@ -179,7 +183,31 @@ static bool fake_rgb_on=true;
 static struct zmk_led_hsb zmk_rgb_underglow_calc_brt(int i) { (void)i;return (struct zmk_led_hsb){.b=fake_brightness}; }
 static int zmk_rgb_underglow_get_state(bool *on) { *on=fake_rgb_on;return 0; }
 static uint8_t fake_tp_brightness=40;
+#ifdef TEST_NATIVE_BACKLIGHT
+/* Faithful v0.3.0 state.brightness/on semantics (backlight.c lines 117-143).
+ * Legacy suites keep their historical effective-output variable below. */
+static bool fake_tp_on=true;
+static int fake_tp_set_error;
+static unsigned fake_tp_set_calls;
+static uint8_t zmk_backlight_get_brt(void) { return fake_tp_on ? fake_tp_brightness : 0; }
+static uint8_t zmk_backlight_calc_brt(int direction) {
+    int value=fake_tp_brightness+direction*10;
+    return (uint8_t)(value<0?0:(value>100?100:value));
+}
+static bool zmk_backlight_is_on(void) { return fake_tp_on; }
+static int zmk_backlight_set_brt(uint8_t value) {
+    fake_tp_set_calls++;
+    if(fake_tp_set_error)return fake_tp_set_error;
+    fake_tp_brightness=value>100U?100U:value;fake_tp_on=fake_tp_brightness>0;return 0;
+}
+static int zmk_backlight_off(void) { fake_tp_on=false;return 0; }
+#else
 static uint8_t zmk_backlight_get_brt(void) { return fake_tp_brightness; }
+static uint8_t zmk_backlight_calc_brt(int direction) { (void)direction;return fake_tp_brightness; }
+static bool zmk_backlight_is_on(void) { return fake_tp_brightness>0; }
+static int zmk_backlight_set_brt(uint8_t value) { fake_tp_brightness=value;return 0; }
+static int zmk_backlight_off(void) { return 0; }
+#endif
 enum zmk_transport { ZMK_TRANSPORT_USB, ZMK_TRANSPORT_BLE };
 static enum zmk_transport fake_transport=ZMK_TRANSPORT_BLE;
 struct zmk_endpoint_instance { enum zmk_transport transport; };

@@ -145,7 +145,7 @@
             bindings = <
                  &msc SCRL_UP                                                                               &msc SCRL_DOWN
     &bt BT_SEL 0            &bt BT_SEL 1                                  &td0                              &bt BT_SEL 2                     &bt BT_SEL 3
-    &none        &kp UP     &kp C_EJECT &sys_reset      &ext_power EP_TOG &none            &kp LT           &kp GT          &kp PIPE         &kp KP_EQUAL
+    &out OUT_BLE &kp UP     &kp C_EJECT &sys_reset      &ext_power EP_TOG &none            &kp LT           &kp GT          &kp PIPE         &kp KP_EQUAL
     &kp LEFT     &kp DOWN   &kp RIGHT   &none           &kp BSLH          &kp AMPS         &kp LBRC         &kp RBRC        &kp CARET        &kp BSPC
     &kp LSHFT    &none      &none       &rgb_ug RGB_BRD &bl BL_DEC        &rgb_ug RGB_TOG  &bl BL_INC       &rgb_ug RGB_BRI &td_boot_out     &kp ENTER
     &kp LCTRL               &kp LALT                                      &kp  SPACE                        &aa_sym_ctrl                     &to DEFAULT

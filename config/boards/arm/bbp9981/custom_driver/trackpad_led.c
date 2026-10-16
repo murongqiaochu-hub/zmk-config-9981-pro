@@ -18,6 +18,7 @@
 #include "a320_0x57.h"
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
+#include "trackpad_light_memory.h"
 
 BUILD_ASSERT(DT_HAS_CHOSEN(zmk_trackpad_led),
              "CONFIG_ZMK_TRACKPAD_LED enabled but no zmk,trackpad_led chosen node found");
@@ -155,14 +156,23 @@ static void animation_work_handler(struct k_work *work) {
 }
 
 static void polling_work_handler(struct k_work *work) {
+#if IS_ENABLED(CONFIG_SETTINGS)
+    if (!tp_mem_ready) { return; }
+    tp_mem_observe();
+#endif
     enum zmk_transport transport = zmk_endpoints_selected().transport;
     bool current_scroll_mode = tp_scroll_mode_active();
     bool current_touch = tp_is_touched();
     bool current_active = (zmk_activity_get_state() == ZMK_ACTIVITY_ACTIVE);
+#if IS_ENABLED(CONFIG_SETTINGS)
+    /* The effective getter returns transient zero during upstream idle/OFF.
+     * The independently persisted raw user limit is the source of truth. */
+    uint8_t current_brt = zmk_backlight_calc_brt(0);
+    last_valid_brt = current_brt;
+#else
     uint8_t current_brt = zmk_backlight_get_brt();
-    /* Physical V/N presses wake activity, so explicit zero is observed here.
-     * During idle, upstream returns zero automatically; retain the last user limit. */
     if (current_active || current_brt > 0) { last_valid_brt = current_brt; }
+#endif
 
     /* ---------------- USB Mode ---------------- */
     if (transport == ZMK_TRANSPORT_USB) {
@@ -250,7 +260,16 @@ static void polling_work_handler(struct k_work *work) {
 
 uint8_t indicator_tp_get_last_valid_brightness(void) { return last_valid_brt; }
 
+#if IS_ENABLED(CONFIG_SETTINGS)
+static void tp_mem_start(uint8_t value) {
+    last_valid_brt = last_backlight_brt = value;
+    k_work_reschedule(&polling_work, K_NO_WAIT);
+}
+#endif
 static int indicator_tp_init(void) {
+#if IS_ENABLED(CONFIG_SETTINGS)
+    tp_mem_init();
+#endif
     for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
         if (!pwm_is_ready_dt(&trackpad_pwms[i])) {
             LOG_ERR("Trackpad PWM device not ready");
@@ -273,7 +292,12 @@ static int indicator_tp_init(void) {
     k_work_init_delayable(&auto_off_work, auto_off_work_handler);
     k_work_init_delayable(&usb_breath_work, usb_breath_work_handler);
 
+#if IS_ENABLED(CONFIG_SETTINGS)
+    /* settings h_commit restores the user limit before any animation can run. */
+    tp_mem_driver_ready = true;
+#else
     k_work_reschedule(&polling_work, K_NO_WAIT);
+#endif
     return 0;
 }
 
