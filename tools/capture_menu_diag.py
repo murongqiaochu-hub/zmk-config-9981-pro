@@ -9,6 +9,9 @@ Start the process BEFORE acting. Wait for READY_CAPTURE on stdout or the LATEST
 ready-file JSONL state with current_valid=true. File existence alone is NOT a
 live handshake: route changes, quality faults, silence and shutdown revoke it.
 USB and BLE may both become READY_CAPTURE; a USB test is not BLE reproduction.
+READY/current_valid describe the diagnostic capture-channel window, NOT successful
+HID delivery. HID ready bits and legal queued counts are observations, not gates;
+raw/input diagnostics remain useful even when neither HID route is ready.
 No instruction to press Q, preference changes, serial commands, HID access,
 device enumeration, process termination, privilege escalation or dependencies.
 
@@ -64,6 +67,7 @@ MIN_HOST_SPAN = 3.8
 HEARTBEAT_STALE = 3.5
 PAIR_TIMEOUT = 1.0
 MAX_LINE_BYTES = 4096
+MAX_HEARTBEAT_QUEUED = 126  # 128-slot ring, snapshot before reserving two heartbeat records.
 ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 U32 = rb"([0-9]{1,10})"
 I32 = rb"(-?[0-9]{1,10})"
@@ -277,6 +281,11 @@ class ReadyChannel:
             note = "USB test is NOT BLE reproduction" if row["route"] == "USB" else "BLE route observed"
             print("READY_CAPTURE route=" + row["route"] + " current_valid=true interval="
                   + str(row["interval_id"]) + "; " + note
+                  + "; scope=diagnostic_capture_channel; hid_output_ready="
+                  + json.dumps(row.get("hid_output_ready"))
+                  + " ready_bits=" + json.dumps(row.get("ready_bits"))
+                  + " queued=" + json.dumps(row.get("queued"))
+                  + "; NOT HID delivery confirmation"
                   + "; use LATEST ready-file state, not file existence", file=self.stdout, flush=True)
 
     def close(self):
@@ -301,10 +310,12 @@ class FreshnessMonitor:
         self.last_drop = None
         self.idle_count = 0
         self.stale_reported = False
+        self.hid_status = dict(hid_output_ready=None, ready_bits=None, queued=None)
 
     def mark(self):
         return {"current_valid": self.current_valid,
-                "interval_id": self.interval_id if self.current_valid else None}
+                "interval_id": self.interval_id if self.current_valid else None,
+                "validity_scope": "diagnostic_capture_channel", **self.hid_status}
 
     def _state(self, valid, reason):
         if self.current_valid == valid:
@@ -316,7 +327,8 @@ class FreshnessMonitor:
         row = dict(event="capture_validity", current_valid=valid,
                    interval_id=self.interval_id, reason=reason,
                    route=ROUTES.get(self.route, "UNKNOWN"), profile=self.profile,
-                   freshness="passive_heuristic_not_absolute_proof")
+                   freshness="passive_heuristic_not_absolute_proof",
+                   validity_scope="diagnostic_capture_channel", **self.hid_status)
         try:
             row = self.emit(row)
         finally:
@@ -420,9 +432,11 @@ class FreshnessMonitor:
     def _heartbeat(self, pending, quality, now):
         route = pending["row"]
         drops, queued, active, version = (quality[name] for name in ("a", "b", "c", "d"))
-        if drops < 0 or queued < 0 or active not in (0, 1) or version != 2:
+        if drops < 0 or not 0 <= queued <= MAX_HEARTBEAT_QUEUED or active not in (0, 1) or version != 2:
             self.fault("quality_fields_invalid", now)
             return
+        self.hid_status.update(hid_output_ready=bool(route["c"] & (1 << route["a"])),
+                               ready_bits=route["c"], queued=queued)
         if self.last_drop is not None and drops != self.last_drop:
             self.fault("ring_drop_increment" if drops > self.last_drop else "ring_drop_counter_reset",
                        now, previous=self.last_drop, value=drops)
@@ -432,12 +446,13 @@ class FreshnessMonitor:
         self.last_drop = drops
         self.last_heartbeat_host = now
         self.stale_reported = False
-        if not (route["c"] & (1 << route["a"])):
-            self.fault("selected_route_not_ready", now)
-            return
+        # HID availability and a nonempty legal queue do not diagnose CDC freshness.
+        warnings = []
+        if not self.hid_status["hid_output_ready"]:
+            warnings.append("selected_hid_route_not_ready")
         if queued:
-            self.fault("firmware_queue_pending", now, queued=queued)
-            return
+            warnings.append("firmware_queue_nonempty")
+        self.emit(dict(event="capture_channel_status", warnings=warnings, **self.mark()))
         sample = {"host": pending["host"], "t_ms": route["t_ms"], "idle": pending["idle"]}
         if self.candidates:
             previous = self.candidates[-1]

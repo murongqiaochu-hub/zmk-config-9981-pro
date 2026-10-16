@@ -456,15 +456,63 @@ class CaptureTests(unittest.TestCase):
         self.assertTrue(state[0]["current_valid"])
         self.assertTrue(any(r.get("reason") == "historical_ring_drops" for r in rows))
 
-    def test_new_ring_drop_queue_and_route_readiness_are_quality_faults(self):
-        cases = [(pair(7000, 6, drops=1), "ring_drop_increment"),
-                 (pair(7000, 6, queued=4), "firmware_queue_pending"),
-                 (pair(7000, 6, mask=2), "selected_route_not_ready")]
-        for data, reason in cases:
-            with self.subTest(reason=reason):
-                code, _, state, _, _, _ = self.run_session(stable() + [(6, data)], seconds=7)
+    def test_new_ring_drop_remains_a_quality_fault(self):
+        code, rows, state, _, _, _ = self.run_session(stable() + [(6, pair(7000, 6, drops=1))], seconds=7)
+        self.assertEqual(code, 2)
+        self.assertEqual(state[1]["reason"], "ring_drop_increment")
+        self.assertTrue(any(r.get("reason") == "ring_drop_increment" for r in rows))
+
+    def test_both_hid_routes_not_ready_still_allows_capture_window_and_inputs(self):
+        for route in (0, 1):
+            with self.subTest(route=route):
+                events = [(0, pair(1000, 0, route, mask=0)),
+                          (0.5, wire(1500, 2, 3, 1)),
+                          (2, pair(3000, 3, route, mask=0)),
+                          (2.5, wire(3500, 5, 4, 1)),
+                          (4, pair(5000, 6, route, mask=0))]
+                code, rows, state, _, stdout, _ = self.run_session(events)
+                self.assertEqual(code, 0)
+                self.assertEqual([r["current_valid"] for r in state], [True, False])
+                self.assertEqual(state[0]["validity_scope"], "diagnostic_capture_channel")
+                self.assertFalse(state[0]["hid_output_ready"])
+                self.assertEqual((state[0]["ready_bits"], state[0]["queued"]), (0, 0))
+                self.assertEqual([r["kind"] for r in rows if r.get("kind") in (3, 4)], [3, 4])
+                self.assertIn("hid_output_ready=false", stdout)
+                self.assertIn("NOT HID delivery confirmation", stdout)
+                self.assertTrue(any("selected_hid_route_not_ready" in r.get("warnings", []) for r in rows))
+                self.assertFalse(any(r["event"] == "data_quality" for r in rows))
+
+    def test_legal_nonempty_queue_neither_blocks_nor_revokes_capture_window(self):
+        for queued in (1, 4, 126):
+            with self.subTest(queued=queued):
+                events = [(n * 2, pair(1000 + n * 2000, n * 2, queued=queued)) for n in range(3)]
+                code, rows, state, _, _, _ = self.run_session(events)
+                self.assertEqual(code, 0)
+                self.assertEqual(state[0]["queued"], queued)
+                self.assertTrue(state[0]["current_valid"] and state[0]["hid_output_ready"])
+                self.assertTrue(any("firmware_queue_nonempty" in r.get("warnings", []) for r in rows))
+                self.assertFalse(any(r["event"] == "data_quality" for r in rows))
+                code, rows, state, _, _, _ = self.run_session(
+                    stable() + [(6, pair(7000, 6, mask=0, queued=queued))], seconds=7)
+                self.assertEqual(code, 0)
+                self.assertEqual([r["current_valid"] for r in state], [True, False])
+                self.assertEqual(state[-1]["reason"], "deadline")
+                self.assertEqual(state[-1]["queued"], queued)
+                self.assertFalse(state[-1]["hid_output_ready"])
+                self.assertTrue(rows[-1]["valid_before_close"])
+                self.assertFalse(any(r["event"] == "data_quality" for r in rows))
+
+    def test_negative_or_over_capacity_queue_remains_invalid(self):
+        for queued in (-1, 127, 128, (1 << 31) - 1):
+            with self.subTest(queued=queued):
+                events = [(n * 2, pair(1000 + n * 2000, n * 2, queued=queued)) for n in range(3)]
+                code, rows, state, _, _, _ = self.run_session(events)
+                self.assertEqual((code, state), (2, []))
+                self.assertTrue(any(r.get("reason") == "quality_fields_invalid" for r in rows))
+                code, _, state, _, _, _ = self.run_session(
+                    stable() + [(6, pair(7000, 6, queued=queued))], seconds=7)
                 self.assertEqual(code, 2)
-                self.assertEqual(state[1]["reason"], reason)
+                self.assertEqual(state[1]["reason"], "quality_fields_invalid")
 
     def test_silence_revokes_ready_not_forever_valid(self):
         code, rows, state, _, _, _ = self.run_session(stable(), seconds=9)
