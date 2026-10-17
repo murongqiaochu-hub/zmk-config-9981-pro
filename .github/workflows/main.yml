@@ -30,7 +30,7 @@ jobs:
           CI_LOG_TOKEN: ${{ github.token }}
         run: python3 tools/report_ci_failure.py
   deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/menu-column-isolation-20261017'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/tap-floor-cross-source-20261017'
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -60,4 +60,4 @@ jobs:
           git add "firmware-delivery/$SOURCE_SHA"
           if git diff --cached --quiet; then exit 0; fi
           git commit -m 'chore: preserve verified tap-range diagnostic firmware [skip ci]'
-          git push origin HEAD:codex/menu-column-isolation-20261017
+          git push origin HEAD:codex/tap-floor-cross-source-20261017

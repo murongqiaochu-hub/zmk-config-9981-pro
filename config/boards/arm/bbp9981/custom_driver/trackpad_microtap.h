@@ -2,11 +2,11 @@
  * Opt-in raw-motion/quiet click heuristic (pure C11, no allocation).
  *
  * This does NOT detect physical contact or promise recognition of light taps.
- * User asks to shift/widen the accumulated motion band, not amplify sensor data.
- * Admit ONE TO THREE frames spanning <=40ms, followed by >=60ms quiet;
- * total L1 path 3..512 and cumulative per-axis offset <=256. Weak paths1/2
- * now remain movement. Single physical sensor frames stay signed-8-bit.
- * HIGH-RISK TEST: broader short movement clusters can also become clicks.
+ * Raise the lower accumulated-motion bound; never amplify sensor data.
+ * Admit ONE TO THREE frames spanning <=40ms, followed by >=120ms quiet;
+ * total L1 path 6..512 and cumulative per-axis offset <=256. Weak paths1..5
+ * remain movement. Single physical sensor frames stay signed-8-bit.
+ * HIGH-RISK TEST: qualifying short movement clusters can also become clicks.
  * A fourth frame or span>40ms releases the candidate as ordinary movement.
  * This is a motion surrogate, not verified physical touch/contact detection.
  * Zero motion, missing data, faults and reset never create clicks.
@@ -24,8 +24,9 @@
  * unchanged. A fourth nonzero frame releases ALL FOUR as ordinary movement.
  * After rejection OR an accepted click, require >=200ms quiet before rearming;
  * bounce/continuous movement extends this guard rather than creating more taps.
- * Accepted automatic clicks are also separated by >=200ms. Suppressed motion
- * is replayed, never held for a delayed second click. First-click quiet is60ms.
+ * Accepted automatic click decisions are also separated by >=350ms, independent
+ * of SDK timing. Suppressed motion is replayed, never queued for a later click.
+ * First-click quiet is 120ms of observation BEFORE deciding, not an enqueue delay.
  *
  * A new nonzero frame first checks whether the OLD candidate is already quiet.
  * Therefore a result can have click=true while frames[] contains NEW movement.
@@ -34,10 +35,14 @@
  * old click precedes ALL returned new movement; enqueue click before frames.
  * At most one click per step.
  *
- * Limits are inclusive; candidate age >120ms, a fourth frame, span >40ms, traveled
+ * Limits are inclusive; candidate age >180ms, a fourth frame, span >40ms, traveled
  * Manhattan path >512 or ANY cumulative Linf offset >256 reject immediately.
- * Quiet is >=60ms since last motion, not a contact-release claim. The 120ms
- * candidate cap includes this observation window. No late/retroactive click.
+ * Quiet is >=120ms since last motion, NOT contact-up: no contact protocol has
+ * been verified. The 180ms cap allows a 40ms cluster +120ms quiet +20ms jitter.
+ * Longer observation gives a mechanical/native click time to cancel BEFORE the
+ * decision; a native event arriving after an auto was emitted cannot undo it.
+ * No late/retroactive click. Quiet 120ms exceeds the 100ms maximum poll gap, so
+ * intermediate valid zero polls are required; silence/no calls cannot qualify.
  *
  * uint32 milliseconds use modular subtraction, including natural rollover.
  * Poll gaps >100ms or backwards/half-range clock jumps flush without clicking.
@@ -55,18 +60,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define TP_MICROTAP_QUIET_MS 60U
+#define TP_MICROTAP_QUIET_MS 120U
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 1U
 #define TP_MICROTAP_MAX_FRAMES 3U
-#define TP_MICROTAP_MIN_PATH 3U
+#define TP_MICROTAP_MIN_PATH 6U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
-#define TP_MICROTAP_MAX_CANDIDATE_MS 120U
+#define TP_MICROTAP_MAX_CANDIDATE_MS 180U
 #define TP_MICROTAP_MAX_MOTION_SPAN_MS 40U
-/* Shift/widen accumulated motion, never fabricate a wider sensor frame. */
+/* Keep accumulated upper limits; never fabricate a wider sensor frame. */
 #define TP_MICROTAP_MAX_PATH 512U
 #define TP_MICROTAP_MAX_OFFSET 256U
-#define TP_MICROTAP_CLICK_INTERVAL_MS 200U
+#define TP_MICROTAP_CLICK_INTERVAL_MS 350U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U
 #define TP_MICROTAP_MAX_PENDING (TP_MICROTAP_FRAME_CAPACITY - 1U)

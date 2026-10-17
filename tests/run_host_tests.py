@@ -27,7 +27,7 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name in ['keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm'] else []
     special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks', 'menu_diag': 'menu_endpoints_mocks', 'menu_endpoints': 'menu_endpoints_mocks'}
@@ -106,5 +106,6 @@ assert negative.returncode != 0 and 'bbp_menu_diag_endpoints_snapshot' in negati
 cmake = (ROOT / 'config/boards/arm/bbp9981/CMakeLists.txt').read_text()
 assert '"${APPLICATION_SOURCE_DIR}/src/endpoints.c"' in cmake and cmake.count('menu_diag_endpoints.h') == 1
 print('PASS endpoint diagnostics: four unchanged SDK fixtures, actual preinclude across USB/BLE variants, settings-off/fault-mock, missing-snapshot negative link, source-specific CMake target')
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_isolation_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_tap_successor_scope.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_matrix_isolation.py'), '-v'], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_micro_source_contrast.py')], check=True)

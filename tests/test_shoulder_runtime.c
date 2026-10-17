@@ -8,18 +8,22 @@ static int k_mutex_unlock(struct k_mutex *m) { assert(m->locked);m->locked=false
 static int32_t atomic_inc(atomic_t *p) { int32_t old=*p;(*p)++;return old; }
 static int fail_down, fail_up;
 static bool micro_on, micro_blocked, mouse_down;
-static unsigned int toggles, interrupts, replay_count;
+static unsigned int toggles, interrupts, replay_count, busy_true, busy_false;
 static bool replay_edges[64];
+static uint32_t replay_times[64];
 void tp_microtap_runtime_toggle(void) { micro_on=!micro_on;toggles++; }
 void tp_microtap_runtime_interrupt(void) { interrupts++; }
-void tp_microtap_runtime_shoulder_busy(bool busy) { micro_blocked=busy; }
+void tp_microtap_runtime_shoulder_busy(bool busy) {
+    micro_blocked=busy;if(busy)busy_true++;else busy_false++;
+}
 int zmk_behavior_invoke_binding(const struct zmk_behavior_binding *binding,
                                 struct zmk_behavior_binding_event event,bool pressed) {
     assert(strcmp(binding->behavior_dev,"mkp")==0&&binding->param1==LCLK);
     if(pressed&&fail_down>0) { fail_down--;return -ENODEV; }
     if(!pressed&&fail_up>0) { fail_up--;return -ENODEV; }
     assert(event.position==0&&pressed!=mouse_down);
-    mouse_down=pressed;replay_edges[replay_count++]=pressed;return 0;
+    mouse_down=pressed;replay_edges[replay_count]=pressed;
+    replay_times[replay_count++]=(uint32_t)event.timestamp;return 0;
 }
 #include "../config/boards/arm/bbp9981/custom_driver/behavior_microtap_shoulder.c"
 static void fixture(void) {
@@ -27,7 +31,8 @@ static void fixture(void) {
     initialized=false;micro_on=micro_blocked=mouse_down=false;
     forwarded_down=release_pending=false;release_attempts=0;observed_epoch=0;lifecycle_epoch=0;
     fail_down=fail_up=0;
-    toggles=interrupts=replay_count=0;memset(replay_edges,0,sizeof(replay_edges));
+    toggles=interrupts=replay_count=busy_true=busy_false=0;
+    memset(replay_edges,0,sizeof(replay_edges));memset(replay_times,0,sizeof(replay_times));
     fake_now=0;
 }
 static void edge(uint32_t t,bool down) {
@@ -44,6 +49,13 @@ int main(void) {
 
     fixture();edge(0,true);edge(50,false);edge(120,true);edge(160,false);timer(380);
     assert(replay_count==4&&!micro_on&&!mouse_down);
+    assert(replay_edges[0]&&!replay_edges[1]&&replay_edges[2]&&!replay_edges[3]);
+    assert(replay_times[0]==0&&replay_times[1]==50&&replay_times[2]==120&&replay_times[3]==160);
+    /* The new600ms policy is AUTO-only, not an adapter/native cooldown. */
+    edge(400,true);edge(430,false);edge(490,true);edge(520,false);timer(740);
+    assert(replay_count==8&&!mouse_down&&toggles==0);
+    assert(replay_edges[4]&&!replay_edges[5]&&replay_edges[6]&&!replay_edges[7]);
+    assert(replay_times[4]==400&&replay_times[5]==430&&replay_times[6]==490&&replay_times[7]==520);
 
     fixture();edge(0,true);edge(40,false);edge(100,true);edge(140,false);edge(200,true);edge(240,false);
     assert(toggles==1&&micro_on&&replay_count==0&&!mouse_down&&!micro_blocked);
@@ -59,6 +71,8 @@ int main(void) {
 
     fixture();edge(0,true);edge(30,false);tp_microtap_shoulder_motion(50);
     assert(replay_count==2&&!mouse_down&&!micro_blocked); /* click precedes new movement */
+    assert(busy_true>0&&busy_false==1&&replay_times[0]==0&&replay_times[1]==30);
+    tp_microtap_shoulder_motion(60);assert(replay_count==2&&busy_false==1); /* Idle is not activity. */
 
     fixture();edge(0,true);edge(30,false);
     zmk_event_t event={.valid=true,.data={.position=41,.state=true,.timestamp=50}};

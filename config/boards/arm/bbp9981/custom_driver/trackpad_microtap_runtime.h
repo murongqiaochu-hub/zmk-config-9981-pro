@@ -13,4 +13,11 @@ bool tp_microtap_runtime_enabled(void);
 bool tp_microtap_runtime_pending(void);
 void tp_microtap_runtime_toggle(void);
 void tp_microtap_runtime_interrupt(void);
+/* Auto-only native activity guard. Repeated false does not renew it; a true
+ * level blocks continuously and true->false starts a fresh 600ms quiet window.
+ * Position0/4 notifications and HID ownership checks supplement this signal.
+ * Gesture resets/toggles/host changes deliberately do not clear native activity.
+ * A missed/captured position-UP fails auto closed; motion/native dispatch is not
+ * filtered. No motion-only heuristic can retract an auto click already sent
+ * before a later native edge; this guard is not verified contact detection. */
 void tp_microtap_runtime_shoulder_busy(bool busy);
