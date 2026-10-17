@@ -58,7 +58,7 @@ int main(void) {
     poll_at(50,6,0,true,false);zeros(60,640);
     assert(submissions==0&&moves==1&&refs[0]==0);
     poll_at(649,0,0,true,false);assert(native_guard_observe(false).blocked);
-    poll_at(650,6,0,true,false);zeros(660,760);assert(submissions==0);
+    poll_at(650,8,0,true,false);poll_at(650,8,0,true,false);poll_at(650,8,0,true,false);zeros(660,760);assert(submissions==0);
     poll_at(770,0,0,true,false);assert(submissions==1); /* Exactly 600+120, no queue delay. */
     complete();poll_at(780,0,0,true,false);
 

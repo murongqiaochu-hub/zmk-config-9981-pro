@@ -176,7 +176,7 @@ static void advance_to(uint32_t at) {
 static void emit_motion(void *ctx, int16_t dx, int16_t dy, uint32_t at) {
     (void)ctx;
     assert(irq_depth == 0U && !bridge.owns_left);
-    assert(dx == 6 && dy == 0);
+    assert(dx == 8 && dy == 0);
     motion_frames++;
     motion_at = (int32_t)at;
 }
@@ -195,6 +195,7 @@ static void poll_at(uint32_t at, int16_t dx) {
         raw_known = output_context.physical_left_known;
     }
 }
+static void tap_at(uint32_t at) { poll_at(at, 8); poll_at(at, 8); poll_at(at, 8); }
 static void zeros(uint32_t first, uint32_t last) {
     for (uint32_t at = first; at <= last; at += 10U) { poll_at(at, 0); }
 }
@@ -234,7 +235,7 @@ static void scenario_a(void) {
     poll_at(20, 0);
     physical_edge(30, 4, false);
     assert(refs[0] == 0);
-    poll_at(40, 6);
+    tap_at(40);
     zeros(50, 400);
 }
 static void scenario_b(void) {
@@ -244,7 +245,7 @@ static void scenario_b(void) {
     assert(native_down_accepted == 0U && native_up_accepted == 0U);
     assert(tp_shoulder_busy(&shoulder));
     zeros(30, 40);
-    poll_at(50, 6); /* Actual adapter flushes D/U, then runtime consumes raw6. */
+    tap_at(50); /* Adapter flushes D/U, then runtime consumes a 3-frame candidate. */
     assert(native_down_accepted == 1U && native_up_accepted == 1U);
     assert(refs[0] == 0 && !native_down && !tp_shoulder_busy(&shoulder));
     assert(!timeout_work.pending && !forwarded_down && !release_pending);
@@ -253,7 +254,7 @@ static void scenario_b(void) {
     zeros(60, 400); /* Well beyond raw50+NEW quiet120; not just waiting120. */
 }
 static void scenario_c(void) {
-    poll_at(10, 6);
+    tap_at(10);
     zeros(20, 190);
     /* REQUIRE auto D/U already finished BEFORE native at200/220. Do not hide
      * the residual double click by squeezing native into auto's held ref. */

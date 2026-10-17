@@ -40,13 +40,13 @@ static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
     struct tp_microtap_result r = tp_microtap_step(&f->s, t, x, y,
                                                  valid, enabled, blocked);
     steps++;
-    CHECK(r.count <= 4U && f->s.count <= 3U);
+    CHECK(r.count <= 16U && f->s.count <= TP_MICROTAP_MAX_FRAMES);
     if (!valid || !enabled || blocked || bad) CHECK(!r.click);
     if (bad && gap >= UINT32_C(0x80000000)) f->have_click = false;
     f->have_poll = true;
     f->last_poll = t;
     if (r.click) {
-        CHECK(f->n >= 1U && f->n <= 3U);
+        CHECK(f->n >= TP_MICROTAP_MIN_FRAMES && f->n <= TP_MICROTAP_MAX_FRAMES);
         int32_t sx = 0, sy = 0;
         uint32_t path = 0U, offset = 0U;
         for (unsigned j = 0; j < f->n; j++) {
@@ -56,10 +56,10 @@ static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
             if (magnitude(sx) > offset) offset = magnitude(sx);
             if (magnitude(sy) > offset) offset = magnitude(sy);
         }
-        CHECK(path >= 6U && path <= 1024U && offset <= 512U);
+        CHECK(path >= 24U && path <= 8192U && offset <= 4096U);
         CHECK((uint32_t)(t - f->ledger[f->n - 1U].at_ms) >= 120U);
-        CHECK((uint32_t)(t - f->ledger[0].at_ms) <= 180U);
-        CHECK((uint32_t)(f->ledger[f->n - 1U].at_ms - f->ledger[0].at_ms) <= 40U);
+        CHECK((uint32_t)(t - f->ledger[0].at_ms) <= 320U);
+        CHECK((uint32_t)(f->ledger[f->n - 1U].at_ms - f->ledger[0].at_ms) <= 120U);
         if (f->have_click) CHECK((uint32_t)(t - f->last_click) >= 350U);
         f->have_click = true;
         f->last_click = t;
@@ -113,31 +113,44 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_PATH == 6U && TP_MICROTAP_QUIET_MS == 120U);
-    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 180U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
-    CHECK(TP_MICROTAP_MAX_PATH == 1024U && TP_MICROTAP_MAX_OFFSET == 512U);
-    CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 3U);
-    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 40U);
+    CHECK(TP_MICROTAP_MIN_PATH == 24U && TP_MICROTAP_QUIET_MS == 120U);
+    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 320U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
+    CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
+    CHECK(TP_MICROTAP_MIN_FRAMES == 3U && TP_MICROTAP_MAX_FRAMES == 8U);
+    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
 }
 
 static void lower_bound_and_quiet(void) {
     struct fixture f;
-    for (int16_t path = 1; path <= 6; path++) {
+    for (int16_t path = 1; path <= 24; path++) {
         init(&f);
         (void)packet(&f, 0, path, 0);
         zeros(&f, 0, 12);
-        CHECK(f.clicks == (path == 6 ? 1U : 0U));
-        CHECK(f.replayed == (path == 6 ? 0U : 1U));
+        CHECK(f.clicks == 0U && f.replayed == 1U); /* A single-frame touch never qualifies. */
+    }
+    for (int16_t path = 3; path <= 24; path++) {
+        init(&f);
+        const int16_t first = (int16_t)(path / 3);
+        const int16_t second = first;
+        const int16_t third = (int16_t)(path - first - second);
+        (void)packet(&f, 0, first, 0);
+        (void)packet(&f, 10, second, 0);
+        (void)packet(&f, 20, third, 0);
+        zeros(&f, 20, 12);
+        CHECK(f.clicks == (path == 24 ? 1U : 0U));
+        CHECK(f.replayed == (path == 24 ? 0U : 3U));
     }
     init(&f);
-    (void)packet(&f, 0, 6, 0);
-    (void)packet(&f, 60, 0, 0);
-    (void)packet(&f, 119, 0, 0);
-    CHECK(f.clicks == 0U && f.n == 1U);
-    struct tp_microtap_result r = packet(&f, 120, 0, 0);
-    CHECK(r.click && f.clicks == 1U && f.discarded == 1U);
+    (void)packet(&f, 0, 8, 0);
+    (void)packet(&f, 10, 8, 0);
+    (void)packet(&f, 20, 8, 0);
+    (void)packet(&f, 120, 0, 0);
+    (void)packet(&f, 139, 0, 0);
+    CHECK(f.clicks == 0U && f.n == 3U);
+    struct tp_microtap_result r = packet(&f, 140, 0, 0);
+    CHECK(r.click && f.clicks == 1U && f.discarded == 3U);
 
     init(&f);
     (void)packet(&f, 0, -128, -128);
@@ -150,29 +163,33 @@ static void lower_bound_and_quiet(void) {
     (void)packet(&f, 10, -128, 127);
     (void)packet(&f, 20, 127, -128);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 1U && f.discarded == 3U); /* path764 (>512), offset127. */
+    CHECK(f.clicks == 1U && f.discarded == 3U); /* path764; offsets stay small. */
     init(&f);
     (void)packet(&f, 0, -128, 0);
     (void)packet(&f, 10, -128, 0);
     (void)packet(&f, 20, -128, 0);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 1U && f.discarded == 3U); /* offset384 (>256), path384. */
+    CHECK(f.clicks == 1U && f.discarded == 3U); /* offset384; path384. */
 
     init(&f);
-    (void)packet(&f, 0, 6, 0);
-    (void)packet(&f, 60, 0, 0);
-    r = packet(&f, 120, 7, -2);
-    CHECK(r.click && r.count == 1U && r.frames[0].at_ms == 120U);
-    CHECK(f.discarded == 1U && f.replayed == 1U && f.n == 0U);
-    zeros(&f, 120, 40);
+    (void)packet(&f, 0, 8, 0);
+    (void)packet(&f, 10, 8, 0);
+    (void)packet(&f, 20, 8, 0);
+    (void)packet(&f, 80, 0, 0);
+    (void)packet(&f, 139, 0, 0);
+    r = packet(&f, 140, 7, -2);
+    CHECK(r.click && r.count == 1U && r.frames[0].at_ms == 140U);
+    CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
+    zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS path6..1024/offset512, all 3 signed8 frames admitted by upper caps, paths1..5 movement, quiet119 none/120 click");
+    puts("PASS floor24 and min3 frames reject single/light touches; signed8 burst and quiet119/120 boundaries pass");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
     init(f);
-    (void)packet(f, 0, 3, 0);
-    (void)packet(f, 40, 3, 0);
+    (void)packet(f, 0, 8, 0);
+    (void)packet(f, 20, 8, 0);
+    (void)packet(f, 40, 8, 0);
     (void)packet(f, 100, 0, 0);
     (void)packet(f, 159, 0, 0); /* 119ms quiet; no earlier decision. */
     CHECK(f->clicks == 0U);
@@ -181,45 +198,56 @@ static void late_first_click(struct fixture *f, uint32_t decision) {
 
 static void frame_span_age_and_navigation(void) {
     struct fixture f;
-    for (uint32_t span = 0; span <= 45U; span++) {
+    for (uint32_t span = 0; span <= 125U; span++) {
         init(&f);
-        (void)packet(&f, 0, 3, 0);
-        (void)packet(&f, span, 3, 0);
+        (void)packet(&f, 0, 8, 0);
+        (void)packet(&f, span / 2U, 8, 0);
+        (void)packet(&f, span, 8, 0);
         zeros(&f, span, 12);
-        CHECK(f.clicks == (span <= 40U ? 1U : 0U));
-        CHECK(f.discarded == (span <= 40U ? 2U : 0U));
+        CHECK(f.clicks == (span <= 120U ? 1U : 0U));
+        CHECK(f.discarded == (span <= 120U ? 3U : 0U));
     }
     init(&f);
-    (void)packet(&f, 0, 2, 0);
-    (void)packet(&f, 20, 2, 0);
-    (void)packet(&f, 40, 2, 0);
-    zeros(&f, 40, 12);
+    for (uint32_t i = 0; i < 8U; i++) (void)packet(&f, i * 10U, 3, 0);
+    CHECK(f.s.count == 8U);
+    zeros(&f, 70U, 12U);
+    CHECK(f.clicks == 1U && f.discarded == 8U);
+    init(&f);
+    struct tp_microtap_result r = {0};
+    for (uint32_t i = 0; i < 9U; i++) r = packet(&f, i * 10U, 3, 0);
+    CHECK(r.count == 9U && f.replayed == 9U && f.n == 0U);
+    for (unsigned i = 0; i < 9U; i++) CHECK(r.frames[i].at_ms == i * 10U);
+    zeros(&f, 80U, 30U);
+    CHECK(f.clicks == 0U);
+
+    init(&f);
+    (void)packet(&f, 0U, 8, 0);
+    (void)packet(&f, 60U, 8, 0);
+    (void)packet(&f, 120U, 8, 0);
+    (void)packet(&f, 220U, 0, 0); /* 100ms poll gap, only 100ms quiet. */
+    CHECK(f.clicks == 0U);
+    (void)packet(&f, 320U, 0, 0); /* Max feasible age: 120 span + 200 poll/quiet. */
     CHECK(f.clicks == 1U && f.discarded == 3U);
     init(&f);
-    (void)packet(&f, 0, 2, 0);
-    (void)packet(&f, 10, 2, 0);
-    (void)packet(&f, 20, 2, 0);
-    struct tp_microtap_result r = packet(&f, 30, 2, 0);
-    CHECK(r.count == 4U && f.replayed == 4U && f.n == 0U);
-    for (unsigned i = 0; i < 4U; i++) CHECK(r.frames[i].at_ms == i * 10U);
-    zeros(&f, 30, 30);
-    CHECK(f.clicks == 0U);
+    (void)packet(&f, 0U, 8, 0);
+    (void)packet(&f, 60U, 8, 0);
+    (void)packet(&f, 120U, 8, 0);
+    (void)packet(&f, 220U, 0, 0);
+    (void)packet(&f, 221U, 0, 0);
+    (void)packet(&f, 321U, 0, 0);
+    CHECK(f.clicks == 0U && f.replayed == 3U && f.n == 0U);
 
     for (uint32_t delta = 199; delta <= 200U; delta++) {
         init(&f);
         (void)packet(&f, 0, 600, 0); /* Immediate rejection starts navigation guard. */
         zeros(&f, 0, 19);
-        (void)packet(&f, delta, 6, 0);
-        zeros(&f, delta, 12);
+        (void)packet(&f, delta, 8, 0);
+        (void)packet(&f, delta + 10U, 8, 0);
+        (void)packet(&f, delta + 20U, 8, 0);
+        zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    late_first_click(&f, 180);
-    CHECK(f.clicks == 1U && f.discarded == 2U);
-    late_first_click(&f, 181);
-    CHECK(f.clicks == 0U && f.replayed == 2U && f.n == 0U);
-    zeros(&f, 181, 40);
-    CHECK(f.clicks == 0U);
-    puts("PASS frames1..3/span40 inclusive, fourth/span41 ordered replay, navigation199/200, age180 click/181 reject");
+    puts("PASS floor24/min3, frames3..8/span120 boundaries, max age320 and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
@@ -227,70 +255,86 @@ static void repeat_guard_and_no_deferred_click(void) {
     for (uint32_t spacing = 400; spacing <= 450U; spacing += 50U) {
         init(&f);
         for (uint32_t i = 0; i < 1000U; i++) {
-            (void)packet(&f, i * spacing, 5, -12);
-            zeros(&f, i * spacing, spacing / 10U - 1U);
+            const uint32_t base = i * spacing;
+            (void)packet(&f, base, 8, 0);
+            (void)packet(&f, base + 10U, 8, 0);
+            (void)packet(&f, base + 20U, 8, 0);
+            zeros(&f, base + 20U, spacing / 10U - 3U);
         }
-        CHECK(f.clicks == 1000U && f.discarded == 1000U && f.replayed == 0U);
+        CHECK(f.clicks == 1000U && f.discarded == 3000U && f.replayed == 0U);
     }
     /* No SDK/queue clock is involved. Use a late FIRST decision at180, not the
      * first motion at0: decision intervals349/350 must reject/admit exactly. */
     for (uint32_t delta = 349; delta <= 350U; delta++) {
         late_first_click(&f, 180);
         CHECK(f.clicks == 1U);
-        zeros(&f, 180, 22);
-        const uint32_t start = 180U + delta - 120U;
-        (void)packet(&f, start, 6, 0);
-        (void)packet(&f, start + 60U, 0, 0);
-        (void)packet(&f, start + 119U, 0, 0);
-        CHECK(f.clicks == 1U);
+        zeros(&f, 180, 20);
+        const uint32_t start = 180U + delta - 140U;
+        (void)packet(&f, start, 8, 0);
+        (void)packet(&f, start + 10U, 8, 0);
+        (void)packet(&f, start + 20U, 8, 0);
         (void)packet(&f, start + 120U, 0, 0);
+        (void)packet(&f, start + 139U, 0, 0);
+        CHECK(f.clicks == 1U);
+        (void)packet(&f, start + 140U, 0, 0);
         const uint64_t expected = delta == 350U ? 2U : 1U;
-        CHECK(f.clicks == expected && f.replayed == (delta == 350U ? 0U : 1U));
-        zeros(&f, start + 120U, 40);
+        CHECK(f.clicks == expected && f.replayed == (delta == 350U ? 0U : 3U));
+        zeros(&f, start + 140U, 40);
         CHECK(f.clicks == expected && f.n == 0U); /* Expiry cannot catch up. */
     }
     init(&f);
     for (uint32_t i = 0; i < 1000U; i++) {
-        (void)packet(&f, i * 70U, 5, -12);
-        zeros(&f, i * 70U, 6);
+        const uint32_t base = i * 70U;
+        (void)packet(&f, base, 8, 0);
+        (void)packet(&f, base + 10U, 8, 0);
+        (void)packet(&f, base + 20U, 8, 0);
+        zeros(&f, base + 20U, 4U);
     }
-    CHECK(f.clicks == 0U && f.discarded == 0U && f.replayed == 1000U);
-    uint32_t last = 999U * 70U;
-    zeros(&f, last + 60U, 40);
-    CHECK(f.clicks == 0U && f.n == 0U); /* Second pulse spans70>40 before quiet120. */
+    CHECK(f.clicks == 0U && f.discarded == 0U && f.replayed == 3000U);
+    uint32_t last = 999U * 70U + 20U;
+    zeros(&f, last, 40U);
+    CHECK(f.clicks == 0U && f.n == 0U); /* Repeating 70ms movement is passthrough. */
 
     init(&f);
-    (void)packet(&f, 0, 6, 0);
-    zeros(&f, 0, 12);
+    (void)packet(&f, 0U, 8, 0);
+    (void)packet(&f, 10U, 8, 0);
+    (void)packet(&f, 20U, 8, 0);
+    zeros(&f, 20U, 12U);
     CHECK(f.clicks == 1U);
+    zeros(&f, 140U, 6U);
     for (uint32_t i = 0; i < 1000U; i++) {
-        (void)packet(&f, 190U + i * 70U, 5, -12); /* 70ms after first decision. */
-        zeros(&f, 190U + i * 70U, 6);
+        const uint32_t base = 210U + i * 70U;
+        (void)packet(&f, base, 8, -8);
+        (void)packet(&f, base + 10U, 8, -8);
+        (void)packet(&f, base + 20U, 8, -8);
+        zeros(&f, base + 20U, 4U);
     }
-    CHECK(f.clicks == 1U && f.discarded == 1U && f.replayed == 1000U);
-    last = 190U + 999U * 70U;
-    zeros(&f, last + 60U, 40);
+    CHECK(f.clicks == 1U && f.discarded == 3U && f.replayed == 3000U);
+    last = 210U + 999U * 70U + 20U;
+    zeros(&f, last, 40U);
     CHECK(f.clicks == 1U && f.n == 0U);
-    puts("PASS 1000 intentional clicks each at400/450ms, decision349 rejects/350 admits, 1000 continuous70ms pulses zero clicks, post-click rebounds one click, no catch-up");
+    puts("PASS 1000 three-frame taps at400/450ms, decision349 rejects/350 admits, 1000 continuous70ms bursts zero clicks, native-repeat guard retained");
 }
 
 static void extremes_and_cancellation(void) {
     struct fixture f;
     for (int x = -128; x <= 127; x++) for (int y = -128; y <= 127; y++) {
         init(&f);
-        (void)packet(&f, 0, (int16_t)x, (int16_t)y);
-        zeros(&f, 0, 12);
-        const int path = (x < 0 ? -x : x) + (y < 0 ? -y : y);
-        CHECK(f.clicks == (path >= 6 ? 1U : 0U));
+        for (uint32_t t = 0; t <= 20U; t += 10U)
+            (void)packet(&f, t, (int16_t)x, (int16_t)y);
+        zeros(&f, 20, 12);
+        const int path = 3 * ((x < 0 ? -x : x) + (y < 0 ? -y : y));
+        CHECK(f.clicks == (path >= 24 ? 1U : 0U));
     }
     for (unsigned axis = 0; axis < 2U; axis++) {
         for (int32_t v = INT16_MIN; v <= INT16_MAX; v++) {
             init(&f);
-            (void)packet(&f, 0, axis == 0U ? (int16_t)v : 0,
-                                  axis == 1U ? (int16_t)v : 0);
-            zeros(&f, 0, 12);
-            const uint32_t a = magnitude(v);
-            CHECK(f.clicks == (a >= 6U && a <= 512U ? 1U : 0U));
+            for (uint32_t t = 0; t <= 20U; t += 10U)
+                (void)packet(&f, t, axis == 0U ? (int16_t)v : 0,
+                                    axis == 1U ? (int16_t)v : 0);
+            zeros(&f, 20, 12);
+            const uint32_t a = 3U * magnitude(v);
+            CHECK(f.clicks == (a >= 24U && a <= 4096U ? 1U : 0U));
         }
     }
     init(&f);
@@ -301,7 +345,7 @@ static void extremes_and_cancellation(void) {
 
     for (unsigned cause = 0; cause < 3U; cause++) {
         init(&f);
-        (void)packet(&f, 0, 6, 0);
+        (void)packet(&f, 0, 24, 0);
         (void)packet(&f, 60, 0, 0);
         (void)feed(&f, 120, 0, 0, cause != 0U, cause != 1U, cause == 2U);
         CHECK(f.clicks == 0U && f.replayed == 1U && f.n == 0U);
@@ -329,14 +373,16 @@ static void extremes_and_cancellation(void) {
 static void clocks_and_poll_gaps(void) {
     struct fixture f;
     init(&f);
-    (void)packet(&f, 0, 6, 0);
-    (void)packet(&f, 100, 0, 0);
-    CHECK(f.clicks == 0U && f.n == 1U);
-    (void)packet(&f, 120, 0, 0);
-    CHECK(f.clicks == 1U); /* Gap100 is allowed, with an intermediate poll. */
+    (void)packet(&f, 0U, 8, 0);
+    (void)packet(&f, 10U, 8, 0);
+    (void)packet(&f, 20U, 8, 0);
+    (void)packet(&f, 120U, 0, 0);
+    CHECK(f.clicks == 0U && f.n == 3U);
+    (void)packet(&f, 140U, 0, 0);
+    CHECK(f.clicks == 1U); /* Gap100 is allowed, then quiet is observed. */
     for (uint32_t gap = 101; gap <= 120U; gap += 19U) {
         init(&f);
-        (void)packet(&f, 0, 6, 0);
+        (void)packet(&f, 0U, 24, 0);
         (void)packet(&f, gap, 0, 0);
         CHECK(f.clicks == 0U && f.replayed == 1U && f.n == 0U);
     }
@@ -348,31 +394,44 @@ static void clocks_and_poll_gaps(void) {
     CHECK(!r.click && r.count == 4U && f.replayed == 4U);
     for (uint32_t delta = 349; delta <= 350U; delta++) {
         init(&f);
-        (void)packet(&f, 100, 6, 0);
-        (void)packet(&f, 90, 0, 0); /* Backwards clock starts a new decision guard. */
+        (void)packet(&f, 100U, 6, 0);
+        (void)packet(&f, 90U, 0, 0); /* Backwards clock starts a new decision guard. */
         CHECK(f.clicks == 0U && f.replayed == 1U);
-        zeros(&f, 90, 22);
-        const uint32_t start = 90U + delta - 120U;
-        (void)packet(&f, start, 6, 0);
-        (void)packet(&f, start + 60U, 0, 0);
+        zeros(&f, 90U, 19U);
+        const uint32_t start = 90U + delta - 140U;
+        (void)packet(&f, start, 8, 0);
+        (void)packet(&f, start + 10U, 8, 0);
+        (void)packet(&f, start + 20U, 8, 0);
         (void)packet(&f, start + 120U, 0, 0);
+        (void)packet(&f, start + 139U, 0, 0);
+        (void)packet(&f, start + 140U, 0, 0);
         CHECK(f.clicks == (delta == 350U ? 1U : 0U));
     }
     init(&f);
-    (void)packet(&f, 100, 6, 0);
+    (void)packet(&f, 100U, 6, 0);
     const uint32_t jump = 100U + UINT32_C(0x80000000);
     (void)packet(&f, jump, INT16_MIN, INT16_MAX);
     CHECK(f.clicks == 0U && f.replayed == 2U);
-    zeros(&f, jump, 40);
+    zeros(&f, jump, 40U);
     CHECK(f.clicks == 0U);
     init(&f);
     const uint32_t base = UINT32_MAX - 80U;
-    (void)packet(&f, base, 6, 0);
-    zeros(&f, base, 39);
-    (void)packet(&f, base + 400U, 6, 0);
-    zeros(&f, base + 400U, 12);
-    CHECK(f.clicks == 2U && f.discarded == 2U);
-    puts("PASS gap100 accepted, gap101/120 flush before quiet, rollback/half-range faults, fault decision349/350, natural uint32 rollover");
+    (void)packet(&f, base, 8, 0);
+    (void)packet(&f, base + 10U, 8, 0);
+    (void)packet(&f, base + 20U, 8, 0);
+    (void)packet(&f, base + 120U, 0, 0);
+    (void)packet(&f, base + 139U, 0, 0);
+    (void)packet(&f, base + 140U, 0, 0);
+    (void)packet(&f, base + 240U, 0, 0);
+    (void)packet(&f, base + 340U, 0, 0);
+    (void)packet(&f, base + 400U, 8, 0);
+    (void)packet(&f, base + 410U, 8, 0);
+    (void)packet(&f, base + 420U, 8, 0);
+    (void)packet(&f, base + 520U, 0, 0);
+    (void)packet(&f, base + 539U, 0, 0);
+    (void)packet(&f, base + 540U, 0, 0);
+    CHECK(f.clicks == 2U && f.discarded == 6U);
+    puts("PASS gap100 allowed, gap101/120 flush before quiet, rollback/half-range faults, guard349/350, expanded window across uint32 rollover");
 }
 
 static uint32_t rng = UINT32_C(0x31415926);

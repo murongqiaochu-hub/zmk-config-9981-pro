@@ -30,10 +30,11 @@ extern int bbp9981_hid_mouse_button_references(unsigned int button);
 #define MICRO_QUEUE_CAPACITY 128U
 #define MICRO_CLICK_MAX_AGE_MS 500U
 #define MICRO_NATIVE_GUARD_MS 600U
-BUILD_ASSERT(TP_MICROTAP_MIN_PATH == 6U && TP_MICROTAP_QUIET_MS == 120U &&
-             TP_MICROTAP_MAX_CANDIDATE_MS == 180U &&
+BUILD_ASSERT(TP_MICROTAP_MIN_PATH == 24U && TP_MICROTAP_QUIET_MS == 120U &&
+             TP_MICROTAP_MAX_CANDIDATE_MS == 320U && TP_MICROTAP_MIN_FRAMES == 3U &&
+             TP_MICROTAP_MAX_FRAMES == 8U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U &&
              TP_MICROTAP_CLICK_INTERVAL_MS == 350U && MICRO_NATIVE_GUARD_MS == 600U &&
-             TP_MICROTAP_MAX_PATH == 1024U && TP_MICROTAP_MAX_OFFSET == 512U,
+             TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U,
              "MICROTAP_POLICY must match the runtime ROM marker");
 struct micro_event {
     struct tp_microtap_frame motion;
@@ -151,7 +152,7 @@ void tp_microtap_runtime_init(void) {
     tp_microtap_reset(&gesture);
     /* Runtime default is OFF; never save a guessed gesture policy in settings. */
     atomic_set(&enabled, 0);
-    LOG_INF("MICROTAP_POLICY floor=6 quiet=120 gap=350 native=600 range=1024/512");
+    LOG_INF("MICROTAP_POLICY floor=24 quiet=120 gap=350 native=600 range=8192/4096 frames=3..8 span=120 age=320");
     (void)tp_tap_output_init();
 }
 static void pop_event(void) {

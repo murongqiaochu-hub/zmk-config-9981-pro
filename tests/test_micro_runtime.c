@@ -62,6 +62,9 @@ static void emit(void *ctx,int16_t dx,int16_t dy,uint32_t t) {
 static void poll_at(uint32_t t,int16_t dx,int16_t dy,bool valid,bool scroll) {
     fake_now=t;tp_microtap_runtime_poll(t,dx,dy,valid,scroll,0,0,emit,NULL);
 }
+static void tap_at(uint32_t t,int16_t dx,int16_t dy) {
+    poll_at(t,dx,dy,true,false);poll_at(t,dx,dy,true,false);poll_at(t,dx,dy,true,false);
+}
 static void zeros(uint32_t first,uint32_t last) {
     for(uint32_t t=first;t<=last;t+=10U)poll_at(t,0,0,true,false);
 }
@@ -96,35 +99,36 @@ static void test_floor_and_first(void) {
         poll_at(130,0,0,true,false);
         assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
     }
-    fixture(true);poll_at(10,6,0,true,false);zeros(20,120);
+    fixture(true);tap_at(10,8,0);zeros(20,120);
     poll_at(129,0,0,true,false);assert(submissions==0&&moves==0);
     poll_at(130,0,0,true,false);assert(submissions==1&&moves==0);
     assert(pointer.x.remainder==0&&pointer.y.remainder==0&&!native_have_activity);
     complete();poll_at(140,0,0,true,false);zeros(150,350);
-    poll_at(360,6,0,true,false);zeros(370,480);assert(submissions==2);
+    tap_at(360,8,0);zeros(370,480);assert(submissions==2);
     complete();poll_at(490,0,0,true,false);zeros(500,700);
-    poll_at(710,6,0,true,false);zeros(720,830);assert(submissions==3);
+    tap_at(710,8,0);zeros(720,830);assert(submissions==3);
     complete();poll_at(840,0,0,true,false);
     assert(moves==0&&count==0&&trace_count==6&&memcmp(trace,"DUDUDU",6)==0);
     assert(native_guard.generation==0&&!native_have_activity); /* Own LEFT is not native. */
 }
 static void test_fifo_and_backpressure(void) {
-    fixture(true);poll_at(10,2,0,true,false);poll_at(20,20,0,true,false);
-    poll_at(30,1,0,true,false);assert(moves==0&&tp_microtap_runtime_pending());
-    poll_at(40,1,0,true,false);assert(moves==4&&pointer_x==28&&submissions==0);
-    for(unsigned int i=0;i<4;i++)assert(emitted[i].at_ms==10U+i*10U);
-    zeros(50,170);assert(submissions==0);
+    fixture(true);
+    for(uint32_t i=0;i<9U;i++)poll_at(10U+i*10U,1,0,true,false);
+    poll_at(100,0,0,true,false); /* Drain the nine-frame FIFO batch. */
+    assert(moves==9&&pointer_x==10&&submissions==0&&!tp_microtap_runtime_pending());
+    for(unsigned int i=0;i<9U;i++)assert(emitted[i].at_ms==10U+i*10U);
+    zeros(110,220);assert(submissions==0);
 
-    fixture(true);poll_at(10,6,0,true,false);zeros(20,130);assert(submissions==1);
+    fixture(true);tap_at(10,8,0);zeros(20,130);assert(submissions==1);
     poll_at(140,30,0,true,false);poll_at(150,1,0,true,false);poll_at(160,1,0,true,false);
     assert(moves==0&&count==4);complete();poll_at(170,0,0,true,false);
     assert(moves==3&&pointer_x==38&&memcmp(trace,"DUMMM",5)==0);
     assert(emitted[0].at_ms==140&&emitted[1].at_ms==150&&emitted[2].at_ms==160);
     zeros(180,500);assert(submissions==1&&count==0);
 
-    fixture(true);poll_at(10,6,0,true,false);zeros(20,350);
-    poll_at(360,6,0,true,false);zeros(370,700);
-    poll_at(710,6,0,true,false);zeros(720,830);
+    fixture(true);tap_at(10,8,0);zeros(20,350);
+    tap_at(360,8,0);zeros(370,700);
+    tap_at(710,8,0);zeros(720,830);
     assert(submissions==1&&count==3);
     fake_now=840;complete();poll_at(840,0,0,true,false);assert(submissions==2);
     fake_now=850;complete();poll_at(850,0,0,true,false);assert(submissions==2&&count==0);
@@ -136,7 +140,7 @@ static void test_native_edges_and_busy(void) {
     position_edge(15,4,true);refs[0]++;position_edge(17,4,false);refs[0]--;
     poll_at(20,6,0,true,false);assert(moves==1&&submissions==0&&refs[0]==0);
     zeros(30,610);poll_at(619,0,0,true,false);
-    assert(native_guard_observe(false).blocked);poll_at(620,6,0,true,false);
+    assert(native_guard_observe(false).blocked);tap_at(620,8,0);
     assert(!native_guard_observe(false).blocked&&moves==1);
     zeros(630,730);assert(submissions==0);poll_at(740,0,0,true,false);assert(submissions==1);
 
@@ -145,7 +149,7 @@ static void test_native_edges_and_busy(void) {
     assert(native_guard.held!=0U&&native_guard_observe(false).blocked);
     position_edge(1001,0,false);poll_at(1001,0,0,true,false);zeros(1011,1591);
     poll_at(1600,0,0,true,false);assert(native_guard_observe(false).blocked);
-    poll_at(1601,6,0,true,false);assert(!native_guard_observe(false).blocked);
+    tap_at(1601,8,0);assert(!native_guard_observe(false).blocked);
     zeros(1611,1721);assert(submissions==1);
 
     fixture(true);fake_now=10;tp_microtap_runtime_shoulder_busy(true);
@@ -155,7 +159,7 @@ static void test_native_edges_and_busy(void) {
     fake_now=100;tp_microtap_runtime_shoulder_busy(false);poll_at(100,0,0,true,false);
     assert(native_guard.generation==gen);zeros(110,610);
     poll_at(619,0,0,true,false);assert(native_guard_observe(false).blocked);
-    poll_at(620,6,0,true,false);assert(!native_guard_observe(false).blocked);
+    tap_at(620,8,0);assert(!native_guard_observe(false).blocked);
     zeros(630,740);assert(submissions==1);
 }
 static void test_refs_context_and_faults(void) {
@@ -164,12 +168,12 @@ static void test_refs_context_and_faults(void) {
     assert(moves==2&&submissions==0&&refs[0]==1); /* Native drag/move stays live. */
     refs[0]=0;poll_at(1020,0,0,true,false);zeros(1030,1610);
     poll_at(1619,0,0,true,false);assert(native_guard_observe(false).blocked);
-    poll_at(1620,6,0,true,false);zeros(1630,1740);assert(submissions==1);
+    tap_at(1620,8,0);zeros(1630,1740);assert(submissions==1);
 
     fixture(true);refs[2]=-1;poll_at(10,6,0,true,false);zeros(20,700);
     assert(submissions==0&&moves==1);refs[2]=0;poll_at(710,0,0,true,false);
     assert(native_guard_observe(false).blocked);zeros(720,1300);
-    poll_at(1310,6,0,true,false);zeros(1320,1430);assert(submissions==1);
+    tap_at(1310,8,0);zeros(1320,1430);assert(submissions==1);
 
     fixture(true);position_edge(10,4,true);position_edge(11,4,false);
     poll_at(20,0,0,true,false);uint32_t gen=native_guard.generation;
@@ -180,7 +184,7 @@ static void test_refs_context_and_faults(void) {
     tp_microtap_reset(&gesture); /* Even an explicit gesture reset cannot clear native. */
     zeros(140,340);poll_at(350,6,0,true,false);assert(moves==1&&submissions==0);
     zeros(360,610);poll_at(619,0,0,true,false);assert(native_guard_observe(false).blocked);
-    assert(native_guard.generation==gen);poll_at(620,6,0,true,false);
+    assert(native_guard.generation==gen);tap_at(620,8,0);
     zeros(630,740);assert(submissions==1);
 
     fixture(true);poll_at(10,6,0,true,false);poll_at(20,0,0,false,false);
@@ -196,7 +200,7 @@ static void inject_native_du(void) {
     position_edge(fake_now,4,false);refs[0]--;
 }
 static void test_submit_rechecks_and_no_late_click(void) {
-    fixture(true);poll_at(10,6,0,true,false);zeros(20,120);
+    fixture(true);tap_at(10,8,0);zeros(20,120);
     after_context_hook=inject_native_du;poll_at(130,0,0,true,false);
     assert(submissions==0&&count==0);zeros(140,1000);assert(submissions==0);
 
@@ -279,17 +283,17 @@ static void test_fresh_wall_and_wrap(void) {
 static void test_spacing_retirement(void) {
     /* One real auto acceptance, then ordinary idle polls retire its350ms token.
      * Its SDK history remains unchanged even over half-range and full wrap. */
-    fixture(true);poll_at(10,6,0,true,false);zeros(20,130);assert(submissions==1);
+    fixture(true);tap_at(10,8,0);zeros(20,130);assert(submissions==1);
     complete();poll_at(140,0,0,true,false);zeros(150,470);assert(auto_spacing.live);
     poll_at(480,0,0,true,false);assert(!auto_spacing.live&&status.down_reports==1);
     uint32_t late=UINT32_C(0x80000082); /* accepted_at130 + half a u32 period. */
     poll_at(late,0,0,true,false);assert(!auto_spacing.live);
-    zeros(late+10U,late+350U);poll_at(late+360U,6,0,true,false);
+    zeros(late+10U,late+350U);tap_at(late+360U,8,0);
     zeros(late+370U,late+480U);assert(submissions==2); /* Old SDK time cannot reject forever. */
     complete();poll_at(late+490U,0,0,true,false);zeros(late+500U,late+830U);
     assert(!auto_spacing.live);poll_at(UINT32_MAX,0,0,true,false);
     poll_at(0,0,0,true,false);assert(!auto_spacing.live);
-    zeros(10,350);poll_at(360,6,0,true,false);zeros(370,480);assert(submissions==3);
+    zeros(10,350);tap_at(360,8,0);zeros(370,480);assert(submissions==3);
 
     /* Sleep across half-range while a token was still live: allow exactly one
      * conservative350ms window at wake, not repeated reloads of oldaccepted_at. */
@@ -318,6 +322,6 @@ int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: floor6/first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: floor24/min3 frames, frames8/span120, first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }

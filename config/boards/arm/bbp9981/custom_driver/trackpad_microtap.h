@@ -62,16 +62,16 @@
 
 #define TP_MICROTAP_QUIET_MS 120U
 #define TP_MICROTAP_NAV_QUIET_MS 200U
-#define TP_MICROTAP_MIN_FRAMES 1U
-#define TP_MICROTAP_MAX_FRAMES 3U
-#define TP_MICROTAP_MIN_PATH 6U
+#define TP_MICROTAP_MIN_FRAMES 3U
+#define TP_MICROTAP_MAX_FRAMES 8U
+#define TP_MICROTAP_MIN_PATH 24U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
-#define TP_MICROTAP_MAX_CANDIDATE_MS 180U
-#define TP_MICROTAP_MAX_MOTION_SPAN_MS 40U
-/* Wide guard above every possible three-frame signed8 sensor burst:
- * path<=768, accumulated single-axis offset<=384. */
-#define TP_MICROTAP_MAX_PATH 1024U
-#define TP_MICROTAP_MAX_OFFSET 512U
+#define TP_MICROTAP_MAX_CANDIDATE_MS 320U
+#define TP_MICROTAP_MAX_MOTION_SPAN_MS 120U
+/* Wide guard above every possible eight-frame signed8 sensor burst:
+ * path<=2048, accumulated single-axis offset<=1024. */
+#define TP_MICROTAP_MAX_PATH 8192U
+#define TP_MICROTAP_MAX_OFFSET 4096U
 #define TP_MICROTAP_CLICK_INTERVAL_MS 350U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U
@@ -231,7 +231,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         s->first_ms = now;
     }
 
-    /* Live candidates have |sum_x/y|<=256 and path<=512; even int16 extremes
+    /* Live candidates have |sum_x/y|<=4096 and path<=8192; even int16 extremes
      * added here remain safely within int32/uint32, before any narrowing. */
     const int32_t x = s->sum_x + (int32_t)dx;
     const int32_t y = s->sum_y + (int32_t)dy;

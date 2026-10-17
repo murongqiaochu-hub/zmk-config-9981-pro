@@ -74,7 +74,7 @@ def check_result(variant, case, row):
         expected_down = 130 if case == "C" else -1
     assert row["autoDownAt"] == expected_down, (variant, case, row)
     assert row["autoUpAt"] == (expected_down + 12 if expected_auto else -1), row
-    assert row["motionFrames"] == 1 - expected_auto, row
+    assert row["motionFrames"] == 3 * (1 - expected_auto), row
     assert row["motionAt"] == ({"A": 40, "B": 50}[case] if not expected_auto else -1), row
     assert row["rawEnabled"] == expected_auto, row
     native_walls = {"A": (10, 30), "B": (50, 50), "C": (200, 220)}[case]
@@ -174,7 +174,7 @@ def main():
     assert len(results) == 6
     print("PASS A: actual old runtime reproduces native -> auto at100; current preserves native only.")
     print("PASS B: actual shoulder adapter flushes D/U at50 with original timestamps0/30; "
-          "refs=0 and busy=false BEFORE same-poll raw6. Old auto@110; current auto=0 "
+          "refs=0 and busy=false BEFORE same-poll 3-frame raw candidate. Old auto@110; current auto=0 "
           "through400 (>raw50+quiet120), from the native600 guard, not quiet120 alone.")
     print("PASS C LIMITATION RETAINED: old auto70/82 and current auto130/142 finish BEFORE "
           "native200/220. BOTH retain native and count TWO mock clicks; an already-sent "
