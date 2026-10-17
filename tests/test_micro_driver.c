@@ -59,6 +59,6 @@ int main(void){
  poll(6,0,10);assert(report_count==2&&refs[0]==1&&submissions==0);
  for(uint32_t t=20;t<=710;t+=10)idle(t);
  poll(8,-3,720);assert(report_count==2&&refs[0]==1&&submissions==0);
- puts("PASS Actual driver/runtime: full OFF pointer suite, floor6/first120ms, path512 discard before fractions, weak1..5 quiet replay, fourth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
+ puts("PASS Actual driver/runtime: full OFF pointer suite, floor6/first120ms, path768/offset384 signed8 burst admitted, weak1..5 quiet replay, fourth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
  return 0;
 }

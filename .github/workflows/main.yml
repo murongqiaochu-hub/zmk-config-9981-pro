@@ -30,7 +30,7 @@ jobs:
           CI_LOG_TOKEN: ${{ github.token }}
         run: python3 tools/report_ci_failure.py
   deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/tap-floor-cross-source-20261017'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/tap-range-ceiling-20261017'
     needs: build
     runs-on: ubuntu-latest
     permissions:

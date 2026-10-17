@@ -68,9 +68,10 @@
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
 #define TP_MICROTAP_MAX_CANDIDATE_MS 180U
 #define TP_MICROTAP_MAX_MOTION_SPAN_MS 40U
-/* Keep accumulated upper limits; never fabricate a wider sensor frame. */
-#define TP_MICROTAP_MAX_PATH 512U
-#define TP_MICROTAP_MAX_OFFSET 256U
+/* Wide guard above every possible three-frame signed8 sensor burst:
+ * path<=768, accumulated single-axis offset<=384. */
+#define TP_MICROTAP_MAX_PATH 1024U
+#define TP_MICROTAP_MAX_OFFSET 512U
 #define TP_MICROTAP_CLICK_INTERVAL_MS 350U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U

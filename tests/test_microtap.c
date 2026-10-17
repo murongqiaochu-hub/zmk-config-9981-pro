@@ -56,7 +56,7 @@ static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
             if (magnitude(sx) > offset) offset = magnitude(sx);
             if (magnitude(sy) > offset) offset = magnitude(sy);
         }
-        CHECK(path >= 6U && path <= 512U && offset <= 256U);
+        CHECK(path >= 6U && path <= 1024U && offset <= 512U);
         CHECK((uint32_t)(t - f->ledger[f->n - 1U].at_ms) >= 120U);
         CHECK((uint32_t)(t - f->ledger[0].at_ms) <= 180U);
         CHECK((uint32_t)(f->ledger[f->n - 1U].at_ms - f->ledger[0].at_ms) <= 40U);
@@ -115,7 +115,7 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 static void policy_constants(void) {
     CHECK(TP_MICROTAP_MIN_PATH == 6U && TP_MICROTAP_QUIET_MS == 120U);
     CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 180U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
-    CHECK(TP_MICROTAP_MAX_PATH == 512U && TP_MICROTAP_MAX_OFFSET == 256U);
+    CHECK(TP_MICROTAP_MAX_PATH == 1024U && TP_MICROTAP_MAX_OFFSET == 512U);
     CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 3U);
     CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 40U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
@@ -142,22 +142,21 @@ static void lower_bound_and_quiet(void) {
     init(&f);
     (void)packet(&f, 0, -128, -128);
     (void)packet(&f, 10, -128, -128);
-    zeros(&f, 10, 12);
-    CHECK(f.clicks == 1U && f.discarded == 2U); /* Exact path512/offset256. */
-    init(&f);
-    (void)packet(&f, 0, -128, -128);
-    (void)packet(&f, 10, 127, 127);
-    (void)packet(&f, 20, 2, 1);
-    CHECK(f.replayed == 3U);
+    (void)packet(&f, 20, -128, -128);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 0U); /* path513 */
+    CHECK(f.clicks == 1U && f.discarded == 3U); /* Signed8 max path768/offset384. */
+    init(&f);
+    (void)packet(&f, 0, 127, 127);
+    (void)packet(&f, 10, -128, 127);
+    (void)packet(&f, 20, 127, -128);
+    zeros(&f, 20, 12);
+    CHECK(f.clicks == 1U && f.discarded == 3U); /* path764 (>512), offset127. */
     init(&f);
     (void)packet(&f, 0, -128, 0);
     (void)packet(&f, 10, -128, 0);
-    (void)packet(&f, 20, -1, 0);
-    CHECK(f.replayed == 3U);
+    (void)packet(&f, 20, -128, 0);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 0U); /* offset257 */
+    CHECK(f.clicks == 1U && f.discarded == 3U); /* offset384 (>256), path384. */
 
     init(&f);
     (void)packet(&f, 0, 6, 0);
@@ -167,7 +166,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 1U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 120, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS path6..512/offset256, paths1..5 movement, quiet119 none/120 click, old-candidate-only discard");
+    puts("PASS path6..1024/offset512, all 3 signed8 frames admitted by upper caps, paths1..5 movement, quiet119 none/120 click");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -291,7 +290,7 @@ static void extremes_and_cancellation(void) {
                                   axis == 1U ? (int16_t)v : 0);
             zeros(&f, 0, 12);
             const uint32_t a = magnitude(v);
-            CHECK(f.clicks == (a >= 6U && a <= 256U ? 1U : 0U));
+            CHECK(f.clicks == (a >= 6U && a <= 512U ? 1U : 0U));
         }
     }
     init(&f);
