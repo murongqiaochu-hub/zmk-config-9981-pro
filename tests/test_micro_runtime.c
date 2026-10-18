@@ -322,6 +322,6 @@ int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: floor24/min3 frames, frames8/span120, first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: floor16/min2 frames, frames8/span120, first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }

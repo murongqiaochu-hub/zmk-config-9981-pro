@@ -56,7 +56,7 @@ static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
             if (magnitude(sx) > offset) offset = magnitude(sx);
             if (magnitude(sy) > offset) offset = magnitude(sy);
         }
-        CHECK(path >= 24U && path <= 8192U && offset <= 4096U);
+        CHECK(path >= TP_MICROTAP_MIN_PATH && path <= TP_MICROTAP_MAX_PATH && offset <= TP_MICROTAP_MAX_OFFSET);
         CHECK((uint32_t)(t - f->ledger[f->n - 1U].at_ms) >= 120U);
         CHECK((uint32_t)(t - f->ledger[0].at_ms) <= 320U);
         CHECK((uint32_t)(f->ledger[f->n - 1U].at_ms - f->ledger[0].at_ms) <= 120U);
@@ -113,10 +113,10 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_PATH == 24U && TP_MICROTAP_QUIET_MS == 120U);
+    CHECK(TP_MICROTAP_MIN_PATH == 16U && TP_MICROTAP_QUIET_MS == 120U);
     CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 320U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
-    CHECK(TP_MICROTAP_MIN_FRAMES == 3U && TP_MICROTAP_MAX_FRAMES == 8U);
+    CHECK(TP_MICROTAP_MIN_FRAMES == 2U && TP_MICROTAP_MAX_FRAMES == 8U);
     CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
@@ -130,6 +130,16 @@ static void lower_bound_and_quiet(void) {
         zeros(&f, 0, 12);
         CHECK(f.clicks == 0U && f.replayed == 1U); /* A single-frame touch never qualifies. */
     }
+    for (int16_t path = 2; path <= 16; path++) {
+        init(&f);
+        const int16_t first = (int16_t)(path / 2);
+        const int16_t second = (int16_t)(path - first);
+        (void)packet(&f, 0, first, 0);
+        (void)packet(&f, 10, second, 0);
+        zeros(&f, 10, 12);
+        CHECK(f.clicks == (path >= 16 ? 1U : 0U));
+        CHECK(f.replayed == (path >= 16 ? 0U : 2U));
+    }
     for (int16_t path = 3; path <= 24; path++) {
         init(&f);
         const int16_t first = (int16_t)(path / 3);
@@ -139,8 +149,8 @@ static void lower_bound_and_quiet(void) {
         (void)packet(&f, 10, second, 0);
         (void)packet(&f, 20, third, 0);
         zeros(&f, 20, 12);
-        CHECK(f.clicks == (path == 24 ? 1U : 0U));
-        CHECK(f.replayed == (path == 24 ? 0U : 3U));
+        CHECK(f.clicks == (path >= 16 ? 1U : 0U));
+        CHECK(f.replayed == (path >= 16 ? 0U : 3U));
     }
     init(&f);
     (void)packet(&f, 0, 8, 0);
@@ -182,7 +192,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS floor24 and min3 frames reject single/light touches; signed8 burst and quiet119/120 boundaries pass");
+    puts("PASS floor16 and min2 frames reject single/light touches; signed8 burst and quiet119/120 boundaries pass");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -247,7 +257,7 @@ static void frame_span_age_and_navigation(void) {
         zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    puts("PASS floor24/min3, frames3..8/span120 boundaries, max age320 and ordered ninth-frame replay; navigation199/200");
+    puts("PASS floor16/min2, frames2..8/span120 boundaries, max age320 and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
@@ -324,7 +334,7 @@ static void extremes_and_cancellation(void) {
             (void)packet(&f, t, (int16_t)x, (int16_t)y);
         zeros(&f, 20, 12);
         const int path = 3 * ((x < 0 ? -x : x) + (y < 0 ? -y : y));
-        CHECK(f.clicks == (path >= 24 ? 1U : 0U));
+        CHECK(f.clicks == (path >= (int)TP_MICROTAP_MIN_PATH ? 1U : 0U));
     }
     for (unsigned axis = 0; axis < 2U; axis++) {
         for (int32_t v = INT16_MIN; v <= INT16_MAX; v++) {
@@ -334,7 +344,7 @@ static void extremes_and_cancellation(void) {
                                     axis == 1U ? (int16_t)v : 0);
             zeros(&f, 20, 12);
             const uint32_t a = 3U * magnitude(v);
-            CHECK(f.clicks == (a >= 24U && a <= 4096U ? 1U : 0U));
+            CHECK(f.clicks == (a >= TP_MICROTAP_MIN_PATH && a <= TP_MICROTAP_MAX_OFFSET ? 1U : 0U));
         }
     }
     init(&f);
