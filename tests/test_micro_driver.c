@@ -43,8 +43,8 @@ int main(void){
   fixture();runtime_fixture(true);poll(weak,0,10);assert(report_count==0);
   for(uint32_t t=20;t<=120;t+=10)poll(0,0,t);
   poll(0,0,129);assert(report_count==0&&submissions==0);
-  /* Both poll()/idle() reset report_count each time. A weak candidate either clicks or replays
-   * at quiet expiry; do NOT use idle()'s no-report assertion for this poll. */
+  /* Both poll()/idle() reset report_count each time. Raw1..4 replay below6px; raw5 reaches6px
+   * at quiet expiry; inspect the expiry poll directly. */
   poll(0,0,130);if(report_count==2)assert(submissions==0);else assert(submissions==1&&report_count==0);
  }
  fixture();runtime_fixture(true);poll(-1,-1,10);
@@ -65,6 +65,6 @@ int main(void){
  poll(6,0,10);assert(report_count==2&&refs[0]==1&&submissions==0);
  for(uint32_t t=20;t<=710;t+=10)idle(t);
  poll(8,-3,720);assert(report_count==2&&refs[0]==1&&submissions==0);
- puts("PASS Actual driver/runtime: full OFF pointer suite, screen2..50px/min1 frame, quiet120 and click gap500, eight-frame signed8 envelope, small-drift replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
+ puts("PASS Actual driver/runtime: full OFF pointer suite, screen6..50px/min1 frame, span80, quiet120 and click gap300, eight-frame signed8 envelope, small-drift replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
  return 0;
 }

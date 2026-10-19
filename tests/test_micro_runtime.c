@@ -100,14 +100,14 @@ static void test_floor_and_first(void) {
         fixture(true);poll_at(10,weak,0,true,false);zeros(20,120);
         poll_at(129,0,0,true,false);assert(moves==0&&submissions==0);
         poll_at(130,0,0,true,false);
-        if(weak==1)assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
-        else assert(moves==0&&submissions==1); /* 2..5px, including one frame, now enters the inferred band. */
+        if(weak<5)assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
+        else assert(moves==0&&submissions==1); /* Raw5 maps to6px at normal gain. */
     }
     fixture(true);
     poll_at(10,1,0,true,false);zeros(20,130);
     poll_at(139,0,0,true,false);assert(submissions==0&&moves==1&&emitted[0].at_ms==10);
     poll_at(140,0,0,true,false);
-    assert(submissions==0&&moves==1); /* 1px remains below the 2px floor and replays. */
+    assert(submissions==0&&moves==1); /* 1px remains below the 6px floor and replays. */
 
     fixture(true);
     poll_at(10,8,0,true,false);poll_at(20,9,0,true,false);zeros(30,130);
@@ -151,7 +151,7 @@ static void test_fifo_and_backpressure(void) {
     fixture(true);tap_at(10,8,0);zeros(20,350);
     tap_at(360,8,0);zeros(370,700);
     tap_at(710,8,0);zeros(720,830);
-    assert(submissions==1&&count==5); /* 3 rejected frames replay, then one queued click pair. */
+    assert(submissions==1&&count==3); /* In-flight click plus two later qualifying clicks queue. */
     fake_now=840;complete();poll_at(840,0,0,true,false);assert(submissions==2);
     fake_now=850;complete();poll_at(850,0,0,true,false);assert(submissions==2&&count==0);
     zeros(860,1250);assert(submissions==2); /* Never wait and bunch automatic clicks. */
@@ -262,7 +262,7 @@ static void queued_click(uint32_t sample) {
 static void test_fresh_wall_and_wrap(void) {
     /* A producer's old sample timestamp cannot bypass the bridge's wall-clock
      * spacing check; compare against accepted_at, not the queued sample time. */
-    const uint32_t walls[]={1020,1499,1500,900,UINT32_C(0x800003e8)};
+    const uint32_t walls[]={1020,1299,1300,900,UINT32_C(0x800003e8)};
     for(unsigned int i=0;i<sizeof(walls)/sizeof(walls[0]);i++) {
         fixture(true);status.down_reports=1;status.accepted_at=1000;
         fake_now=walls[i];queued_click(1000);drain(true,emit,NULL);
@@ -270,8 +270,8 @@ static void test_fresh_wall_and_wrap(void) {
     }
     for(unsigned int i=0;i<2;i++) {
         fixture(true);status.down_reports=1;status.accepted_at=UINT32_MAX-100U;
-        fake_now=398U+i;queued_click(100);drain(true,emit,NULL);
-        assert(submissions==i); /* Natural rollover: 499 drop /500 allow. */
+        fake_now=198U+i;queued_click(100);drain(true,emit,NULL);
+        assert(submissions==i); /* Natural rollover: 299 drop /300 allow. */
     }
     for(unsigned int age=500;age<=501;age++) {
         fixture(true);fake_now=1000U+age;queued_click(1000);
@@ -303,12 +303,12 @@ static void test_fresh_wall_and_wrap(void) {
     assert(!native_guard_observe(false).blocked);
 }
 static void test_spacing_retirement(void) {
-    /* One real auto acceptance, then ordinary idle polls retire its500ms token.
+    /* One real auto acceptance, then ordinary idle polls retire its300ms token.
      * Its SDK history remains unchanged even over half-range and full wrap. */
     fixture(true);tap_at(10,8,0);zeros(20,130);assert(submissions==1);
-    complete();poll_at(140,0,0,true,false);zeros(150,620);assert(auto_spacing.live);
-    poll_at(629,0,0,true,false);assert(auto_spacing.live);
-    poll_at(630,0,0,true,false);assert(!auto_spacing.live&&status.down_reports==1);
+    complete();poll_at(140,0,0,true,false);zeros(150,420);assert(auto_spacing.live);
+    poll_at(429,0,0,true,false);assert(auto_spacing.live);
+    poll_at(430,0,0,true,false);assert(!auto_spacing.live&&status.down_reports==1);
     uint32_t late=UINT32_C(0x80000082); /* accepted_at130 + half a u32 period. */
     poll_at(late,0,0,true,false);assert(!auto_spacing.live);
     zeros(late+10U,late+380U);tap_at(late+390U,8,0);
@@ -319,32 +319,32 @@ static void test_spacing_retirement(void) {
     zeros(10,350);tap_at(380,8,0);zeros(390,500);assert(submissions==3);
 
     /* Sleep across half-range while a token was still live: allow exactly one
-     * conservative500ms window at wake, not repeated reloads of oldaccepted_at. */
+     * conservative300ms window at wake, not repeated reloads of oldaccepted_at. */
     fixture(true);status.down_reports=1;status.accepted_at=1000;
     poll_at(1000,0,0,true,false);assert(auto_spacing.live&&!auto_spacing.reanchored);
     uint32_t wake=UINT32_C(0x800003e8);
     poll_at(wake,0,0,true,false);assert(auto_spacing.live&&auto_spacing.reanchored);
-    zeros(wake+10U,wake+490U);poll_at(wake+499U,0,0,true,false);assert(auto_spacing.live);
-    poll_at(wake+500U,0,0,true,false);assert(!auto_spacing.live);
+    zeros(wake+10U,wake+290U);poll_at(wake+299U,0,0,true,false);assert(auto_spacing.live);
+    poll_at(wake+300U,0,0,true,false);assert(!auto_spacing.live);
     fake_now=UINT32_MAX;assert(!auto_spacing_blocked(status));
     fake_now=1000;assert(!auto_spacing_blocked(status)); /* Same acceptance never re-arms. */
     queued_click(1000);drain(true,emit,NULL);assert(submissions==1);
 
     fixture(true);status.down_reports=1;status.accepted_at=1000;
     poll_at(900,0,0,true,false);assert(auto_spacing.live&&auto_spacing.reanchored);
-    poll_at(1399,0,0,true,false);assert(auto_spacing.live);
-    poll_at(1400,0,0,true,false);assert(!auto_spacing.live); /* Future timestamp recovers. */
+    poll_at(1199,0,0,true,false);assert(auto_spacing.live);
+    poll_at(1200,0,0,true,false);assert(!auto_spacing.live); /* Future timestamp recovers. */
     /* A new SDK acceptance, including report-counter rollover, still starts its
      * own normal interval; caching expiry cannot bypass a later real click. */
     status.down_reports=UINT32_MAX;status.accepted_at=1300;fake_now=1300;
-    assert(auto_spacing_blocked(status));fake_now=1800;assert(!auto_spacing_blocked(status));
-    status.down_reports=0;status.accepted_at=1700;fake_now=2199;
-    assert(auto_spacing_blocked(status));fake_now=2200;assert(!auto_spacing_blocked(status));
+    assert(auto_spacing_blocked(status));fake_now=1600;assert(!auto_spacing_blocked(status));
+    status.down_reports=0;status.accepted_at=1700;fake_now=1999;
+    assert(auto_spacing_blocked(status));fake_now=2000;assert(!auto_spacing_blocked(status));
 }
 int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: inferred screen2..50px net at normal/slow gain, min1 frame, frames8/span160, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap500, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: inferred screen6..50px net at normal/slow gain, min1 frame, frames8/span80, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap300, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }

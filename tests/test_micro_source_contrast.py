@@ -68,7 +68,7 @@ def check_result(variant, case, row):
     for key in ("autoSubmitAccepted", "autoDownAccepted", "autoUpAccepted"):
         assert row[key] == expected_auto, (variant, case, key, row)
     assert row["quiet_ms"] == (60 if variant == "old" else 120), row
-    assert row["gap_ms"] == (200 if variant == "old" else 500), row
+    assert row["gap_ms"] == (200 if variant == "old" else 300), row
     expected_down = {"A": 100, "B": 110, "C": 70}[case]
     if variant == "current":
         expected_down = 130 if case == "C" else -1

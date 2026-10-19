@@ -157,12 +157,12 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 2U &&
+    CHECK(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 6U &&
           TP_MICROTAP_MAX_CURSOR_DISTANCE_PX == 50U && TP_MICROTAP_QUIET_MS == 120U);
-    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_CLICK_INTERVAL_MS == 500U);
+    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_CLICK_INTERVAL_MS == 300U);
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
     CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U);
-    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 160U);
+    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 80U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
 }
@@ -277,7 +277,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS inferred screen2..50px boundaries at normal/slow gain, single-frame/Euclidean net, >50px swipe replay, quiet119/120");
+    puts("PASS inferred screen6..50px boundaries at normal/slow gain, single-frame/Euclidean net, >50px swipe replay, quiet119/120");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -299,8 +299,8 @@ static void frame_span_age_and_navigation(void) {
         (void)packet(&f, span / 2U, 8, 0);
         (void)packet(&f, span, 8, 0);
         zeros(&f, span, 12);
-        CHECK(f.clicks == (span <= 160U ? 1U : 0U));
-        CHECK(f.discarded == (span <= 160U ? 3U : 0U));
+        CHECK(f.clicks == (span <= 80U ? 1U : 0U));
+        CHECK(f.discarded == (span <= 80U ? 3U : 0U));
     }
     init(&f);
     for (uint32_t i = 0; i < 8U; i++) (void)packet(&f, i * 10U, 3, 0);
@@ -317,19 +317,16 @@ static void frame_span_age_and_navigation(void) {
 
     init(&f);
     (void)packet(&f, 0U, 8, 0);
+    (void)packet(&f, 40U, 8, 0);
     (void)packet(&f, 80U, 8, 0);
-    (void)packet(&f, 160U, 8, 0);
-    (void)packet(&f, 260U, 0, 0); /* 100ms poll gap, only 100ms quiet. */
+    (void)packet(&f, 180U, 0, 0); /* 100ms poll gap, only 100ms quiet. */
     CHECK(f.clicks == 0U);
-    (void)packet(&f, 360U, 0, 0); /* Max feasible age: 160 span + 200 poll/quiet. */
+    (void)packet(&f, 280U, 0, 0); /* 80ms burst + 200ms to decision. */
     CHECK(f.clicks == 1U && f.discarded == 3U);
     init(&f);
     (void)packet(&f, 0U, 8, 0);
-    (void)packet(&f, 80U, 8, 0);
-    (void)packet(&f, 160U, 8, 0);
-    (void)packet(&f, 260U, 0, 0);
-    (void)packet(&f, 261U, 0, 0);
-    (void)packet(&f, 361U, 0, 0);
+    (void)packet(&f, 40U, 8, 0);
+    (void)packet(&f, 81U, 8, 0); /* 81ms burst is flushed immediately. */
     CHECK(f.clicks == 0U && f.replayed == 3U && f.n == 0U);
 
     for (uint32_t delta = 199; delta <= 200U; delta++) {
@@ -342,7 +339,7 @@ static void frame_span_age_and_navigation(void) {
         zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    puts("PASS screen2..50px/min1, frames1..8/span160 boundaries, max age360 and ordered ninth-frame replay; navigation199/200");
+    puts("PASS screen6..50px/min1, frames1..8/span80 boundaries and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
@@ -359,12 +356,12 @@ static void repeat_guard_and_no_deferred_click(void) {
         CHECK(f.clicks == 1000U && f.discarded == 3000U && f.replayed == 0U);
     }
     /* No SDK/queue clock is involved. Use a late FIRST decision at180, not the
-     * first motion at0: decision intervals499/500 must reject/admit exactly. */
-    for (uint32_t delta = 499; delta <= 500U; delta++) {
+     * first motion at0: decision intervals299/300 must reject/admit exactly. */
+    for (uint32_t delta = 299; delta <= 300U; delta++) {
         late_first_click(&f, 180);
         CHECK(f.clicks == 1U);
         const uint32_t start = 180U + delta - 140U;
-        zeros(&f, 180, 35U); /* Keep the poll stream continuous while testing the 500ms guard. */
+        zeros(&f, 180, 15U); /* Reach near the next burst without stale poll gaps. */
         (void)packet(&f, start, 8, 0);
         (void)packet(&f, start + 10U, 8, 0);
         (void)packet(&f, start + 20U, 8, 0);
@@ -372,8 +369,8 @@ static void repeat_guard_and_no_deferred_click(void) {
         (void)packet(&f, start + 139U, 0, 0);
         CHECK(f.clicks == 1U);
         (void)packet(&f, start + 140U, 0, 0);
-        const uint64_t expected = delta == 500U ? 2U : 1U;
-        CHECK(f.clicks == expected && f.replayed == (delta == 500U ? 0U : 3U));
+        const uint64_t expected = delta == 300U ? 2U : 1U;
+        CHECK(f.clicks == expected && f.replayed == (delta == 300U ? 0U : 3U));
         zeros(&f, start + 140U, 40);
         CHECK(f.clicks == expected && f.n == 0U); /* Expiry cannot catch up. */
     }
@@ -408,7 +405,7 @@ static void repeat_guard_and_no_deferred_click(void) {
     last = 210U + 999U * 70U + 20U;
     zeros(&f, last, 40U);
     CHECK(f.clicks == 1U && f.n == 0U);
-    puts("PASS 1000 three-frame taps at550/600ms, decision499 rejects/500 admits, 1000 continuous70ms bursts zero clicks, native-repeat guard retained");
+    puts("PASS 1000 three-frame taps at550/600ms, decision299 rejects/300 admits, 1000 continuous70ms bursts zero clicks, native-repeat guard retained");
 }
 
 static void extremes_and_cancellation(void) {
@@ -495,21 +492,18 @@ static void clocks_and_poll_gaps(void) {
     (void)packet(&f, 20, 2, 0);
     struct tp_microtap_result r = packet(&f, 121, 6, 0);
     CHECK(!r.click && r.count == 4U && f.replayed == 4U);
-    for (uint32_t delta = 499; delta <= 500U; delta++) {
-        init(&f);
-        (void)packet(&f, 100U, 6, 0);
-        (void)packet(&f, 90U, 0, 0); /* Backwards clock starts a new decision guard. */
-        CHECK(f.clicks == 0U && f.replayed == 1U);
-        const uint32_t start = 90U + delta - 140U;
-        zeros(&f, 90U, 35U); /* Preserve valid polls while checking the 500ms boundary. */
-        (void)packet(&f, start, 8, 0);
-        (void)packet(&f, start + 10U, 8, 0);
-        (void)packet(&f, start + 20U, 8, 0);
-        (void)packet(&f, start + 120U, 0, 0);
-        (void)packet(&f, start + 139U, 0, 0);
-        (void)packet(&f, start + 140U, 0, 0);
-        CHECK(f.clicks == (delta == 500U ? 1U : 0U));
-    }
+    init(&f);
+    (void)packet(&f, 100U, 6, 0);
+    (void)packet(&f, 90U, 0, 0); /* Backwards clock starts both fail-closed guards. */
+    CHECK(f.clicks == 0U && f.replayed == 1U);
+    zeros(&f, 90U, 20U); /* Re-arm after the 200ms navigation quiet. */
+    (void)packet(&f, 300U, 8, 0);
+    (void)packet(&f, 310U, 8, 0);
+    (void)packet(&f, 320U, 8, 0);
+    (void)packet(&f, 420U, 0, 0);
+    (void)packet(&f, 439U, 0, 0);
+    (void)packet(&f, 440U, 0, 0);
+    CHECK(f.clicks == 1U);
     init(&f);
     (void)packet(&f, 100U, 6, 0);
     const uint32_t jump = 100U + UINT32_C(0x80000000);
@@ -526,16 +520,15 @@ static void clocks_and_poll_gaps(void) {
     (void)packet(&f, base + 139U, 0, 0);
     (void)packet(&f, base + 140U, 0, 0);
     (void)packet(&f, base + 240U, 0, 0);
-    (void)packet(&f, base + 340U, 0, 0);
-    zeros(&f, base + 340U, 15U); /* Keep max poll gap <=100ms until the second burst. */
-    (void)packet(&f, base + 500U, 8, 0);
-    (void)packet(&f, base + 510U, 8, 0);
-    (void)packet(&f, base + 520U, 8, 0);
-    (void)packet(&f, base + 620U, 0, 0);
-    (void)packet(&f, base + 639U, 0, 0);
-    (void)packet(&f, base + 640U, 0, 0);
+    (void)packet(&f, base + 290U, 0, 0);
+    (void)packet(&f, base + 300U, 8, 0);
+    (void)packet(&f, base + 310U, 8, 0);
+    (void)packet(&f, base + 320U, 8, 0);
+    (void)packet(&f, base + 420U, 0, 0);
+    (void)packet(&f, base + 439U, 0, 0);
+    (void)packet(&f, base + 440U, 0, 0);
     CHECK(f.clicks == 2U && f.discarded == 6U);
-    puts("PASS gap100 allowed, gap101/120 flush before quiet, rollback/half-range faults, guard499/500, expanded window across uint32 rollover");
+    puts("PASS gap100 allowed, gap101/120 flush before quiet, rollback/half-range faults, guard299/300, expanded window across uint32 rollover");
 }
 
 static uint32_t rng = UINT32_C(0x31415926);

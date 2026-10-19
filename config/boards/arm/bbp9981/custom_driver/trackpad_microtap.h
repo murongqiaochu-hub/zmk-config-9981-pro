@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: Apache-2.0
  * Opt-in screen-space motion-pulse click heuristic (pure C11, no allocation).
  *
- * A candidate qualifies when a valid raw motion burst spans at most 160ms and
- * produces a 2..50px Euclidean NET cursor displacement through the same normal/
+ * A candidate qualifies when a valid raw motion burst spans at most 80ms and
+ * produces a 6..50px Euclidean NET cursor displacement through the same normal/
  * slow pointer gain, followed by >=120ms of valid zero-motion polls. Historical
- * replay suggested a much lower floor than the 20px reference; it is a heuristic,
+ * replay suggested a lower floor than the 20px reference; this is a heuristic,
  * not a measured accuracy threshold. A qualifying burst emits one click and
  * consumes its buffered movement; out-of-band motion is replayed unchanged.
  * This is a motion heuristic, NOT verified physical contact detection; short
@@ -20,10 +20,10 @@
  * valid=false means unknown/error, NOT a fabricated valid (0, 0) sample.
  *
  * At most eight frames remain pending; the 16-frame result ABI stays unchanged.
- * A ninth frame or span>160ms releases the candidate as ordinary movement.
+ * A ninth frame or span>80ms releases the candidate as ordinary movement.
  * After rejection OR an accepted click, require >=200ms quiet before rearming;
  * bounce/continuous movement extends this guard rather than creating more taps.
- * Accepted automatic click decisions are separated by >=500ms. Suppressed motion
+ * Accepted automatic click decisions are separated by >=300ms. Suppressed motion
  * is replayed, never queued for a later click. Quiet is >=120ms since last motion,
  * NOT contact-up: no contact protocol has been verified.
  *
@@ -35,7 +35,7 @@
  * At most one click per step.
  *
  * Raw path/offset limits are corruption guards, not the screen-space click rule.
- * Candidate age >360ms, ninth frame, span >160ms, raw L1 path >8192 or ANY
+ * Candidate age >360ms, ninth frame, span >80ms, raw L1 path >8192 or ANY
  * cumulative Linf offset >4096 reject immediately. A native event arriving after
  * an auto was emitted cannot undo it; native guards only prevent future autos.
  * No late/retroactive click. Quiet 120ms exceeds the 100ms maximum poll gap, so
@@ -60,16 +60,16 @@
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 1U
 #define TP_MICROTAP_MAX_FRAMES 8U
-#define TP_MICROTAP_MIN_CURSOR_DISTANCE_PX 2U
+#define TP_MICROTAP_MIN_CURSOR_DISTANCE_PX 6U
 #define TP_MICROTAP_MAX_CURSOR_DISTANCE_PX 50U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
 #define TP_MICROTAP_MAX_CANDIDATE_MS 360U
-#define TP_MICROTAP_MAX_MOTION_SPAN_MS 160U
+#define TP_MICROTAP_MAX_MOTION_SPAN_MS 80U
 /* Wide guard above every possible eight-frame signed8 sensor burst:
  * path<=2048, accumulated single-axis offset<=1024. */
 #define TP_MICROTAP_MAX_PATH 8192U
 #define TP_MICROTAP_MAX_OFFSET 4096U
-#define TP_MICROTAP_CLICK_INTERVAL_MS 500U
+#define TP_MICROTAP_CLICK_INTERVAL_MS 300U
 #define TP_MICROTAP_MAX_POLL_GAP_MS 100U
 #define TP_MICROTAP_FRAME_CAPACITY 16U
 #define TP_MICROTAP_MAX_PENDING (TP_MICROTAP_FRAME_CAPACITY - 1U)
