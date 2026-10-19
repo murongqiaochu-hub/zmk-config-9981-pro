@@ -100,14 +100,14 @@ static void test_floor_and_first(void) {
         fixture(true);poll_at(10,weak,0,true,false);zeros(20,120);
         poll_at(129,0,0,true,false);assert(moves==0&&submissions==0);
         poll_at(130,0,0,true,false);
-        if(weak<5)assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
-        else assert(moves==0&&submissions==1); /* Raw5 maps to6px at normal gain. */
+        if(weak<3)assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
+        else assert(moves==0&&submissions==1); /* Raw3 maps to3.6px at normal gain. */
     }
     fixture(true);
     poll_at(10,1,0,true,false);zeros(20,130);
     poll_at(139,0,0,true,false);assert(submissions==0&&moves==1&&emitted[0].at_ms==10);
     poll_at(140,0,0,true,false);
-    assert(submissions==0&&moves==1); /* 1px remains below the 6px floor and replays. */
+    assert(submissions==0&&moves==1); /* 1px remains below the 3px floor and replays. */
 
     fixture(true);
     poll_at(10,8,0,true,false);poll_at(20,9,0,true,false);zeros(30,130);
@@ -345,6 +345,6 @@ int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: inferred screen6..50px net at normal/slow gain, min1 frame, frames8/span80, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap300, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: inferred screen3..50px net at normal/slow gain, min1 frame, frames8/span120, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap300, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }

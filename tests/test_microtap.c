@@ -157,12 +157,12 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 6U &&
+    CHECK(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 3U &&
           TP_MICROTAP_MAX_CURSOR_DISTANCE_PX == 50U && TP_MICROTAP_QUIET_MS == 120U);
     CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_CLICK_INTERVAL_MS == 300U);
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
     CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U);
-    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 80U);
+    CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
 }
@@ -277,7 +277,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS inferred screen6..50px boundaries at normal/slow gain, single-frame/Euclidean net, >50px swipe replay, quiet119/120");
+    puts("PASS inferred screen3..50px boundaries at normal/slow gain, single-frame/Euclidean net, >50px swipe replay, quiet119/120");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -299,8 +299,8 @@ static void frame_span_age_and_navigation(void) {
         (void)packet(&f, span / 2U, 8, 0);
         (void)packet(&f, span, 8, 0);
         zeros(&f, span, 12);
-        CHECK(f.clicks == (span <= 80U ? 1U : 0U));
-        CHECK(f.discarded == (span <= 80U ? 3U : 0U));
+        CHECK(f.clicks == (span <= 120U ? 1U : 0U));
+        CHECK(f.discarded == (span <= 120U ? 3U : 0U));
     }
     init(&f);
     for (uint32_t i = 0; i < 8U; i++) (void)packet(&f, i * 10U, 3, 0);
@@ -317,16 +317,16 @@ static void frame_span_age_and_navigation(void) {
 
     init(&f);
     (void)packet(&f, 0U, 8, 0);
-    (void)packet(&f, 40U, 8, 0);
-    (void)packet(&f, 80U, 8, 0);
-    (void)packet(&f, 180U, 0, 0); /* 100ms poll gap, only 100ms quiet. */
+    (void)packet(&f, 60U, 8, 0);
+    (void)packet(&f, 120U, 8, 0);
+    (void)packet(&f, 220U, 0, 0); /* 100ms poll gap, only 100ms quiet. */
     CHECK(f.clicks == 0U);
-    (void)packet(&f, 280U, 0, 0); /* 80ms burst + 200ms to decision. */
+    (void)packet(&f, 320U, 0, 0); /* 120ms burst + 200ms to decision. */
     CHECK(f.clicks == 1U && f.discarded == 3U);
     init(&f);
     (void)packet(&f, 0U, 8, 0);
     (void)packet(&f, 40U, 8, 0);
-    (void)packet(&f, 81U, 8, 0); /* 81ms burst is flushed immediately. */
+    (void)packet(&f, 121U, 8, 0); /* 121ms burst is flushed immediately. */
     CHECK(f.clicks == 0U && f.replayed == 3U && f.n == 0U);
 
     for (uint32_t delta = 199; delta <= 200U; delta++) {
@@ -339,7 +339,7 @@ static void frame_span_age_and_navigation(void) {
         zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    puts("PASS screen6..50px/min1, frames1..8/span80 boundaries and ordered ninth-frame replay; navigation199/200");
+    puts("PASS screen3..50px/min1, frames1..8/span120 boundaries and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
