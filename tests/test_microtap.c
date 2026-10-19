@@ -163,7 +163,8 @@ static void policy_constants(void) {
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
     CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U);
     CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U);
-    CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
+    CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_SWIPE_QUIET_MS == 300U &&
+          TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
 }
 
@@ -329,17 +330,34 @@ static void frame_span_age_and_navigation(void) {
     (void)packet(&f, 121U, 8, 0); /* 121ms burst is flushed immediately. */
     CHECK(f.clicks == 0U && f.replayed == 3U && f.n == 0U);
 
-    for (uint32_t delta = 199; delta <= 200U; delta++) {
+    for (uint32_t delta = 299; delta <= 300U; delta++) {
         init(&f);
-        (void)packet(&f, 0, 600, 0); /* Immediate rejection starts navigation guard. */
-        zeros(&f, 0, 19);
+        (void)packet(&f, 0, 600, 0); /* Immediate rejection starts the swipe guard. */
+        zeros(&f, 0, 28U);
         (void)packet(&f, delta, 8, 0);
         (void)packet(&f, delta + 10U, 8, 0);
         (void)packet(&f, delta + 20U, 8, 0);
-        zeros(&f, delta + 20U, 12);
-        CHECK(f.clicks == (delta == 200U ? 1U : 0U));
+        zeros(&f, delta + 20U, 12U);
+        CHECK(f.clicks == (delta == 300U ? 1U : 0U));
     }
-    puts("PASS screen3..50px/min1, frames1..8/span120 boundaries and ordered ninth-frame replay; navigation199/200");
+    init(&f);
+    (void)packet(&f, 0U, 60, 0); /* >50px swipe starts the longer rearm. */
+    CHECK(f.replayed == 1U && f.s.mode == TP_MICROTAP_PASSTHROUGH && f.s.swipe_rearm);
+    zeros(&f, 0U, 29U);
+    (void)packet(&f, 299U, 3, 0); /* Small rubbing during the lockout is passthrough. */
+    CHECK(f.clicks == 0U && f.replayed == 2U && f.s.swipe_rearm);
+    zeros(&f, 299U, 29U);
+    CHECK(f.clicks == 0U && f.s.mode == TP_MICROTAP_PASSTHROUGH);
+    (void)packet(&f, 599U, 0, 0); /* Exact300ms quiet after the last swipe/rub motion. */
+    CHECK(f.s.mode == TP_MICROTAP_IDLE && !f.s.swipe_rearm);
+    (void)packet(&f, 600U, 3, 0);
+    zeros(&f, 600U, 12U);
+    CHECK(f.clicks == 1U && f.discarded == 1U && f.replayed == 2U);
+    zeros(&f, 720U, 17U); /* Ordinary click rearm remains200ms after the swipe lockout. */
+    (void)packet(&f, 900U, 3, 0);
+    zeros(&f, 900U, 12U);
+    CHECK(f.clicks == 2U); /* A second tap exactly300ms later still completes the double. */
+    puts("PASS screen3..50px/min1, frames1..8/span120 boundaries, ordered ninth-frame replay; swipe rearm299/300; normal NAV200 and post-swipe double preserved");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {

@@ -345,6 +345,6 @@ int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: inferred screen3..50px net at normal/slow gain, min1 frame, frames8/span120, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap300, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: inferred screen3..50px net at normal/slow gain, min1 frame, frames8/span120, quiet120, FIFO/no catch-up, own LEFT excluded, native guard600ms, reset/host persistence, generation cancellation, click gap300, NAV quiet200/swipe quiet300, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }

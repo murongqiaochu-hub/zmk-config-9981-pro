@@ -65,6 +65,6 @@ int main(void){
  poll(6,0,10);assert(report_count==2&&refs[0]==1&&submissions==0);
  for(uint32_t t=20;t<=710;t+=10)idle(t);
  poll(8,-3,720);assert(report_count==2&&refs[0]==1&&submissions==0);
- puts("PASS Actual driver/runtime: full OFF pointer suite, screen3..50px/min1 frame, span120, quiet120 and click gap300, eight-frame signed8 envelope, small-drift replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
+ puts("PASS Actual driver/runtime: full OFF pointer suite, screen3..50px/min1 frame, span120, quiet120, click gap300 and swipe quiet300, eight-frame signed8 envelope, small-drift replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
  return 0;
 }

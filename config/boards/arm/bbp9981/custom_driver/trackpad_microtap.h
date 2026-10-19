@@ -21,8 +21,9 @@
  *
  * At most eight frames remain pending; the 16-frame result ABI stays unchanged.
  * A ninth frame or span>120ms releases the candidate as ordinary movement.
- * After rejection OR an accepted click, require >=200ms quiet before rearming;
- * bounce/continuous movement extends this guard rather than creating more taps.
+ * After an ordinary rejection OR accepted click, require >=200ms quiet before
+ * rearming. A burst that exceeds the screen band/span enters swipe rearm and
+ * requires >=300ms quiet; further motion restarts that longer quiet period.
  * Accepted automatic click decisions are separated by >=300ms. Suppressed motion
  * is replayed, never queued for a later click. Quiet is >=120ms since last motion,
  * NOT contact-up: no contact protocol has been verified.
@@ -58,6 +59,7 @@
 
 #define TP_MICROTAP_QUIET_MS 120U
 #define TP_MICROTAP_NAV_QUIET_MS 200U
+#define TP_MICROTAP_SWIPE_QUIET_MS 300U
 #define TP_MICROTAP_MIN_FRAMES 1U
 #define TP_MICROTAP_MAX_FRAMES 8U
 #define TP_MICROTAP_MIN_CURSOR_DISTANCE_PX 3U
@@ -98,6 +100,7 @@ struct tp_microtap_state {
     uint8_t count;
     bool have_time;
     bool click_guard_active;
+    bool swipe_rearm;
     uint32_t click_guard_ms;
     uint32_t last_poll_ms;
     uint32_t first_ms;
@@ -201,9 +204,13 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         (uint32_t)(now - s->click_guard_ms) >= TP_MICROTAP_CLICK_INTERVAL_MS) {
         s->click_guard_active = false; /* Expiry alone never creates a click. */
     }
-    if (s->mode == TP_MICROTAP_PASSTHROUGH &&
-        (uint32_t)(now - s->last_motion_ms) >= TP_MICROTAP_NAV_QUIET_MS) {
-        s->mode = TP_MICROTAP_IDLE;
+    if (s->mode == TP_MICROTAP_PASSTHROUGH) {
+        const uint32_t rearm_quiet_ms = s->swipe_rearm ? TP_MICROTAP_SWIPE_QUIET_MS :
+                                                         TP_MICROTAP_NAV_QUIET_MS;
+        if ((uint32_t)(now - s->last_motion_ms) >= rearm_quiet_ms) {
+            s->mode = TP_MICROTAP_IDLE;
+            s->swipe_rearm = false;
+        }
     }
 
     if (s->mode == TP_MICROTAP_CANDIDATE) {
@@ -225,9 +232,11 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
                 /* Motion during rearm is ordinary movement, not queued taps.
                  * Continuous bounce extends the existing 200ms quiet guard. */
                 s->mode = TP_MICROTAP_PASSTHROUGH;
+                s->swipe_rearm = false;
             } else {
                 tp_microtap_flush(s, &out);
                 s->mode = TP_MICROTAP_PASSTHROUGH;
+                s->swipe_rearm = false;
             }
         }
     }
@@ -246,6 +255,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
     if (s->mode == TP_MICROTAP_IDLE) {
         tp_microtap_clear_candidate(s);
         s->mode = TP_MICROTAP_CANDIDATE;
+        s->swipe_rearm = false;
         s->first_ms = now;
     }
 
@@ -265,6 +275,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         tp_microtap_flush(s, &out);
         out.frames[out.count++] = frame;
         s->mode = TP_MICROTAP_PASSTHROUGH;
+        s->swipe_rearm = true;
         s->last_motion_ms = now;
         return out;
     }
@@ -285,6 +296,7 @@ static inline struct tp_microtap_result tp_microtap_step(struct tp_microtap_stat
         tp_microtap_flush(s, &out);
         out.frames[out.count++] = frame;
         s->mode = TP_MICROTAP_PASSTHROUGH;
+        s->swipe_rearm = true;
         s->last_motion_ms = now;
         return out;
     }

@@ -33,6 +33,7 @@ extern int bbp9981_hid_mouse_button_references(unsigned int button);
 BUILD_ASSERT(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 3U &&
              TP_MICROTAP_MAX_CURSOR_DISTANCE_PX == 50U &&
              TP_MICROTAP_QUIET_MS == 120U && TP_MICROTAP_MAX_CANDIDATE_MS == 360U &&
+             TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_SWIPE_QUIET_MS == 300U &&
              TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U &&
              TP_MICROTAP_MAX_MOTION_SPAN_MS == 120U &&
              TP_MICROTAP_CLICK_INTERVAL_MS == 300U && MICRO_NATIVE_GUARD_MS == 600U &&
@@ -155,7 +156,7 @@ void tp_microtap_runtime_init(void) {
     tp_microtap_reset(&gesture);
     /* Runtime default is OFF; never save a guessed gesture policy in settings. */
     atomic_set(&enabled, 0);
-    LOG_INF("MICROTAP_POLICY px=3..50 quiet=120 gap=300 native=600 range=8192/4096 frames=1..8 span=120 age=360 gain=480/400;slow=240/400");
+    LOG_INF("MICROTAP_POLICY px=3..50 quiet=120 gap=300 native=600 nav=200 swipequiet=300 range=8192/4096 frames=1..8 span=120 age=360 gain=480/400;slow=240/400");
     (void)tp_tap_output_init();
 }
 static void pop_event(void) {
