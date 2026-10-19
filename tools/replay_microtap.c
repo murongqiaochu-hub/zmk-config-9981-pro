@@ -14,18 +14,18 @@ int main(void) {
         if(seen) {
             for(uint32_t tick=last+10U;tick<t;tick+=10U) {
                 struct tp_microtap_state before=s;
-                struct tp_microtap_result r=tp_microtap_step(&s,tick,0,0,true,true,false);
+                struct tp_microtap_result r=tp_microtap_step(&s,tick,0,0,false,true,true,false);
                 if(r.click)fprintf(stderr,"C %" PRIu32 " %" PRIu32 " %u %" PRIu32 " %" PRIu32 "\n",before.first_ms,before.last_motion_ms,before.count,before.path,before.max_offset);
                 clicks+=r.click?1U:0U;replayed+=r.count;
             }
         }
-        struct tp_microtap_result r=tp_microtap_step(&s,t,(int16_t)x,(int16_t)y,true,true,false);
+        struct tp_microtap_result r=tp_microtap_step(&s,t,(int16_t)x,(int16_t)y,false,true,true,false);
         frames++;clicks+=r.click?1U:0U;replayed+=r.count;last=t;seen=true;
     }
     if(seen) {
         for(uint32_t tick=last+10U;tick<=last+110U;tick+=10U) {
             struct tp_microtap_state before=s;
-            struct tp_microtap_result r=tp_microtap_step(&s,tick,0,0,true,true,false);
+            struct tp_microtap_result r=tp_microtap_step(&s,tick,0,0,false,true,true,false);
             if(r.click)fprintf(stderr,"C %" PRIu32 " %" PRIu32 " %u %" PRIu32 " %" PRIu32 "\n",before.first_ms,before.last_motion_ms,before.count,before.path,before.max_offset);
             clicks+=r.click?1U:0U;replayed+=r.count;
         }

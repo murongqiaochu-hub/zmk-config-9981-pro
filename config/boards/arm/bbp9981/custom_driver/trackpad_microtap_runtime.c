@@ -30,11 +30,14 @@ extern int bbp9981_hid_mouse_button_references(unsigned int button);
 #define MICRO_QUEUE_CAPACITY 128U
 #define MICRO_CLICK_MAX_AGE_MS 500U
 #define MICRO_NATIVE_GUARD_MS 600U
-BUILD_ASSERT(TP_MICROTAP_MIN_PATH == 4U && TP_MICROTAP_QUIET_MS == 120U &&
-             TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_MIN_FRAMES == 2U &&
-             TP_MICROTAP_MAX_FRAMES == 8U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 160U &&
-             TP_MICROTAP_CLICK_INTERVAL_MS == 350U && MICRO_NATIVE_GUARD_MS == 600U &&
-             TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U,
+BUILD_ASSERT(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 2U &&
+             TP_MICROTAP_MAX_CURSOR_DISTANCE_PX == 50U &&
+             TP_MICROTAP_QUIET_MS == 120U && TP_MICROTAP_MAX_CANDIDATE_MS == 360U &&
+             TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U &&
+             TP_MICROTAP_MAX_MOTION_SPAN_MS == 160U &&
+             TP_MICROTAP_CLICK_INTERVAL_MS == 500U && MICRO_NATIVE_GUARD_MS == 600U &&
+             TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U &&
+             TP_POINTER_NORMAL_GAIN == 480U && TP_POINTER_DENOMINATOR == 400,
              "MICROTAP_POLICY must match the runtime ROM marker");
 struct micro_event {
     struct tp_microtap_frame motion;
@@ -95,7 +98,7 @@ static struct native_guard_snapshot native_guard_observe(bool refs_blocked) {
 /* Single-owner, short-lived bridge spacing. A completed acceptance must not
  * remain a forever modulo-time comparison against the SDK's historical field.
  * This also survives gesture/context resets; only a NEW down_reports identity
- * starts another interval. Normal idle polls retire the interval at 350ms. */
+ * starts another interval. Normal idle polls retire the interval at 500ms. */
 static struct {
     uint32_t reports, anchor;
     bool seen, live, reanchored;
@@ -152,7 +155,7 @@ void tp_microtap_runtime_init(void) {
     tp_microtap_reset(&gesture);
     /* Runtime default is OFF; never save a guessed gesture policy in settings. */
     atomic_set(&enabled, 0);
-    LOG_INF("MICROTAP_POLICY floor=4 quiet=120 gap=350 native=600 range=8192/4096 frames=2..8 span=160 age=360");
+    LOG_INF("MICROTAP_POLICY px=2..50 quiet=120 gap=500 native=600 range=8192/4096 frames=1..8 span=160 age=360 gain=480/400;slow=240/400");
     (void)tp_tap_output_init();
 }
 static void pop_event(void) {
@@ -288,8 +291,8 @@ void tp_microtap_runtime_poll(uint32_t now, int16_t dx, int16_t dy, bool valid,
     (void)tp_tap_output_update_context(output);
     if (scroll) { return; } /* Original driver owns wheel, never replay XY as wheel. */
     drain(allowed, emit, ctx);
-    struct tp_microtap_result result = tp_microtap_step(&gesture, now, dx, dy, valid,
-        tp_microtap_runtime_enabled(), !allowed);
+    struct tp_microtap_result result = tp_microtap_step(&gesture, now, dx, dy,
+        (speed_epoch & 1U) != 0U, valid, tp_microtap_runtime_enabled(), !allowed);
     /* An old candidate can click while this poll starts a NEW movement burst.
      * Queue the old click first; never reset that newly buffered burst. */
     if (result.click && allowed) {

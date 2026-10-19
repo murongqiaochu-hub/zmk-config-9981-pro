@@ -17,7 +17,7 @@ struct fixture {
     unsigned n;
     uint64_t input, replayed, discarded, clicks;
     int64_t ix, iy, rx, ry, tx, ty;
-    bool have_click, have_poll;
+    bool have_click, have_poll, slow_pointer;
     uint32_t last_click, last_poll;
 };
 
@@ -32,13 +32,39 @@ static uint32_t magnitude(int32_t v) {
     return (uint32_t)(v < 0 ? -(int64_t)v : (int64_t)v);
 }
 
+static bool expected_cursor_band(const int16_t *xs, const int16_t *ys,
+                                 unsigned n, bool slow) {
+    if (n < TP_MICROTAP_MIN_FRAMES || n > TP_MICROTAP_MAX_FRAMES) { return false; }
+    struct tp_pointer_state p = {0};
+    int32_t x = 0, y = 0;
+    uint64_t peak_sq = 0U;
+    for (unsigned i = 0; i < n; i++) {
+        if (xs[i] < INT8_MIN || xs[i] > INT8_MAX ||
+            ys[i] < INT8_MIN || ys[i] > INT8_MAX) { return false; }
+        int16_t px = 0, py = 0;
+        tp_pointer_motion(&p, (int8_t)xs[i], (int8_t)ys[i], slow,
+                          i * 10U, &px, &py);
+        x += px; y += py;
+        const int64_t xx = x, yy = y;
+        const uint64_t d2 = (uint64_t)(xx * xx) + (uint64_t)(yy * yy);
+        if (d2 > peak_sq) peak_sq = d2;
+    }
+    const int64_t xx = x, yy = y;
+    const uint64_t end_sq = (uint64_t)(xx * xx) + (uint64_t)(yy * yy);
+    const uint64_t min_sq = (uint64_t)TP_MICROTAP_MIN_CURSOR_DISTANCE_PX *
+                            TP_MICROTAP_MIN_CURSOR_DISTANCE_PX;
+    const uint64_t max_sq = (uint64_t)TP_MICROTAP_MAX_CURSOR_DISTANCE_PX *
+                            TP_MICROTAP_MAX_CURSOR_DISTANCE_PX;
+    return peak_sq <= max_sq && end_sq >= min_sq && end_sq <= max_sq;
+}
+
 static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
                                       int16_t x, int16_t y, bool valid,
                                       bool enabled, bool blocked) {
     const uint32_t gap = (uint32_t)(t - f->last_poll);
     const bool bad = f->have_poll && gap > 100U;
     struct tp_microtap_result r = tp_microtap_step(&f->s, t, x, y,
-                                                 valid, enabled, blocked);
+                                                 f->slow_pointer, valid, enabled, blocked);
     steps++;
     CHECK(r.count <= 16U && f->s.count <= TP_MICROTAP_MAX_FRAMES);
     if (!valid || !enabled || blocked || bad) CHECK(!r.click);
@@ -47,20 +73,38 @@ static struct tp_microtap_result feed(struct fixture *f, uint32_t t,
     f->last_poll = t;
     if (r.click) {
         CHECK(f->n >= TP_MICROTAP_MIN_FRAMES && f->n <= TP_MICROTAP_MAX_FRAMES);
-        int32_t sx = 0, sy = 0;
+        int32_t sx = 0, sy = 0, cursor_x = 0, cursor_y = 0;
         uint32_t path = 0U, offset = 0U;
+        uint64_t peak_cursor_sq = 0U;
+        struct tp_pointer_state measure = {0};
         for (unsigned j = 0; j < f->n; j++) {
             sx += f->ledger[j].dx;
             sy += f->ledger[j].dy;
             path += magnitude(f->ledger[j].dx) + magnitude(f->ledger[j].dy);
             if (magnitude(sx) > offset) offset = magnitude(sx);
             if (magnitude(sy) > offset) offset = magnitude(sy);
+            int16_t out_x = 0, out_y = 0;
+            tp_pointer_motion(&measure, (int8_t)f->ledger[j].dx,
+                              (int8_t)f->ledger[j].dy, f->slow_pointer,
+                              f->ledger[j].at_ms, &out_x, &out_y);
+            cursor_x += out_x;
+            cursor_y += out_y;
+            const int64_t cx = cursor_x, cy = cursor_y;
+            const uint64_t d2 = (uint64_t)(cx * cx) + (uint64_t)(cy * cy);
+            if (d2 > peak_cursor_sq) peak_cursor_sq = d2;
         }
-        CHECK(path >= TP_MICROTAP_MIN_PATH && path <= TP_MICROTAP_MAX_PATH && offset <= TP_MICROTAP_MAX_OFFSET);
+        const int64_t cx = cursor_x, cy = cursor_y;
+        const uint64_t distance_sq = (uint64_t)(cx * cx) + (uint64_t)(cy * cy);
+        CHECK(path <= TP_MICROTAP_MAX_PATH && offset <= TP_MICROTAP_MAX_OFFSET);
+        const uint64_t min_sq = (uint64_t)TP_MICROTAP_MIN_CURSOR_DISTANCE_PX *
+                                TP_MICROTAP_MIN_CURSOR_DISTANCE_PX;
+        const uint64_t max_sq = (uint64_t)TP_MICROTAP_MAX_CURSOR_DISTANCE_PX *
+                                TP_MICROTAP_MAX_CURSOR_DISTANCE_PX;
+        CHECK(distance_sq >= min_sq && distance_sq <= max_sq && peak_cursor_sq <= max_sq);
         CHECK((uint32_t)(t - f->ledger[f->n - 1U].at_ms) >= 120U);
         CHECK((uint32_t)(t - f->ledger[0].at_ms) <= TP_MICROTAP_MAX_CANDIDATE_MS);
         CHECK((uint32_t)(f->ledger[f->n - 1U].at_ms - f->ledger[0].at_ms) <= TP_MICROTAP_MAX_MOTION_SPAN_MS);
-        if (f->have_click) CHECK((uint32_t)(t - f->last_click) >= 350U);
+        if (f->have_click) CHECK((uint32_t)(t - f->last_click) >= TP_MICROTAP_CLICK_INTERVAL_MS);
         f->have_click = true;
         f->last_click = t;
         /* Only the OLD candidate can be discarded. Current motion is appended
@@ -113,10 +157,11 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_PATH == 4U && TP_MICROTAP_QUIET_MS == 120U);
-    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
+    CHECK(TP_MICROTAP_MIN_CURSOR_DISTANCE_PX == 2U &&
+          TP_MICROTAP_MAX_CURSOR_DISTANCE_PX == 50U && TP_MICROTAP_QUIET_MS == 120U);
+    CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 360U && TP_MICROTAP_CLICK_INTERVAL_MS == 500U);
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
-    CHECK(TP_MICROTAP_MIN_FRAMES == 2U && TP_MICROTAP_MAX_FRAMES == 8U);
+    CHECK(TP_MICROTAP_MIN_FRAMES == 1U && TP_MICROTAP_MAX_FRAMES == 8U);
     CHECK(TP_MICROTAP_MIN_MOTION_SPAN_MS == 0U && TP_MICROTAP_MAX_MOTION_SPAN_MS == 160U);
     CHECK(TP_MICROTAP_NAV_QUIET_MS == 200U && TP_MICROTAP_MAX_POLL_GAP_MS == 100U);
     CHECK(TP_MICROTAP_FRAME_CAPACITY == 16U);
@@ -124,34 +169,74 @@ static void policy_constants(void) {
 
 static void lower_bound_and_quiet(void) {
     struct fixture f;
-    for (int16_t path = 1; path <= 24; path++) {
+    for (int16_t path = 1; path <= 80; path++) {
         init(&f);
+        const int16_t xs[] = {path};
+        const int16_t ys[] = {0};
+        const bool expected = expected_cursor_band(xs, ys, 1U, false);
         (void)packet(&f, 0, path, 0);
         zeros(&f, 0, 12);
-        CHECK(f.clicks == 0U && f.replayed == 1U); /* A single-frame touch never qualifies. */
+        CHECK(f.clicks == (expected ? 1U : 0U));
+        CHECK(f.replayed == (expected ? 0U : 1U));
     }
-    for (int16_t path = 2; path <= 16; path++) {
+    for (int16_t raw = 2; raw <= 50; raw++) {
         init(&f);
-        const int16_t first = (int16_t)(path / 2);
-        const int16_t second = (int16_t)(path - first);
+        const int16_t first = (int16_t)(raw / 2);
+        const int16_t second = (int16_t)(raw - first);
+        const int16_t xs[] = {first, second};
+        const int16_t ys[] = {0, 0};
+        const bool expected = expected_cursor_band(xs, ys, 2U, false);
         (void)packet(&f, 0, first, 0);
         (void)packet(&f, 10, second, 0);
         zeros(&f, 10, 12);
-        CHECK(f.clicks == (path >= 4 ? 1U : 0U));
-        CHECK(f.replayed == (path >= 4 ? 0U : 2U));
+        CHECK(f.clicks == (expected ? 1U : 0U));
+        CHECK(f.replayed == (expected ? 0U : 2U));
     }
-    for (int16_t path = 3; path <= 24; path++) {
+    for (int16_t raw = 3; raw <= 50; raw++) {
         init(&f);
-        const int16_t first = (int16_t)(path / 3);
+        const int16_t first = (int16_t)(raw / 3);
         const int16_t second = first;
-        const int16_t third = (int16_t)(path - first - second);
+        const int16_t third = (int16_t)(raw - first - second);
+        const int16_t xs[] = {first, second, third};
+        const int16_t ys[] = {0, 0, 0};
+        const bool expected = expected_cursor_band(xs, ys, 3U, false);
         (void)packet(&f, 0, first, 0);
         (void)packet(&f, 10, second, 0);
         (void)packet(&f, 20, third, 0);
         zeros(&f, 20, 12);
-        CHECK(f.clicks == (path >= 4 ? 1U : 0U));
-        CHECK(f.replayed == (path >= 4 ? 0U : 3U));
+        CHECK(f.clicks == (expected ? 1U : 0U));
+        CHECK(f.replayed == (expected ? 0U : 3U));
     }
+    for (int16_t raw = 2; raw <= 100; raw++) {
+        init(&f);
+        f.slow_pointer = true;
+        const int16_t first = (int16_t)(raw / 2);
+        const int16_t second = (int16_t)(raw - first);
+        const int16_t xs[] = {first, second};
+        const int16_t ys[] = {0, 0};
+        const bool expected = expected_cursor_band(xs, ys, 2U, true);
+        (void)packet(&f, 0, first, 0);
+        (void)packet(&f, 10, second, 0);
+        zeros(&f, 10, 12);
+        CHECK(f.clicks == (expected ? 1U : 0U));
+        CHECK(f.replayed == (expected ? 0U : 2U));
+    }
+    init(&f);
+    (void)packet(&f, 0, 6, 6);
+    (void)packet(&f, 10, 6, 6);
+    zeros(&f, 10, 12);
+    CHECK(f.clicks == 1U && f.discarded == 2U); /* ~19.8px diagonal enters the inferred band. */
+    init(&f);
+    (void)packet(&f, 0, 15, 15);
+    (void)packet(&f, 10, 15, 15);
+    zeros(&f, 10, 12);
+    CHECK(f.clicks == 0U && f.replayed == 2U); /* Diagonal excursion >50px is passthrough. */
+    init(&f);
+    (void)packet(&f, 0, 20, 0);
+    (void)packet(&f, 10, -20, 0);
+    zeros(&f, 10, 12);
+    CHECK(f.clicks == 0U && f.replayed == 2U); /* Opposing movement cancels net cursor displacement. */
+
     init(&f);
     (void)packet(&f, 0, 8, 0);
     (void)packet(&f, 10, 8, 0);
@@ -167,19 +252,19 @@ static void lower_bound_and_quiet(void) {
     (void)packet(&f, 10, -128, -128);
     (void)packet(&f, 20, -128, -128);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 1U && f.discarded == 3U); /* Signed8 max path768/offset384. */
+    CHECK(f.clicks == 0U && f.replayed == 3U); /* Large diagonal is ordinary pointer motion. */
     init(&f);
     (void)packet(&f, 0, 127, 127);
     (void)packet(&f, 10, -128, 127);
     (void)packet(&f, 20, 127, -128);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 1U && f.discarded == 3U); /* path764; offsets stay small. */
+    CHECK(f.clicks == 0U && f.replayed == 3U); /* Large first cursor step enters passthrough. */
     init(&f);
     (void)packet(&f, 0, -128, 0);
     (void)packet(&f, 10, -128, 0);
     (void)packet(&f, 20, -128, 0);
     zeros(&f, 20, 12);
-    CHECK(f.clicks == 1U && f.discarded == 3U); /* offset384; path384. */
+    CHECK(f.clicks == 0U && f.replayed == 3U); /* >50px displacement is a swipe. */
 
     init(&f);
     (void)packet(&f, 0, 8, 0);
@@ -192,7 +277,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS floor4/min2 reject single-frame and below-floor touches; signed8 burst and quiet119/120 boundaries pass");
+    puts("PASS inferred screen2..50px boundaries at normal/slow gain, single-frame/Euclidean net, >50px swipe replay, quiet119/120");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -257,12 +342,12 @@ static void frame_span_age_and_navigation(void) {
         zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    puts("PASS floor4/min2, frames2..8/span160 boundaries, max age360 and ordered ninth-frame replay; navigation199/200");
+    puts("PASS screen2..50px/min1, frames1..8/span160 boundaries, max age360 and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
     struct fixture f;
-    for (uint32_t spacing = 400; spacing <= 450U; spacing += 50U) {
+    for (uint32_t spacing = 550; spacing <= 600U; spacing += 50U) {
         init(&f);
         for (uint32_t i = 0; i < 1000U; i++) {
             const uint32_t base = i * spacing;
@@ -274,12 +359,12 @@ static void repeat_guard_and_no_deferred_click(void) {
         CHECK(f.clicks == 1000U && f.discarded == 3000U && f.replayed == 0U);
     }
     /* No SDK/queue clock is involved. Use a late FIRST decision at180, not the
-     * first motion at0: decision intervals349/350 must reject/admit exactly. */
-    for (uint32_t delta = 349; delta <= 350U; delta++) {
+     * first motion at0: decision intervals499/500 must reject/admit exactly. */
+    for (uint32_t delta = 499; delta <= 500U; delta++) {
         late_first_click(&f, 180);
         CHECK(f.clicks == 1U);
-        zeros(&f, 180, 20);
         const uint32_t start = 180U + delta - 140U;
+        zeros(&f, 180, 35U); /* Keep the poll stream continuous while testing the 500ms guard. */
         (void)packet(&f, start, 8, 0);
         (void)packet(&f, start + 10U, 8, 0);
         (void)packet(&f, start + 20U, 8, 0);
@@ -287,8 +372,8 @@ static void repeat_guard_and_no_deferred_click(void) {
         (void)packet(&f, start + 139U, 0, 0);
         CHECK(f.clicks == 1U);
         (void)packet(&f, start + 140U, 0, 0);
-        const uint64_t expected = delta == 350U ? 2U : 1U;
-        CHECK(f.clicks == expected && f.replayed == (delta == 350U ? 0U : 3U));
+        const uint64_t expected = delta == 500U ? 2U : 1U;
+        CHECK(f.clicks == expected && f.replayed == (delta == 500U ? 0U : 3U));
         zeros(&f, start + 140U, 40);
         CHECK(f.clicks == expected && f.n == 0U); /* Expiry cannot catch up. */
     }
@@ -323,7 +408,7 @@ static void repeat_guard_and_no_deferred_click(void) {
     last = 210U + 999U * 70U + 20U;
     zeros(&f, last, 40U);
     CHECK(f.clicks == 1U && f.n == 0U);
-    puts("PASS 1000 three-frame taps at400/450ms, decision349 rejects/350 admits, 1000 continuous70ms bursts zero clicks, native-repeat guard retained");
+    puts("PASS 1000 three-frame taps at550/600ms, decision499 rejects/500 admits, 1000 continuous70ms bursts zero clicks, native-repeat guard retained");
 }
 
 static void extremes_and_cancellation(void) {
@@ -333,8 +418,10 @@ static void extremes_and_cancellation(void) {
         for (uint32_t t = 0; t <= 20U; t += 10U)
             (void)packet(&f, t, (int16_t)x, (int16_t)y);
         zeros(&f, 20, 12);
-        const int path = 3 * ((x < 0 ? -x : x) + (y < 0 ? -y : y));
-        CHECK(f.clicks == (path >= (int)TP_MICROTAP_MIN_PATH ? 1U : 0U));
+        const int16_t xs[] = {(int16_t)x, (int16_t)x, (int16_t)x};
+        const int16_t ys[] = {(int16_t)y, (int16_t)y, (int16_t)y};
+        const bool expected = expected_cursor_band(xs, ys, 3U, false);
+        CHECK(f.clicks == (expected ? 1U : 0U));
     }
     for (unsigned axis = 0; axis < 2U; axis++) {
         for (int32_t v = INT16_MIN; v <= INT16_MAX; v++) {
@@ -343,8 +430,14 @@ static void extremes_and_cancellation(void) {
                 (void)packet(&f, t, axis == 0U ? (int16_t)v : 0,
                                     axis == 1U ? (int16_t)v : 0);
             zeros(&f, 20, 12);
-            const uint32_t a = 3U * magnitude(v);
-            CHECK(f.clicks == (a >= TP_MICROTAP_MIN_PATH && a <= TP_MICROTAP_MAX_OFFSET ? 1U : 0U));
+            const int16_t xs[] = {axis == 0U ? (int16_t)v : 0,
+                                  axis == 0U ? (int16_t)v : 0,
+                                  axis == 0U ? (int16_t)v : 0};
+            const int16_t ys[] = {axis == 1U ? (int16_t)v : 0,
+                                  axis == 1U ? (int16_t)v : 0,
+                                  axis == 1U ? (int16_t)v : 0};
+            const bool expected = expected_cursor_band(xs, ys, 3U, false);
+            CHECK(f.clicks == (expected ? 1U : 0U));
         }
     }
     init(&f);
@@ -402,20 +495,20 @@ static void clocks_and_poll_gaps(void) {
     (void)packet(&f, 20, 2, 0);
     struct tp_microtap_result r = packet(&f, 121, 6, 0);
     CHECK(!r.click && r.count == 4U && f.replayed == 4U);
-    for (uint32_t delta = 349; delta <= 350U; delta++) {
+    for (uint32_t delta = 499; delta <= 500U; delta++) {
         init(&f);
         (void)packet(&f, 100U, 6, 0);
         (void)packet(&f, 90U, 0, 0); /* Backwards clock starts a new decision guard. */
         CHECK(f.clicks == 0U && f.replayed == 1U);
-        zeros(&f, 90U, 19U);
         const uint32_t start = 90U + delta - 140U;
+        zeros(&f, 90U, 35U); /* Preserve valid polls while checking the 500ms boundary. */
         (void)packet(&f, start, 8, 0);
         (void)packet(&f, start + 10U, 8, 0);
         (void)packet(&f, start + 20U, 8, 0);
         (void)packet(&f, start + 120U, 0, 0);
         (void)packet(&f, start + 139U, 0, 0);
         (void)packet(&f, start + 140U, 0, 0);
-        CHECK(f.clicks == (delta == 350U ? 1U : 0U));
+        CHECK(f.clicks == (delta == 500U ? 1U : 0U));
     }
     init(&f);
     (void)packet(&f, 100U, 6, 0);
@@ -434,14 +527,15 @@ static void clocks_and_poll_gaps(void) {
     (void)packet(&f, base + 140U, 0, 0);
     (void)packet(&f, base + 240U, 0, 0);
     (void)packet(&f, base + 340U, 0, 0);
-    (void)packet(&f, base + 400U, 8, 0);
-    (void)packet(&f, base + 410U, 8, 0);
-    (void)packet(&f, base + 420U, 8, 0);
-    (void)packet(&f, base + 520U, 0, 0);
-    (void)packet(&f, base + 539U, 0, 0);
-    (void)packet(&f, base + 540U, 0, 0);
+    zeros(&f, base + 340U, 15U); /* Keep max poll gap <=100ms until the second burst. */
+    (void)packet(&f, base + 500U, 8, 0);
+    (void)packet(&f, base + 510U, 8, 0);
+    (void)packet(&f, base + 520U, 8, 0);
+    (void)packet(&f, base + 620U, 0, 0);
+    (void)packet(&f, base + 639U, 0, 0);
+    (void)packet(&f, base + 640U, 0, 0);
     CHECK(f.clicks == 2U && f.discarded == 6U);
-    puts("PASS gap100 allowed, gap101/120 flush before quiet, rollback/half-range faults, guard349/350, expanded window across uint32 rollover");
+    puts("PASS gap100 allowed, gap101/120 flush before quiet, rollback/half-range faults, guard499/500, expanded window across uint32 rollover");
 }
 
 static uint32_t rng = UINT32_C(0x31415926);

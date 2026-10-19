@@ -13,7 +13,7 @@ static void step(uint32_t t, int16_t x, int16_t y, bool valid) {
     uint8_t old_count = s.count;
     uint32_t first = s.first_ms, path = s.path;
     int32_t nx = s.sum_x, ny = s.sum_y;
-    struct tp_microtap_result r = tp_microtap_step(&s,t,x,y,valid,true,false);
+    struct tp_microtap_result r = tp_microtap_step(&s,t,x,y,false,valid,true,false);
     if (valid && (x != 0 || y != 0)) { inputs++; }
     replayed += r.count;
     if (r.click) {
