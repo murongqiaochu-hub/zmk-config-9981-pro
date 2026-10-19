@@ -1,6 +1,13 @@
 # zmk-config-9981-pro
 This page contains zmk firmware config for 9981 keyboard with trackpad(pro version)
 
+## 当前使用说明书与维护约定
+
+- 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（v2.0，2026-10-19，基于功能源 `28f6c86`）。默认键图、物理监听与用户实际 Studio 覆盖须分别核对。
+- 用户新增规则：**以后每次更新功能或默认键位，必须在同批次同步说明书、四层键图及版本/验证状态。** 维护流程见 [AGENTS.md](<AGENTS.md>)；完整主机回归已包含[说明书同步检查](<tests/check_manual_sync.py>)。
+- 下文是上游仓库原有构建引导，不代表当前操作说明；例如旧 Caps Lock 滚动示例不适用于本版（本版用右 aA 按住或双击锁轮）。
+
+
 <p align="center">
 <img  height="1200" alt="image" src="https://github.com/user-attachments/assets/20568c06-c573-438d-8e5e-26394261aa20" />
 </p>
