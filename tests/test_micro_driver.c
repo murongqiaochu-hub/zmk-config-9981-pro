@@ -63,6 +63,6 @@ int main(void){
  poll(6,0,10);assert(report_count==2&&refs[0]==1&&submissions==0);
  for(uint32_t t=20;t<=710;t+=10)idle(t);
  poll(8,-3,720);assert(report_count==2&&refs[0]==1&&submissions==0);
- puts("PASS Actual driver/runtime: full OFF pointer suite, floor16/min2 frames and quiet120, eight-frame signed8 envelope, single-frame weak touch replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
+ puts("PASS Actual driver/runtime: full OFF pointer suite, floor8/min2 frames and quiet120, eight-frame signed8 envelope, single-frame weak touch replay, ninth-frame FIFO, native short D/U and held drag/move, 599/600 guard; report_count checked per poll");
  return 0;
 }

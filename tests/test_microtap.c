@@ -113,7 +113,7 @@ static void zeros(struct fixture *f, uint32_t base, unsigned n) {
 }
 
 static void policy_constants(void) {
-    CHECK(TP_MICROTAP_MIN_PATH == 16U && TP_MICROTAP_QUIET_MS == 120U);
+    CHECK(TP_MICROTAP_MIN_PATH == 8U && TP_MICROTAP_QUIET_MS == 120U);
     CHECK(TP_MICROTAP_MAX_CANDIDATE_MS == 320U && TP_MICROTAP_CLICK_INTERVAL_MS == 350U);
     CHECK(TP_MICROTAP_MAX_PATH == 8192U && TP_MICROTAP_MAX_OFFSET == 4096U);
     CHECK(TP_MICROTAP_MIN_FRAMES == 2U && TP_MICROTAP_MAX_FRAMES == 8U);
@@ -137,8 +137,8 @@ static void lower_bound_and_quiet(void) {
         (void)packet(&f, 0, first, 0);
         (void)packet(&f, 10, second, 0);
         zeros(&f, 10, 12);
-        CHECK(f.clicks == (path >= 16 ? 1U : 0U));
-        CHECK(f.replayed == (path >= 16 ? 0U : 2U));
+        CHECK(f.clicks == (path >= 8 ? 1U : 0U));
+        CHECK(f.replayed == (path >= 8 ? 0U : 2U));
     }
     for (int16_t path = 3; path <= 24; path++) {
         init(&f);
@@ -149,8 +149,8 @@ static void lower_bound_and_quiet(void) {
         (void)packet(&f, 10, second, 0);
         (void)packet(&f, 20, third, 0);
         zeros(&f, 20, 12);
-        CHECK(f.clicks == (path >= 16 ? 1U : 0U));
-        CHECK(f.replayed == (path >= 16 ? 0U : 3U));
+        CHECK(f.clicks == (path >= 8 ? 1U : 0U));
+        CHECK(f.replayed == (path >= 8 ? 0U : 3U));
     }
     init(&f);
     (void)packet(&f, 0, 8, 0);
@@ -192,7 +192,7 @@ static void lower_bound_and_quiet(void) {
     CHECK(f.discarded == 3U && f.replayed == 1U && f.n == 0U);
     zeros(&f, 140, 40);
     CHECK(f.clicks == 1U); /* New movement never becomes a deferred click. */
-    puts("PASS floor16 and min2 frames reject single/light touches; signed8 burst and quiet119/120 boundaries pass");
+    puts("PASS floor8/min2 reject single-frame and below-floor touches; signed8 burst and quiet119/120 boundaries pass");
 }
 
 static void late_first_click(struct fixture *f, uint32_t decision) {
@@ -257,7 +257,7 @@ static void frame_span_age_and_navigation(void) {
         zeros(&f, delta + 20U, 12);
         CHECK(f.clicks == (delta == 200U ? 1U : 0U));
     }
-    puts("PASS floor16/min2, frames2..8/span120 boundaries, max age320 and ordered ninth-frame replay; navigation199/200");
+    puts("PASS floor8/min2, frames2..8/span120 boundaries, max age320 and ordered ninth-frame replay; navigation199/200");
 }
 
 static void repeat_guard_and_no_deferred_click(void) {
