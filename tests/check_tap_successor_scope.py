@@ -15,11 +15,11 @@ for p in paths:
  if p not in ALLOWED:assert a==b,p
  if a==b:protected[p]=hashlib.sha256(b).hexdigest()
 a=clean(old(PREFIX+'trackpad_microtap.h').decode());b=clean((ROOT/(PREFIX+'trackpad_microtap.h')).read_text())
-for name,before,after in [('MIN_FRAMES',1,2),('MIN_PATH',6,8),('MAX_FRAMES',3,8),('MAX_CANDIDATE_MS',180,320),('MAX_MOTION_SPAN_MS',40,120),('MAX_PATH',1024,8192),('MAX_OFFSET',512,4096)]:
+for name,before,after in [('MIN_FRAMES',1,2),('MIN_PATH',6,4),('MAX_FRAMES',3,8),('MAX_CANDIDATE_MS',180,360),('MAX_MOTION_SPAN_MS',40,160),('MAX_PATH',1024,8192),('MAX_OFFSET',512,4096)]:
  token=f'#defineTP_MICROTAP_{name}{before}U';assert a.count(token)==1,token;a=a.replace(token,f'#defineTP_MICROTAP_{name}{after}U')
 assert a==b,'Pure core changed beyond the seven declared parameters'
 runtime=(ROOT/(PREFIX+'trackpad_microtap_runtime.c')).read_text()
-assert 'MICROTAP_POLICY floor=8 quiet=120 gap=350 native=600 range=8192/4096 frames=2..8 span=120 age=320' in runtime
+assert 'MICROTAP_POLICY floor=4 quiet=120 gap=350 native=600 range=8192/4096 frames=2..8 span=160 age=360' in runtime
 workflow=(ROOT/'.github/workflows/main.yml').read_text()
 branch='codex/tap-window-widen-20261017'
 assert workflow.count(f"refs/heads/{branch}")==1 and workflow.count(f"HEAD:{branch}")==1

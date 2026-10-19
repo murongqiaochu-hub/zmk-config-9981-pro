@@ -64,10 +64,10 @@
 #define TP_MICROTAP_NAV_QUIET_MS 200U
 #define TP_MICROTAP_MIN_FRAMES 2U
 #define TP_MICROTAP_MAX_FRAMES 8U
-#define TP_MICROTAP_MIN_PATH 8U
+#define TP_MICROTAP_MIN_PATH 4U
 #define TP_MICROTAP_MIN_MOTION_SPAN_MS 0U
-#define TP_MICROTAP_MAX_CANDIDATE_MS 320U
-#define TP_MICROTAP_MAX_MOTION_SPAN_MS 120U
+#define TP_MICROTAP_MAX_CANDIDATE_MS 360U
+#define TP_MICROTAP_MAX_MOTION_SPAN_MS 160U
 /* Wide guard above every possible eight-frame signed8 sensor burst:
  * path<=2048, accumulated single-axis offset<=1024. */
 #define TP_MICROTAP_MAX_PATH 8192U

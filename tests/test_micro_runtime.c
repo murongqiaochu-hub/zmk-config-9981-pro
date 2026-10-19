@@ -99,6 +99,11 @@ static void test_floor_and_first(void) {
         poll_at(130,0,0,true,false);
         assert(moves==1&&emitted[0].dx==weak&&emitted[0].at_ms==10&&submissions==0);
     }
+    fixture(true);
+    poll_at(10,2,0,true,false);poll_at(20,2,0,true,false);zeros(30,130);
+    poll_at(139,0,0,true,false);assert(submissions==0&&moves==0);
+    poll_at(140,0,0,true,false);assert(submissions==1&&moves==0); /* Two frames, path4 at runtime. */
+
     fixture(true);tap_at(10,8,0);zeros(20,120);
     poll_at(129,0,0,true,false);assert(submissions==0&&moves==0);
     poll_at(130,0,0,true,false);assert(submissions==1&&moves==0);
@@ -322,6 +327,6 @@ int main(void) {
     test_floor_and_first();test_fifo_and_backpressure();test_native_edges_and_busy();
     test_refs_context_and_faults();test_submit_rechecks_and_no_late_click();test_fresh_wall_and_wrap();
     test_spacing_retirement();
-    puts("PASS Actual runtime: floor8/min2 frames, frames8/span120, first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
+    puts("PASS Actual runtime: floor4/min2 frames, frames8/span160, first120ms, FIFO/no catch-up, own LEFT excluded, native pos0/4+held+refs/unknown+shoulder flush600ms, reset/host persistence, generation cancellation, fresh-wall gap350, 599/600 and u32 wrap; no host ACK or contact claim");
     return 0;
 }
