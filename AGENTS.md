@@ -17,16 +17,16 @@
 4. 若改键，重建四层各 42 键的图，检查默认键图与驱动物理位置监听是否仍一致。若改功能，正文先写清新旧差异与适用范围，再刷新清单。
 5. 文档版本至少递增修订号，并记录日期、功能源码版本、验证状态、已知问题。导出 PDF、可编辑 Word、离线 HTML 供用户阅读；文字、图示与所有导出都应来自同一正文和键图。
 6. 每批次都运行 `python3 tests/check_manual_sync.py`；完整主机回归已经包含此检查。`config/` 任一受跟踪文件增加、删除或内容变化而未同步清单会失败。同步检查只是防遗漏，不替代人工核对说明是否真实。
-7. 仅写说明书不授权改固件功能、自动触发新 ARM 构建、推送、刷写、清配对或主机设置。2026-10-20 用户已撤回未发布 GBA 候选，另明确选择 **MEDIA / Xbox 布局标准 HID**，不是原生 XInput，不冒充微软 VID/PID；不得继续发布 GBA 或称 Xbox 已交付。轻拍继续暂停调优。2026-10-20 10:44 用户已精确批准本次 Xbox 分支推送 / Actions 云编译 / UF2 校验交付；仅本次新分支，不发布旧 GBA 历史。刷写、清配对等仍须各自精确授权，不由历史文档任务推定。
+7. 仅写说明书不授权改固件功能、自动触发新 ARM 构建、推送、刷写、清配对或主机设置。2026-10-20 用户已撤回未发布 GBA 候选，另明确选择 **MEDIA / Xbox 布局标准 HID**，不是原生 XInput，不冒充微软 VID/PID；不得继续发布 GBA 或称 Xbox 已交付。轻拍继续暂停调优。2026-10-20 10:44 用户曾精确批准一次 Xbox 分支推送 / Actions 云编译 / UF2 校验交付；该授权不自动延伸到后续版本。2026-10-20 用户当前又明确要求“出固件吧”，针对 v2.2.4 新增 aA 锁轮功能，本轮按最终源码推送目标分支、运行 Actions ARM 构建、校验并交付 UF2；不含刷写、清配对或擦设置。
 
 ## 本轮 Xbox 标准 HID 合同（2026-10-20）
 
-- 当前文档为 v2.2.1，保留原普通 / SYM / UPPER 说明和参数。手册原 18–23 章号不变，第 26–27 章说明 velocity 虚拟摇杆的使用、参数与鼠标隔离；功能源码只在手册第 23 章单点回填，未填前不冒称最终功能提交。
-- 仅 MEDIA：WASD 是 D-pad，不是左杆；I/J/L/M＝Y/X/B/A；通话/结束＝LB/RB；双肩＝数字 LT/RT（0/255）；实体 T/Y＝View/Back、Menu/Start；空格＝Guide/Xbox。黑莓按住换右杆、松开不锁定；机械触板 DOWN 捕获 L3/R3，切模式不重映射已按住按钮。17 个 gamepad 位置、3 个回 DEFAULT 出口、22 个 None；原 J/K＝B/A 已废止，K/N/Enter 留空。
-- 触板只有相对光学位移：默认左 X/Y、按住黑莓右 Z/Rz，raw 右正下正；velocity 不累计位置。默认 gain8 / 逻辑 deadzone4 / 75%新+25%旧对称舍入，最大输入首帧为 ±95 而非满量程；有效位移续时，120ms 无有效位移本地归零，GPIO/I2C 故障清轴但不代替按钮 UP。不能把本地计时写成 host ACK 或收包时限；停住手指不能保持杆倾斜，单触板不能独立双杆或同时 L3/R3。
-- 游戏层新增 driver 独占分支、晚发送 gate 及轻拍临时保护 / 取消旧候选，退出恢复原鼠标；不能声称触板 driver / microtap runtime / 输出 bridge 整文件未变。三者仅新增 GP 所有权与代际门；原 gesture 参数、开机 OFF、三击开关、桥接 I/O / 必要 UP、灯光和 GPIO / 矩阵保留。范围闸验证 46 份旧配置字节相同、3 份源去门后精确恢复（仅归一历史 CRLF）。P37 slow、P41 滚轮物理监听仍存在，但游戏层不发鼠标 / 滚轮，P37 不是摇杆加速。
+- 当前文档版本为 v2.2.4，Xbox布局标准HID（非XInput）。v2.2.4新功能：aA双击后锁轮逆时针旋转90°并固定UPPER；锁定期间任一肩键使触板滚轮半速、屏蔽该肩键自身wheel；按住aA临时覆盖锁定，恢复原方向与原生肩键滚轮。手册原18–23章号不变，第26–27章说明velocity虚拟摇杆的使用、参数与鼠标隔离。
+- 仅 MEDIA：E/X/S/F＝D-pad 上/下/左/右，不是左杆；D/K 独立输出 L3/R3；触板机械 DOWN 固定为 Guide/Xbox，空格亦为 Guide；I/J/L/M＝Y/X/B/A；通话/结束＝LB/RB；双肩＝数字 LT/RT（0/255）；T/Y＝View/Menu。黑莓按住换右杆、松开不锁定，按钮不因切杆重映射。19 个 gamepad 位置、3 个回 DEFAULT 出口、20 个 None；N/Enter 留空。v2.2.4 在此映射上新增 aA 锁轮功能；新源码尚未 ARM 构建/推送，旧 UF2 不匹配。
+- 触板只有相对光学位移：默认左 X/Y、按住黑莓右 Z/Rz，raw 右正下正；velocity 不累计位置。默认 gain8 / 逻辑 deadzone4 / 75%新+25%旧对称舍入，最大输入首帧为 ±95 而非满量程；有效位移续时，120ms 无有效位移本地归零，GPIO/I2C 故障清轴但不代替按钮 UP。不能把本地计时写成 host ACK 或收包时限；停住手指不能保持杆倾斜；触板机械点击只发 Guide/Xbox、不作 L3/R3；D/K 是独立 L3/R3 按键。
+- 游戏层新增 driver 独占分支、晚发送 gate 及轻拍临时保护 / 取消旧候选，退出恢复原鼠标；v2.2.4 另新增 A320 锁轮旋转、肩键半速余量和 aA 临时覆盖。原 gesture 参数、开机 OFF、三击开关、bridge I/O / 必要 UP、灯光与 GPIO / 矩阵保留。范围闸验证 46 份旧配置字节相同；精确剥离 GP 门和 v2.2.4 scroll block 后，A320 / microtap / bridge 源恢复基线（A320 仅归一历史 CRLF）；8 个集成文件 + 12 个新增 gamepad/scroll 配置文件。P37 slow、P41 滚轮物理监听仍存在，但游戏层不发鼠标 / 滚轮，P37 不是摇杆加速。
 - 标准 HID ID4：body9，USB10（aligned staging12 但只发10），BLE9 无 ID；13 个真实 Button usages、四轴、数字 LT/RT。它不是 Xbox 原生 XInput，不保证 Windows XInput-only、Xbox 主机或各版本目标 App 兼容；无振动 / Share，Guide 可能被系统截获。矩阵三键鬼键风险未消除，移动 + modifier + 开火等组合必须实测。
-- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。本次 ARM / UF2 已构建校验并归档，实际构建源 `1c61b81`、Run `39361865259`，见[当前交付记录](<firmware-delivery/XBOX_CURRENT.md>)；未 USB / BT 实机枚举、刷写或 App 实玩；纯核、runtime 新轴合并 / quiet、真实 driver、异步 bridge 及新 ABI 专项已实际通过；完整主机回归已实际通过，含原键鼠 / 灯光 / 矩阵 / 文档同步与新手柄专项；host 结果不是实机验收；ARM 构建已另行通过，不能据此声称应用兼容。
+- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。旧版 ARM / UF2 构建源 `1c61b81`、Run `39361865259` 仅对应旧键图（S=↓，Z/K空），见[历史交付记录](<firmware-delivery/XBOX_CURRENT.md>)，不能用于 v2.2.4；v2.2.3既有测试历史PASS；本轮v2.2.4滚轮/肩键专项及完整run_host_tests.py（strict UBSan、66个配置文件/四层键图与说明书同步）PASS。源码仍未推送或ARM构建；未 USB / BT 实机枚举、刷写或 App 实玩。host结果不是实机验收；旧键图 ARM 构建不能据此声称新版已构建或应用兼容。
 - [使用说明书](<docs/9981Pro_使用说明书.md>)、[实现笔记](<docs/gamepad_implementation_notes.md>)、[README](<README.md>)、[核对清单](<docs/manual_manifest.json>)与四层图稿须同批同步；导出 PDF / Word / HTML 并核对排版。下面的维护命令不是推送、Actions、刷写或清设置授权。
 
 - 本次 NAS 工作树的 `origin` 是旧本地工作树，不是 GitHub；本次使用已核实的仓库 HTTPS 地址和单命令凭证 helper 发布，未改全局 Git / 代理。后续须先核对 remote，不把本机路径推断成云端。

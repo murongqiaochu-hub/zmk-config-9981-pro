@@ -1,14 +1,14 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-20，与[使用说明书 v2.2.1](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局的标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。已完成 ARM 云编译、UF2 边界与实际描述符校验并归档；未 USB / BT 实机枚举、刷写或 App 实玩，不能称实机验收；2026-10-20 10:44 已获本次 Xbox 分支推送 / Actions / UF2 校验授权，不刷写或清设置。功能源码见手册第 23 章；完整主机回归与 ARM 构建均已通过；设备验收尚未做，实际来源见[当前交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+2026-10-20，与[使用说明书 v2.2.4](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。本地新键图：E/X/S/F=↑/↓/←/→，D/K=L3/R3，触板点击=Guide。aA 双击锁轮时触板滚轮逆时针旋转 90°并固定 UPPER；锁定时任一肩键将触板滚轮减半并抑制肩键自身 wheel 输出；按住 aA 暂时覆盖锁定方向，恢复原生肩键滚轮。v2.2.4 尚未推送或 ARM 构建；旧 Run 39361865259 / UF2 是 S=↓、Z/K 空的键图，不能用于新版，见[历史交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。v2.2.3 原始手柄核心/完整 host 回归既有 PASS；v2.2.4 新增滚轮/肩键专项及完整 `run_host_tests.py`（exit0，含手册同步）均 PASS；未 USB/BT 实机枚举、刷写或 App 实玩，不能称实机验收。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
 ## 范围与映射
 
-第 3 层保留名称 MEDIA；使用独立 gamepad behavior，不让模拟器把字母当按钮。默认、SYM、UPPER 各 42 键绑定与既有操作参数保留，只改 MEDIA 及必要 gamepad 保护 / 路由分支。W/A/S/D → D-pad 上/左/下/右，**不改为左摇杆**；I/J/L/M → Y/X/B/A。通话/结束 → LB/RB，双肩 → LT/RT，实体 T/Y → View/Back（选择）/Menu/Start（菜单），空格 → Guide/Xbox。原 J/K＝B/A 已废止，K、N、Enter 等留空；方向、面键、肩与菜单不发字母。
+第 3 层保留名称 MEDIA；使用独立 gamepad behavior，不让模拟器把字母当按钮。v2.2.3 首次采用 MEDIA 映射；v2.2.4 另改 UPPER 肩键和 P41：双肩由条件 wrapper 转发原生 msc，锁轮时任一肩键仅作半速 modifier 并屏蔽自身 wheel，按住 aA 暂时恢复原方向与原生肩键滚轮；双击锁轮时 P41 固定 UPPER，SYM 退出。DEFAULT、SYM 与其它 UPPER 行为保持。E/X/S/F → D-pad 上/下/左/右，D/K → 独立 L3/R3；**不改为左摇杆**。触板机械点击固定为 Guide/Xbox，空格继续为 Guide。I/J/L/M → Y/X/B/A。通话/结束 → LB/RB，双肩 → LT/RT，实体 T/Y → View/Back（选择）/Menu/Start（菜单）。原 J/K＝B/A 已废止，N/Enter 留空；方向、面键、肩与菜单不发字母。
 
-[主键图](<../config/bbp9981.keymap>)与[板级镜像](<../config/boards/arm/bbp9981/bbp9981.keymap>)须一致：17 个 gamepad 绑定为 `P0=10, P1=11, P2=8, P3=17, P4=18, P6=9, P8=0, P11=12, P12=13, P14=7, P17=2, P18=1, P19=3, P23=6, P25=5, P34=4, P39=14`；`P35($) / P40(SYM) / P41(右aA)` 三出口都是回 DEFAULT，其余 22 个位置显式 None，不透明回落。
+[主键图](<../config/bbp9981.keymap>)与[板级镜像](<../config/boards/arm/bbp9981/bbp9981.keymap>)须一致：19 个 gamepad 绑定为 `P0=10, P1=11, P2=8, P3=17, P4=14, P6=9, P9(E)=0, P11=12, P12=13, P14=7, P18(S)=2, P19(D)=15, P20(F)=3, P23=6, P24(K)=16, P25=5, P29(X)=1, P34=4, P39=14`；`P35($) / P40(SYM) / P41(右aA)` 三出口回 DEFAULT，其余 20 个位置显式 None，不透明回落。
 
 ### 描述符与报告 ABI
 
@@ -20,9 +20,9 @@
 
 [虚拟杆纯核](<../config/boards/arm/bbp9981/custom_driver/gamepad_stick.h>)只用当前 raw 方向 / 速度，不累计虚拟位置。raw 右正、下正，与旧鼠标坐标一致。默认 gain=8、逻辑 deadzone=4，每分量 clamp `[-127,127]`；75% 新样本 + 25% 旧值，以对称舍入处理，反向先清旧分量。最大 raw 从归中起的第一帧滤波后为 ±95，后续连续最大同向样本为 ±119 / ±125 / ±127，不能写首帧满量程。
 
-连续有效位移即使输出值未变也刷新 last-motion；零 / 死区噪声不刷新。最后有效位移后 120ms 本地归零；GPIO / I2C 故障立即清虚拟轴，**不代替任何按钮 UP**。120ms 是本地策略，不是 host ACK、USB / BLE 到达时限或可靠抬指识别。触板物理只有相对光学位移，停住手指不能维持实体杆倾斜：默认左杆要持续前进就须继续滑。用户已明确保留此设计，不得擅改为 WASD 左杆。
+连续有效位移即使输出值未变也刷新 last-motion；零 / 死区噪声不刷新。最后有效位移后 120ms 本地归零；GPIO / I2C 故障立即清虚拟轴，**不代替任何按钮 UP**。120ms 是本地策略，不是 host ACK、USB / BLE 到达时限或可靠抬指识别。触板物理只有相对光学位移，停住手指不能维持实体杆倾斜：默认左杆要持续前进就须继续滑。用户已明确保留此设计，不得擅改为键盘左杆。
 
-物理黑莓 P3 是按住右杆 modifier，松开不锁定。模式切换先清旧轴，只用切换后的新样本，不转移此前运动。P4 机械触板按压在 DOWN 时按当前模式捕获 L3 或 R3，按住中途切模式不换按钮，UP 释放原 owner；重复 DOWN 去重。单触板不能同时独立控制两杆，共享机械按键也不能同时按 L3/R3，若确有需求须另行改键。
+物理黑莓 P3 是按住右杆 modifier，松开不锁定。模式切换先清旧轴，只用切换后的新样本，不转移此前运动。P4 机械触板点击固定输出 Guide，不受黑莓模式影响；空格 P39 也输出 Guide，两者由独立 owner 聚合，松开任一方不误释放另一方。D/K 分别独立输出 L3/R3。单触板仍不能同时独立控制两杆；触板点击不映射到 L3/R3。
 
 ## 接入与隔离
 
@@ -42,9 +42,9 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 触板独占与轻拍保护
 
-已加入真实 driver 的游戏层独占分支与鼠标晚发送 gate：MEDIA 时将 raw 运动交给虚拟杆，不同时产鼠标、滚轮或轻拍；入 / 退出或路由变化时取消不能跨上下文的旧队列 / 候选，退出恢复原鼠标路径。原物理 P37 slow、P41 按住滚轮 / 双击锁轮监听仍存在，但游戏层不因此生成鼠标 / 滚轮；P37 不是摇杆加速键。P35 / P40 / P41 的三个层出口仍回 DEFAULT。
+已加入真实 driver 的游戏层独占分支与鼠标晚发送 gate：MEDIA 时将 raw 运动交给虚拟杆，不同时产鼠标、滚轮或轻拍；入 / 退出或路由变化时取消不能跨上下文的旧队列 / 候选，退出恢复原鼠标路径。原物理 P37 slow、P41 aA 按住滚轮 / 双击锁轮监听仍存在，但游戏层不因此生成鼠标 / 滚轮；P37 不是摇杆加速键。v2.2.4 的 UPPER P41 改为固定当前层，SYM（P40）是 UPPER 层返回普通层入口；P35 / P40 / P41 三个 DEFAULT 出口仍仅属于 MEDIA 层。
 
-轻拍仅新增 GP 临时阻断与旧候选取消，不调优原 gesture 参数、开机 OFF 或普通层三击开关，不自动改 ON/OFF。触板 driver、microtap runtime 和真实输出 bridge 均有必要的 GP 门，不能称整文件未改。范围闸已验证 **46 份旧配置字节相同**，这三份接入源去掉 GP-only 块并归一 A320 历史 CRLF 后与基线精确相同；原桥接 I/O / UP、肩键 / Ctrl、灯光、GPIO / 矩阵与指针数学保留。
+轻拍仅新增 GP 临时阻断与旧候选取消，不调优原 gesture 参数、开机 OFF 或普通层三击开关，不自动改 ON/OFF。触板 driver、microtap runtime、输出 bridge 有 GP 门；A320 另明确新增锁轮方向旋转、肩键半速余量和持锁 aA 临时覆盖，不能称整文件未改。范围闸已验证 **46 份旧配置字节相同**；对 A320 精确剥离本轮锁轮实现及 GP 门、归一其历史 CRLF 后，剩余源码逐字节还原基线。总计 8 个受限集成文件、12 个新增 gamepad/scroll 配置文件；其余指针/轻拍数学、bridge I/O / 必要 UP、肩键 Ctrl 基线、灯光、GPIO / 矩阵保留。
 
 独立只读复核发现并修复一项 P1：已 submit、尚在 QUEUED 的旧轻拍 worker 可早于下次 sensor poll 发 DOWN。现在 GP 生命周期立即 cancel，bridge 分别保存策略 context 与 request 的 pointer epoch，submit / QUEUED / DOWN 最终门拒 active 或旧代际；UP 仍归还自己的一份引用。micro poll 起点捕获 pointer epoch，晚门也识别同 poll enter+exit。新增[真实异步 bridge 组合测试](<../tests/test_gamepad_tap_bridge.c>)已实际通过旧 22 cases（GP 编译但 OFF）及 QUEUED/IDLE gap/最终拒 DOWN/必要 UP/foreign ref 保留用例；[真实 driver 组合测试](<../tests/test_gamepad_driver.c>)覆盖同 poll 往返、原普通模式和退出恢复。独立只读复验确认该 P1 收口；最终检查→SDK hook 仍非原子，已 admitted / 已进入 SDK 的旧包不保证撤回。
 
@@ -59,14 +59,14 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 已执行与未执行
 
-以下为本任务已实际执行的主机软件验证；完整回归亦已通过，均不代替 ARM / 设备验收：
+以下区分历史 v2.2.3 与本轮 v2.2.4 已实际执行的主机软件验证，均不代替 ARM / 设备验收：
 
 - [专项 runner](<../tests/run_gamepad_tests.py>)纯核以 strict Wall/Wextra/Werror + UBSan 通过 **13 buttons 的 8192 × 16 方向全组合**、250000 owner 随机边沿、32768 motion 压力；覆盖动作捕获、四轴 / 数字 trigger、虚拟杆过滤与本地归零纯核。不能把纯核 quiet 测试等同于 RTOS 定时发送已验收。
 - 新报告 ABI 在 **5 个真实 HOG 配置**及 **USB BOOT0/1 × 10 模式**均已通过。覆盖 BLE 9-byte offsets、USB ID4 共 10 bytes、trigger-only 旧 context 拒发；USB 延迟 DMA 测试消费完整 10 bytes，EP0 snapshot 与中断 TX 隔离，不用 12-byte staging 容量作发送长度。
 - USB 既有专项覆盖旧 ready、SUBMITTING 间隙、early completion、reset/abort、非 0x81 端点、原 HID_0 隔离、最终 IRQ 提交前协议 / context 失效、raw CONFIGURED(0) 与复位协议恢复；固定 HOG/USB/USB_HID/HID fixtures 与对应上游 raw 核对证据沿用同批记录。
-- 实际 runtime、新 A320/micro 所有权与真实异步 bridge 专项均以 strict UBSan 实际通过；原 micro / pointer / wheel / bridge suite 还在 GP 已编译但普通模式下执行通过。它们是软件模型验证，不是 ARM、真实 IRQ/RTOS 或设备验收。完整主机回归已实际通过，覆盖旧键鼠 / 灯光 / 持久化 / SDK 原源回放 / 矩阵 / 文档同步及新手柄全部专项。
+- v2.2.3 的 runtime、A320/micro 所有权、异步 bridge 与完整主机回归此前以 strict UBSan 通过；本轮 v2.2.4 新增的锁轮方向、aA 临时覆盖、肩键半速与条件包装专项、完整 `run_host_tests.py` 均以 strict UBSan 实际通过，包含手册同步及范围闸。均为软件模型验证，不是 ARM、真实 IRQ/RTOS 或设备验收。
 - [范围闸](<../tests/check_tap_successor_scope.py>)实际通过：46 份旧配置字节不动、3 份接入源恢复核对、8 个既有配置接入点及 9 份新增 GP 配置源；旧 gesture 参数、桥接 I/O / UP、灯光、GPIO / 矩阵均保留。矩阵三键鬼键风险未消除，移动 + modifier + 开火仍需实机测试。
-- 完整主机回归和[同步检查](<../tests/check_manual_sync.py>)已实际通过，日志保存于本任务交付目录；后续正文排版修订须再刷新 manifest 并复查同步。本轮 ARM / UF2 已另外构建校验归档，但 USB / BT 实机枚举、刷写和目标 App 实玩仍未做；本次 Xbox 分支推送 / 云编译已获授权，未清配对、擦 NVS 或改主机设置。
+- 旧键图的 ARM / UF2 与完整 host regression 见[上一版交付记录](<../firmware-delivery/XBOX_CURRENT.md>)，仅适用 S=↓、Z/K空的映射。v2.2.4 E/X/S/F、D/K、P4 Guide 与新增滚轮/肩键逻辑的专项和完整 `run_host_tests.py`（含最终前手册同步）均 PASS；源码尚未推送、未 ARM 构建，也无可刷新版UF2。仍未 USB / BT 实机枚举、刷写、App 实玩或清配对 / 擦设置。
 
 ## 明确不承诺
 
