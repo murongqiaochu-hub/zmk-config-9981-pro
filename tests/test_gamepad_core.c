@@ -318,6 +318,28 @@ static void test_click_mode_and_cancel(void) {
     bbp_gamepad_reset(&s); r = bbp_gamepad_snapshot(&s);
     assert(bbp_gamepad_is_neutral(&r) && !bbp_gamepad_right_stick_mode(&s));
 }
+static void test_keyboard_l3r3_and_guide_owners(void) {
+    struct bbp_gamepad_state s = {0};
+    struct bbp_gamepad_report_body r;
+    /* D=L3 and K=R3 remain independently held while BB changes stick mode. */
+    assert(bbp_gamepad_key(&s, 19, BBP_GP_L3, true));
+    assert(bbp_gamepad_key(&s, 24, BBP_GP_R3, true));
+    assert(bbp_gamepad_key(&s, 3, BBP_GP_RIGHT_STICK_MOD, true));
+    /* Trackpad P4 click and Space P39 are both fixed Guide owners, never L3/R3. */
+    assert(bbp_gamepad_key(&s, 4, BBP_GP_GUIDE, true));
+    assert(bbp_gamepad_key(&s, 39, BBP_GP_GUIDE, true));
+    r = bbp_gamepad_snapshot(&s); assert(buttons_of(r) == 0x7000);
+    assert(bbp_gamepad_key(&s, 3, BBP_GP_RIGHT_STICK_MOD, false));
+    r = bbp_gamepad_snapshot(&s); assert(buttons_of(r) == 0x7000);
+    assert(bbp_gamepad_key(&s, 19, BBP_GP_L3, false));
+    r = bbp_gamepad_snapshot(&s); assert(buttons_of(r) == 0x5000);
+    assert(bbp_gamepad_key(&s, 24, BBP_GP_R3, false));
+    r = bbp_gamepad_snapshot(&s); assert(buttons_of(r) == 0x1000);
+    assert(bbp_gamepad_key(&s, 4, BBP_GP_GUIDE, false));
+    r = bbp_gamepad_snapshot(&s); assert(buttons_of(r) == 0x1000);
+    assert(bbp_gamepad_key(&s, 39, BBP_GP_GUIDE, false));
+    r = bbp_gamepad_snapshot(&s); assert(bbp_gamepad_is_neutral(&r));
+}
 static void test_stick_math_and_noise(void) {
     assert(bbp_gamepad_stick_scale(0) == 0 && bbp_gamepad_stick_scale(1) == 8);
     assert(bbp_gamepad_stick_scale(-1) == -8);
@@ -459,9 +481,9 @@ int main(int argc, char **argv) {
         return fwrite(descriptor, 1, sizeof(descriptor), stdout) == sizeof(descriptor) ? 0 : 1;
     }
     test_descriptor(); test_neutral(); test_all_button_dpad_states();
-    test_owners_and_triggers(); test_modeled_edges(); test_click_mode_and_cancel();
+    test_owners_and_triggers(); test_modeled_edges(); test_click_mode_and_cancel(); test_keyboard_l3r3_and_guide_owners();
     test_stick_math_and_noise(); test_motion_timing_direction_and_limits();
     test_invalid_and_extreme_time(); test_motion_stress();
-    puts("PASS gamepad core: 8192x16 button/Dpad states, 13 real usages, digital+analog triggers, 250000 owner edges, click capture/multi-BB/cancel, four virtual axes, symmetric velocity/deadzone/120ms expiry/clock bounds, 32768 motion stress cases; ID4, 9byte body/10byte USB, 72 descriptor bits; host only, not hardware");
+    puts("PASS gamepad core: 8192x16 button/Dpad states, 13 real usages, digital+analog triggers, 250000 owner edges, legacy click capture tests + D/K L3/R3 and P4/Space Guide dual owners, four virtual axes, symmetric velocity/deadzone/120ms expiry/clock bounds, 32768 motion stress cases; ID4, 9byte body/10byte USB, 72 descriptor bits; host only, not hardware");
     return 0;
 }

@@ -158,15 +158,15 @@
         };
 
         media_layer {
-            /* Xbox layout, standard HID not XInput: WASD Dpad; I=Y/J=X/L=B/M=A.
-             * BB17 selects right stick while held; CLICK18 captures L3/R3.
-             * Call8/End9=LB/RB, shoulders10/11=LT/RT, T12/Y13=View/Menu, Space14=Guide. */
+            /* Xbox-layout standard HID, not XInput: E/X/S/F=Dpad up/down/left/right; D=L3, K=R3.
+             * Trackpad click P4 and Space P39 are both Guide14; BB17 selects right stick while held.
+             * Call8/End9=LB/RB, shoulders10/11=LT/RT, T12/Y13=View/Menu, I/J/L/M=Y/X/B/A. */
             bindings = <
                  &gamepad 10                                                                             &gamepad 11
-    &gamepad 8             &gamepad 17                         &gamepad 18                    &none                            &gamepad 9
-    &none        &gamepad 0 &none       &none      &gamepad 12  &gamepad 13   &none           &gamepad 7      &none            &none
-    &gamepad 2   &gamepad 1 &gamepad 3  &none      &none        &none         &gamepad 6      &none           &gamepad 5       &none
-    &none        &none     &none       &none      &none        &none         &none           &gamepad 4      &to DEFAULT      &none
+    &gamepad 8             &gamepad 17                         &gamepad 14                    &none                            &gamepad 9
+    &none        &none     &gamepad 0 &none       &gamepad 12  &gamepad 13   &none           &gamepad 7      &none            &none
+    &none        &gamepad 2 &gamepad 15 &gamepad 3 &none     &none         &gamepad 6      &gamepad 16     &gamepad 5       &none
+    &none        &none     &gamepad 1 &none      &none        &none         &none           &gamepad 4      &to DEFAULT      &none
     &none                  &none                               &gamepad 14                   &to DEFAULT                      &to DEFAULT
             >;
         };

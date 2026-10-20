@@ -72,15 +72,15 @@ for relative in paths:
     before['default_layer'][0] = '&microtap_shoulder'
     assert before['upper_layer'][7] == '&none'
     before['upper_layer'][7] = '&out OUT_BLE'
-    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 18, 6: 9, 8: 0, 11: 12, 12: 13,
-               14: 7, 17: 2, 18: 1, 19: 3, 23: 6, 25: 5, 34: 4, 39: 14}
+    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 9: 0, 11: 12, 12: 13,
+               14: 7, 18: 2, 19: 15, 20: 3, 23: 6, 24: 16, 25: 5, 29: 1, 34: 4, 39: 14}
     for position, action in gamepad.items():
         assert before['media_layer'][position] == '&none'
         before['media_layer'][position] = f'&gamepad {action}'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; 17 formerly-empty MEDIA positions gain Xbox-layout HID actions, WASD remains Dpad, IY/JX/LB/MA; three exits and all other bindings unchanged')
+print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; 19 MEDIA positions; E/X/S/F Dpad, D/K=L3/R3, P4/Space=Guide, IY/JX/LB/MA; three exits and all other bindings unchanged')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
