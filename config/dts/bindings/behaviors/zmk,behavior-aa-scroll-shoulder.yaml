@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+description: UPPER-layer shoulders scroll normally when aA is held and slow locked scrolling otherwise
+compatible: "zmk,behavior-aa-scroll-shoulder"
+include: one_param.yaml

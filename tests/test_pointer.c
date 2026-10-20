@@ -22,6 +22,9 @@ static void fixture(void) {
     memset(&sensor_data, 0, sizeof(sensor_data)); sensor_data.dev = &sensor;
     memset(&scroll_keys, 0, sizeof(scroll_keys));
     atomic_set(&scroll_mode_snapshot, 0); last_scroll_snapshot = 0;
+    atomic_set(&scroll_shoulder_modifier_snapshot, 0);
+    last_scroll_locked = last_shoulder_slow = false;
+    shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
     atomic_set(&cursor_speed_snapshot, 0); last_cursor_speed_snapshot = 0;
     atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
     sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
@@ -181,7 +184,65 @@ static void test_wheel_unchanged(void) {
     }
     puts("PASS Wheel unchanged: original Ctrl integer halving, zero/window behavior, all sensor deltas and every gain boundary +/-1");
 }
+static void lock_scroll(void) {
+    key(41, true, 100); key(41, false, 150);
+    key(41, true, 200); key(41, false, 250);
+    assert(tp_scroll_is_locked());
+}
+static void scroll_window(int8_t dx, int8_t dy, uint32_t start) {
+    for (unsigned i = 0; i < 4U; i++) { poll(dx, dy, start + i * 10U); }
+}
+static void test_locked_scroll_rotation_and_shoulder_half(void) {
+    fixture(); lock_scroll(); scroll_window(10, 0, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == 1); /* right -> up */
+
+    fixture(); lock_scroll(); scroll_window(0, 10, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 3 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0); /* down -> right */
+
+    fixture(); lock_scroll(); scroll_window(-10, 0, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == -1); /* left -> down */
+    fixture(); lock_scroll(); scroll_window(0, -10, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == -3 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0); /* up -> left */
+
+    fixture(); key(41, true, 100); assert(tp_scroll_mode_active() && !tp_scroll_is_locked());
+    scroll_window(0, 10, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == -3); /* held aA keeps original direction */
+
+    fixture(); lock_scroll(); key(41, true, 300);
+    assert(tp_scroll_mode_active() && !tp_scroll_is_locked());
+    tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
+    assert(!tp_scroll_shoulder_slow_active());
+    scroll_window(0, 10, 1000);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == 0 && report_values[INPUT_REL_WHEEL - 1] == -3);
+    tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, false);
+    key(41, false, 320); assert(tp_scroll_is_locked());
+
+    fixture(); lock_scroll();
+    tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
+    assert(tp_scroll_shoulder_slow_active());
+    tp_scroll_shoulder_modifier_update(TP_RIGHT_SHOULDER_POSITION, true);
+    tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, false);
+    assert(tp_scroll_shoulder_slow_active()); /* either side is enough; no simultaneous chord */
+    scroll_window(10, 0, 1000);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0); /* fractional half-notch retained */
+    scroll_window(10, 0, 1040);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == 1);
+    tp_scroll_shoulder_modifier_update(TP_RIGHT_SHOULDER_POSITION, false);
+    assert(!tp_scroll_shoulder_slow_active());
+
+    fixture(); key(41, true, 100); tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
+    assert(!tp_scroll_shoulder_slow_active()); /* shoulder slowdown is lock-only */
+}
 int main(void) {
     test_conservation(); test_idle_reverse(); test_transitions_faults(); test_wheel_unchanged();
+    test_locked_scroll_rotation_and_shoulder_half();
+    puts("PASS Locked scroll: CCW90 rotation, held-aA override, any-shoulder half-speed with retained fractional notches");
     return 0;
 }

@@ -77,6 +77,9 @@ def main():
     core = build('test_gamepad_core')
     run([str(core)])
     descriptor_checks(core)
+    scroll_shoulder = build('test_aa_scroll_shoulder', includes=['tests/scroll_behavior_mocks'],
+                            flags=['-Wno-unused-function', '-Wno-unused-variable'])
+    run([str(scroll_shoulder)])
     includes = BUILD / 'gamepad_runtime_include'
     for name in ['zephyr/device.h', 'zephyr/kernel.h', 'zephyr/sys/atomic.h', 'zephyr/logging/log.h',
                  'drivers/behavior.h', 'zmk/behavior.h', 'zmk/endpoints.h', 'zmk/keymap.h',

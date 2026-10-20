@@ -22,6 +22,7 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include "a320_0x57.h"
 #include "trackpad_key_state.h"
+#include "trackpad_scroll_lock.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
 #ifdef CONFIG_BBP9981_GAMEPAD
@@ -59,6 +60,8 @@ LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 static struct tp_key_state scroll_keys;
 /* Coherent mode + transition epoch, also safe for future cross-thread readers. */
 static atomic_t scroll_mode_snapshot;
+/* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */
+static atomic_t scroll_shoulder_modifier_snapshot;
 
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
@@ -72,8 +75,19 @@ static int16_t sum_dx = 0, sum_dy = 0;
 static uint16_t sample_cnt = 0;
 static uint32_t last_scroll_snapshot;
 static uint32_t last_read_time = 0;
+static bool last_scroll_locked;
+static bool last_shoulder_slow;
+static int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
+
+/* Halve discrete wheel reports without discarding every odd notch. */
+static int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {
+    int32_t total = (int32_t)value + *remainder;
+    int16_t scaled = (int16_t)(total / 2);
+    *remainder = (int16_t)(total % 2);
+    return scaled;
+}
 
 /* =========================
  *   Data & Config structs
@@ -258,6 +272,9 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
+    bool scroll_locked = (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
+    bool shoulder_slow = scroll_locked &&
+                          (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U;
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
     bool slow_pointer = (speed & 1U) != 0;
 
@@ -265,6 +282,7 @@ static void a320_poll_work_handler(struct k_work *work) {
     uint32_t game_epoch = bbp_gamepad_pointer_epoch();
     if (game_epoch != last_gamepad_pointer_epoch) {
         sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
+        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
         tp_pointer_reset(&cursor_motion);
         last_gamepad_pointer_epoch = game_epoch;
     }
@@ -276,8 +294,10 @@ static void a320_poll_work_handler(struct k_work *work) {
         bbp_gamepad_trackpad_poll(game_dx, game_dy, valid, k_uptime_get());
         /* Never spend old cursor fractions or wheel accumulation in a stick. */
         sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
+        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
         tp_pointer_reset(&cursor_motion);
         last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
+        last_scroll_locked = scroll_locked; last_shoulder_slow = shoulder_slow;
 #ifdef CONFIG_A320_MICROTAP
         /* Reuse the old blocked/cancel path without changing any tap policy.
          * scroll=true here means no XY replay; it does NOT emit wheel data. */
@@ -301,7 +321,17 @@ static void a320_poll_work_handler(struct k_work *work) {
         sum_dy = 0;
         sample_cnt = 0;
         last_read_time = 0;
+        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
         tp_pointer_reset(&cursor_motion);
+    }
+    if (scroll_locked != last_scroll_locked || shoulder_slow != last_shoulder_slow) {
+        /* Do not carry raw samples or fractional wheel notches across lock/speed edges. */
+        sum_dx = sum_dy = 0;
+        sample_cnt = 0;
+        last_read_time = 0;
+        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        last_scroll_locked = scroll_locked;
+        last_shoulder_slow = shoulder_slow;
     }
     if (speed != last_cursor_speed_snapshot) {
         tp_pointer_reset(&cursor_motion);
@@ -404,8 +434,20 @@ static void a320_poll_work_handler(struct k_work *work) {
                         scroll_y = 0;
                     }
 
-                    a320_report_rel(dev, INPUT_REL_HWHEEL, -scroll_x, false, K_FOREVER);
-                    a320_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);
+                    int16_t wheel_x = -scroll_x;
+                    int16_t wheel_y = scroll_y;
+                    if (scroll_locked) {
+                        /* HID +wheel is up: rotate the emitted (right, up) vector CCW. */
+                        int16_t unrotated_x = wheel_x;
+                        wheel_x = -wheel_y;
+                        wheel_y = unrotated_x;
+                    }
+                    if (shoulder_slow) {
+                        wheel_x = scroll_half_with_remainder(wheel_x, &shoulder_scroll_remainder_x);
+                        wheel_y = scroll_half_with_remainder(wheel_y, &shoulder_scroll_remainder_y);
+                    }
+                    a320_report_rel(dev, INPUT_REL_HWHEEL, wheel_x, false, K_FOREVER);
+                    a320_report_rel(dev, INPUT_REL_WHEEL, wheel_y, true, K_FOREVER);
                 }
             }
         } else {
@@ -417,6 +459,7 @@ static void a320_poll_work_handler(struct k_work *work) {
             sum_dx = sum_dy = 0;
             sample_cnt = 0;
             last_read_time = 0;
+            shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
             tp_pointer_reset(&cursor_motion);
         }
     } else {
@@ -486,6 +529,27 @@ bool tp_is_touched(void) { return atomic_get(&touched) != 0; }
 bool tp_scroll_mode_active(void) {
     return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_FLAGS) != 0;
 }
+bool tp_scroll_is_locked(void) {
+    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
+    /* A held aA temporarily restores the original scroll mode over a latched lock. */
+    return (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
+}
+static uint32_t scroll_shoulder_bit(uint32_t position) {
+    if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }
+    if (position == TP_RIGHT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_RIGHT_BIT; }
+    return 0U;
+}
+void tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed) {
+    uint32_t bit = scroll_shoulder_bit(position);
+    if (bit == 0U) { return; }
+    uint32_t current = (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot);
+    uint32_t next = pressed ? (current | bit) : (current & ~bit);
+    atomic_set(&scroll_shoulder_modifier_snapshot, (int32_t)next);
+}
+bool tp_scroll_shoulder_slow_active(void) {
+    return tp_scroll_is_locked() &&
+           ((uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U);
+}
 bool tp_aa_is_pressed(void) {
     return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_PRESSED) != 0;
 }
@@ -516,6 +580,7 @@ static int a320_init(const struct device *dev) {
     }
 
     data->dev = dev;
+    atomic_set(&scroll_shoulder_modifier_snapshot, 0);
 #ifdef CONFIG_A320_MICROTAP
     tp_microtap_runtime_init();
 #elif defined(CONFIG_A320_TAP_OUTPUT)

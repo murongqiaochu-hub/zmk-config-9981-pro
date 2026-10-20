@@ -69,6 +69,12 @@ for relative in paths:
     after = layers((ROOT / relative).read_text())
     assert before['upper_layer'][40] == '&to DEFAULT'
     before['upper_layer'][40] = '&aa_sym_ctrl'
+    assert before['upper_layer'][41] == '&to DEFAULT'
+    before['upper_layer'][41] = '&to UPPER'  # double-tap scroll lock pins UPPER
+    assert before['upper_layer'][0] == '&msc SCRL_UP'
+    assert before['upper_layer'][1] == '&msc SCRL_DOWN'
+    before['upper_layer'][0] = '&aa_scroll_shoulder SCRL_UP'
+    before['upper_layer'][1] = '&aa_scroll_shoulder SCRL_DOWN'
     before['default_layer'][0] = '&microtap_shoulder'
     assert before['upper_layer'][7] == '&none'
     before['upper_layer'][7] = '&out OUT_BLE'
