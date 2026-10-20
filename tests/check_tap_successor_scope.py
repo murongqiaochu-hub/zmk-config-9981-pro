@@ -48,9 +48,9 @@ current = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.i
 assert current - set(paths) == NEW, sorted(current - set(paths))
 assert len(protected) >= 46
 
-# Not a blanket exemption: remove exactly GP gates plus the v2.2.4 scroll-lock
-# additions, then compare every remaining old source byte. Only A320's historical
-# full-CRLF line endings normalize to LF; no other whitespace is ignored.
+# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4/v2.2.5
+# scroll-lock/rotation additions, then compare every remaining old source byte. Only
+# A320's historical full-CRLF line endings normalize to LF; no other whitespace is ignored.
 a320 = (ROOT / (PREFIX + 'a320_0x57.c')).read_text()
 a320 = cut_to(a320, '#ifdef CONFIG_BBP9981_GAMEPAD\n#include "gamepad_runtime.h"',
               '#ifdef CONFIG_A320_TAP_OUTPUT\n')
@@ -58,18 +58,23 @@ a320 = cut_to(a320, '#ifdef CONFIG_BBP9981_GAMEPAD\n    uint32_t game_epoch',
               '    /* Epoch also detects enter+exit entirely between two sensor polls. */')
 a320 = a320.replace('a320_report_rel(', 'input_report_rel(')
 a320 = remove_exact(a320, '#include "trackpad_scroll_lock.h"\n')
+a320 = remove_exact(a320, 'static uint8_t last_scroll_rotation;\n')
+a320 = remove_exact(a320, '        /* Each lock session starts unrotated; a held aA override does not reset it. */\n        tp_scroll_rotation_reset();\n')
+a320 = remove_exact(a320, '    if (ev->state && ev->position != TP_LEFT_SHOULDER_POSITION &&\n        ev->position != TP_RIGHT_SHOULDER_POSITION) {\n        tp_scroll_shoulder_tap_cancel();\n    }\n')
 a320 = remove_exact(a320, '/* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */\nstatic atomic_t scroll_shoulder_modifier_snapshot;\n')
 a320 = remove_exact(a320, 'static bool last_scroll_locked;\nstatic bool last_shoulder_slow;\nstatic int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;\n')
 a320 = remove_exact(a320, '/* Halve discrete wheel reports without discarding every odd notch. */\nstatic int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {\n    int32_t total = (int32_t)value + *remainder;\n    int16_t scaled = (int16_t)(total / 2);\n    *remainder = (int16_t)(total % 2);\n    return scaled;\n}\n\n')
 a320 = remove_exact(a320, '    bool scroll_locked = (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;\n    bool shoulder_slow = scroll_locked &&\n                          (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U;\n')
+a320 = remove_exact(a320, '    uint8_t scroll_rotation = tp_scroll_rotation_quadrants();\n')
 a320 = remove_exact(a320, '    if (scroll_locked != last_scroll_locked || shoulder_slow != last_shoulder_slow) {\n        /* Do not carry raw samples or fractional wheel notches across lock/speed edges. */\n        sum_dx = sum_dy = 0;\n        sample_cnt = 0;\n        last_read_time = 0;\n        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;\n        last_scroll_locked = scroll_locked;\n        last_shoulder_slow = shoulder_slow;\n    }\n')
+a320 = remove_exact(a320, '    if (scroll_rotation != last_scroll_rotation) {\n        /* A new orientation must not inherit partial motion or odd half-speed notches. */\n        sum_dx = sum_dy = 0;\n        sample_cnt = 0;\n        last_read_time = 0;\n        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;\n        last_scroll_rotation = scroll_rotation;\n    }\n')
 remainder_lines = re.findall(r'(?m)^[ \t]*shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;\n', a320)
 assert len(remainder_lines) == 2, f'unexpected leftover scroll remainder resets: {len(remainder_lines)}'
 a320 = re.sub(r'(?m)^[ \t]*shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;\n', '', a320)
 new_wheel = '''                    int16_t wheel_x = -scroll_x;
                     int16_t wheel_y = scroll_y;
                     if (scroll_locked) {
-                        /* HID +wheel is up: rotate the emitted (right, up) vector CCW. */
+                        tp_scroll_apply_rotation(scroll_rotation, &wheel_x, &wheel_y);
                         int16_t unrotated_x = wheel_x;
                         wheel_x = -wheel_y;
                         wheel_y = unrotated_x;
@@ -81,6 +86,7 @@ new_wheel = '''                    int16_t wheel_x = -scroll_x;
                     input_report_rel(dev, INPUT_REL_HWHEEL, wheel_x, false, K_FOREVER);
                     input_report_rel(dev, INPUT_REL_WHEEL, wheel_y, true, K_FOREVER);
 '''
+new_wheel = re.sub(r'\n[ \t]*int16_t unrotated_x = wheel_x;\n[ \t]*wheel_x = -wheel_y;\n[ \t]*wheel_y = unrotated_x;', '', new_wheel)
 assert a320.count(new_wheel) == 1
 a320 = a320.replace(new_wheel, '                    input_report_rel(dev, INPUT_REL_HWHEEL, -scroll_x, false, K_FOREVER);\n                    input_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);\n')
 a320 = remove_exact(a320, 'bool tp_scroll_is_locked(void) {\n    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);\n    /* A held aA temporarily restores the original scroll mode over a latched lock. */\n    return (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;\n}\nstatic uint32_t scroll_shoulder_bit(uint32_t position) {\n    if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }\n    if (position == TP_RIGHT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_RIGHT_BIT; }\n    return 0U;\n}\nvoid tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed) {\n    uint32_t bit = scroll_shoulder_bit(position);\n    if (bit == 0U) { return; }\n    uint32_t current = (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot);\n    uint32_t next = pressed ? (current | bit) : (current & ~bit);\n    atomic_set(&scroll_shoulder_modifier_snapshot, (int32_t)next);\n}\nbool tp_scroll_shoulder_slow_active(void) {\n    return tp_scroll_is_locked() &&\n           ((uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U);\n}\n')
@@ -124,4 +130,4 @@ assert workflow.count(f'refs/heads/{branch}') == 1 and workflow.count(f'HEAD:{br
 conf = (ROOT / 'config/bbp9981.conf').read_text()
 assert conf == old('config/bbp9981.conf').decode().replace('\r\n', '\n').replace('CONFIG_ZMK_BLE=y\n',
     'CONFIG_ZMK_BLE=y\n\n# Keep the stock keyboard/mouse HID_0; expose the gamepad on its own USB HID_1.\nCONFIG_BBP9981_GAMEPAD=y\nCONFIG_USB_HID_DEVICE_COUNT=2\nCONFIG_USB_HID_REPORTS=4\n')
-print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4 scroll additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 12 new gamepad/scroll config files only')
+print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4/v2.2.5 scroll additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 12 new gamepad/scroll config files only')

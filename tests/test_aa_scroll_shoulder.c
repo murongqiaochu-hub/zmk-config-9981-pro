@@ -50,6 +50,7 @@ static void reset(void) {
     invoke_count = 0U;
     atomic_set(&locked_modifier_mask, 0);
     atomic_set(&native_scroll_mask, 0);
+    tp_scroll_rotation_reset();
 }
 static void test_locked_shoulders_are_modifier_owners(void) {
     reset(); fake_locked = true;
@@ -103,10 +104,89 @@ static void test_native_release_failure_is_retried_before_new_press(void) {
     assert(api.binding_released(&wrapper_up, left) == ZMK_BEHAVIOR_OPAQUE);
     assert(atomic_get(&native_scroll_mask) == 0);
 }
+static struct zmk_behavior_binding *wrapper_for(uint32_t position) {
+    return position == TP_LEFT_SHOULDER_POSITION ? &wrapper_up : &wrapper_down;
+}
+static void click(uint32_t position, int64_t at) {
+    struct zmk_behavior_binding_event event = edge(position, at);
+    struct zmk_behavior_binding *wrapper = wrapper_for(position);
+    assert(api.binding_pressed(wrapper, event) == ZMK_BEHAVIOR_OPAQUE);
+    event.timestamp = at + 30;
+    assert(api.binding_released(wrapper, event) == ZMK_BEHAVIOR_OPAQUE);
+}
+static void triple(uint32_t position, int64_t at) {
+    click(position, at);
+    click(position, at + 100);
+    click(position, at + 200);
+}
+static void test_triple_tap_rotation_steps_and_direction(void) {
+    reset(); fake_locked = true;
+    click(TP_RIGHT_SHOULDER_POSITION, 100);
+    click(TP_RIGHT_SHOULDER_POSITION, 200);
+    assert(tp_scroll_rotation_quadrants() == 0U);
+    click(TP_RIGHT_SHOULDER_POSITION, 300);
+    assert(tp_scroll_rotation_quadrants() == 1U && invoke_count == 0U);
+
+    const int16_t input[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
+    const int16_t expected[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+    for (unsigned int i = 0; i < 4U; ++i) {
+        int16_t x = input[i][0], y = input[i][1];
+        tp_scroll_apply_rotation(1U, &x, &y);
+        assert(x == expected[i][0] && y == expected[i][1]);
+    }
+    int16_t x = INT16_MIN, y = 0;
+    tp_scroll_apply_rotation(1U, &x, &y);
+    assert(x == 0 && y == INT16_MAX);
+
+    click(TP_RIGHT_SHOULDER_POSITION, 500);
+    click(TP_RIGHT_SHOULDER_POSITION, 600);
+    assert(tp_scroll_rotation_quadrants() == 1U); /* One full triple, one step. */
+    click(TP_RIGHT_SHOULDER_POSITION, 700);
+    assert(tp_scroll_rotation_quadrants() == 2U);
+    triple(TP_LEFT_SHOULDER_POSITION, 1000);
+    assert(tp_scroll_rotation_quadrants() == 1U);
+
+    tp_scroll_rotation_reset();
+    triple(TP_LEFT_SHOULDER_POSITION, 2000);
+    assert(tp_scroll_rotation_quadrants() == 3U); /* Right->up; reverse of step 1. */
+    triple(TP_RIGHT_SHOULDER_POSITION, 2400);
+    assert(tp_scroll_rotation_quadrants() == 0U);
+}
+static void test_triple_tap_boundaries_and_cancellation(void) {
+    reset(); fake_locked = true;
+    click(TP_RIGHT_SHOULDER_POSITION, 100);
+    click(TP_RIGHT_SHOULDER_POSITION, 200);
+    click(TP_RIGHT_SHOULDER_POSITION, 501); /* >220 ms release-to-press gap */
+    assert(tp_scroll_rotation_quadrants() == 0U);
+
+    struct zmk_behavior_binding_event event = edge(TP_RIGHT_SHOULDER_POSITION, 1000);
+    assert(api.binding_pressed(&wrapper_down, event) == ZMK_BEHAVIOR_OPAQUE);
+    event.timestamp = 1181; /* >180 ms: held, not a tap */
+    assert(api.binding_released(&wrapper_down, event) == ZMK_BEHAVIOR_OPAQUE);
+    click(TP_RIGHT_SHOULDER_POSITION, 1300);
+    click(TP_RIGHT_SHOULDER_POSITION, 1400);
+    assert(tp_scroll_rotation_quadrants() == 0U);
+    click(TP_RIGHT_SHOULDER_POSITION, 1500);
+    assert(tp_scroll_rotation_quadrants() == 1U);
+
+    tp_scroll_rotation_reset();
+    click(TP_RIGHT_SHOULDER_POSITION, 2000);
+    click(TP_RIGHT_SHOULDER_POSITION, 2100);
+    triple(TP_LEFT_SHOULDER_POSITION, 2300); /* Changing side cancels the partial right sequence. */
+    assert(tp_scroll_rotation_quadrants() == 3U);
+
+    tp_scroll_rotation_reset();
+    fake_locked = false;
+    triple(TP_RIGHT_SHOULDER_POSITION, 3000);
+    assert(tp_scroll_rotation_quadrants() == 0U && invoke_count == 6U);
+}
 int main(void) {
     test_locked_shoulders_are_modifier_owners();
     test_temporary_scroll_forwards_native_behavior();
     test_failed_native_press_never_creates_orphan_release();
     test_native_release_failure_is_retried_before_new_press();
-    puts("PASS UPPER shoulder wrapper: locked modifier OR owners, native msc hold/release forwarding, opaque child errors, retry failed release");
+    test_triple_tap_rotation_steps_and_direction();
+    test_triple_tap_boundaries_and_cancellation();
+    puts("PASS UPPER shoulder wrapper: native/locked ownership, one step per triple, direction vectors, timing and cancellation");
+    return 0;
 }

@@ -153,8 +153,10 @@
         };
 
         upper_layer {
-            /* Double-tap locks scrolling and pins UPPER; SYM exits. Holding aA temporarily
-             * restores the original trackpad direction and native msc shoulder actions. */
+            /* Double-tap locks scrolling unrotated and pins UPPER; SYM exits. Unlock/relock
+             * resets orientation. In lock, either shoulder halves trackpad wheel and suppresses
+             * its own wheel; triple right rotates left->up, triple left rotates right->up.
+             * Holding aA temporarily restores original direction and native shoulder actions. */
             bindings = <
                  &aa_scroll_shoulder SCRL_UP                                                                               &aa_scroll_shoulder SCRL_DOWN
     &bt BT_SEL 0            &bt BT_SEL 1                                  &td0                              &bt BT_SEL 2                     &bt BT_SEL 3

@@ -1,5 +1,11 @@
 /* Actual production helper + poll/listener regressions, not hardware/HID tests. */
 #include "test_env.h"
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_scroll_lock.h"
+static uint8_t fake_scroll_rotation;
+static unsigned rotation_reset_calls, tap_cancel_calls;
+void tp_scroll_rotation_reset(void) { rotation_reset_calls++;fake_scroll_rotation=0; }
+uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
+void tp_scroll_shoulder_tap_cancel(void) { tap_cancel_calls++; }
 static uint8_t pointer_brightness = 40;
 static int burst_error;
 static unsigned brightness_reads;
@@ -25,6 +31,8 @@ static void fixture(void) {
     atomic_set(&scroll_shoulder_modifier_snapshot, 0);
     last_scroll_locked = last_shoulder_slow = false;
     shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+    fake_scroll_rotation = 0; last_scroll_rotation = 0;
+    rotation_reset_calls = tap_cancel_calls = 0;
     atomic_set(&cursor_speed_snapshot, 0); last_cursor_speed_snapshot = 0;
     atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
     sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
@@ -194,26 +202,37 @@ static void scroll_window(int8_t dx, int8_t dy, uint32_t start) {
 }
 static void test_locked_scroll_rotation_and_shoulder_half(void) {
     fixture(); lock_scroll(); scroll_window(10, 0, 1000);
-    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
-           report_values[INPUT_REL_WHEEL - 1] == 1); /* right -> up */
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 1 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0); /* default: right stays right */
 
     fixture(); lock_scroll(); scroll_window(0, 10, 1000);
-    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 3 &&
-           report_values[INPUT_REL_WHEEL - 1] == 0); /* down -> right */
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == -3); /* default: no rotation */
 
     fixture(); lock_scroll(); scroll_window(-10, 0, 1000);
-    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
-           report_values[INPUT_REL_WHEEL - 1] == -1); /* left -> down */
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == -1 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0);
     fixture(); lock_scroll(); scroll_window(0, -10, 1000);
-    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == -3 &&
-           report_values[INPUT_REL_WHEEL - 1] == 0); /* up -> left */
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == 3);
 
-    fixture(); key(41, true, 100); assert(tp_scroll_mode_active() && !tp_scroll_is_locked());
+    fixture(); lock_scroll(); fake_scroll_rotation = 1U; scroll_window(10, 0, 1000);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == -1); /* right -> down */
+    fixture(); lock_scroll(); fake_scroll_rotation = 1U; scroll_window(0, 10, 1000);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == -3 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0); /* down -> left */
+    fixture(); lock_scroll(); fake_scroll_rotation = 3U; scroll_window(10, 0, 1000);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == 1); /* right -> up, reverse step */
+
+    fixture(); key(41, true, 100); fake_scroll_rotation = 1U;
+    assert(tp_scroll_mode_active() && !tp_scroll_is_locked());
     scroll_window(0, 10, 1000);
     assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
-           report_values[INPUT_REL_WHEEL - 1] == -3); /* held aA keeps original direction */
+           report_values[INPUT_REL_WHEEL - 1] == -3); /* held aA temporarily restores original */
 
-    fixture(); lock_scroll(); key(41, true, 300);
+    fixture(); lock_scroll(); fake_scroll_rotation = 1U; key(41, true, 300);
     assert(tp_scroll_mode_active() && !tp_scroll_is_locked());
     tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
     assert(!tp_scroll_shoulder_slow_active());
@@ -221,6 +240,10 @@ static void test_locked_scroll_rotation_and_shoulder_half(void) {
     assert(report_values[INPUT_REL_HWHEEL - 1] == 0 && report_values[INPUT_REL_WHEEL - 1] == -3);
     tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, false);
     key(41, false, 320); assert(tp_scroll_is_locked());
+    scroll_window(0, 10, 1040);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == -3 && report_values[INPUT_REL_WHEEL - 1] == 0);
+
+
 
     fixture(); lock_scroll();
     tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
@@ -232,8 +255,8 @@ static void test_locked_scroll_rotation_and_shoulder_half(void) {
     assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
            report_values[INPUT_REL_WHEEL - 1] == 0); /* fractional half-notch retained */
     scroll_window(10, 0, 1040);
-    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 0 &&
-           report_values[INPUT_REL_WHEEL - 1] == 1);
+    assert(report_count == 2 && report_values[INPUT_REL_HWHEEL - 1] == 1 &&
+           report_values[INPUT_REL_WHEEL - 1] == 0);
     tp_scroll_shoulder_modifier_update(TP_RIGHT_SHOULDER_POSITION, false);
     assert(!tp_scroll_shoulder_slow_active());
 
@@ -243,6 +266,6 @@ static void test_locked_scroll_rotation_and_shoulder_half(void) {
 int main(void) {
     test_conservation(); test_idle_reverse(); test_transitions_faults(); test_wheel_unchanged();
     test_locked_scroll_rotation_and_shoulder_half();
-    puts("PASS Locked scroll: CCW90 rotation, held-aA override, any-shoulder half-speed with retained fractional notches");
+    puts("PASS Locked scroll: unrotated default, selected quarter-turns, held-aA override, half-speed remainder");
     return 0;
 }

@@ -1,7 +1,12 @@
 #include "test_env.h"
 static unsigned sym_release_count;
+static unsigned rotation_reset_count, tap_cancel_count;
+static uint8_t fake_scroll_rotation;
 int tp_sym_ctrl_release(int64_t t) { (void)t;sym_release_count++;return 0; }
 int tp_sym_ctrl_update(bool aa,bool sym,int64_t t) { (void)sym;return aa?0:tp_sym_ctrl_release(t); }
+void tp_scroll_rotation_reset(void) { rotation_reset_count++;fake_scroll_rotation=0; }
+uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
+void tp_scroll_shoulder_tap_cancel(void) { tap_cancel_count++; }
 uint8_t indicator_tp_get_last_valid_brightness(void) { return 40; }
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 
@@ -9,7 +14,14 @@ static void key(uint32_t p,bool down,int64_t t) {
     zmk_event_t e={.valid=true,.data={.position=p,.state=down,.timestamp=t}};
     assert(ctrl_listener_cb(&e)==0);
 }
-static void reset_keys(void) { memset(&scroll_keys,0,sizeof(scroll_keys));sym_physically_pressed=false;atomic_set(&scroll_mode_snapshot,0); }
+static void reset_keys(void) {
+    memset(&scroll_keys,0,sizeof(scroll_keys));
+    sym_physically_pressed=false;
+    atomic_set(&scroll_mode_snapshot,0);
+    fake_scroll_rotation=0;
+    rotation_reset_count=0;
+    tap_cancel_count=0;
+}
 int main(void) {
     /* Actual listener uses original timestamp, independent of dispatch clock. */
     fake_now=90000;key(41,true,0);key(41,false,100);
@@ -45,6 +57,17 @@ int main(void) {
     /* A complete mode round-trip between sensor polls still invalidates old motion. */
     reset_keys();key(41,true,0);key(41,false,500);assert(!tp_scroll_mode_active());
     assert(((uint32_t)atomic_get(&scroll_mode_snapshot)&TP_MODE_EPOCH_MASK)!=0);
+
+    /* Orientation is per latched lock session; holding aA is only temporary. */
+    reset_keys();
+    key(41,true,0);key(41,false,50);key(41,true,100);key(41,false,150);
+    assert(scroll_keys.latched && rotation_reset_count==1U && fake_scroll_rotation==0U);
+    fake_scroll_rotation=1U;
+    key(41,true,200);key(41,false,700); /* Long hold restores direction temporarily. */
+    assert(scroll_keys.latched && rotation_reset_count==1U && fake_scroll_rotation==1U);
+    key(41,true,800);key(41,false,850);key(41,true,900);key(41,false,950);
+    assert(!scroll_keys.latched && rotation_reset_count==2U && fake_scroll_rotation==0U);
+
     struct a320_dev_config cfg={.i2c={.bus=&fake_device}};
     struct a320_data data={0};struct device dev={.name="sensor",.config=&cfg,.data=&data};data.dev=&dev;
     sum_dx=40;sum_dy=40;sample_cnt=3;last_read_time=10;fake_gpio_state=1;

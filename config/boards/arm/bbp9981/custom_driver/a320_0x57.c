@@ -78,6 +78,7 @@ static uint32_t last_read_time = 0;
 static bool last_scroll_locked;
 static bool last_shoulder_slow;
 static int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;
+static uint8_t last_scroll_rotation;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
 
@@ -223,7 +224,13 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
     tp_key_state_update(&scroll_keys, ev->position, ev->state, ev->timestamp);
     atomic_set(&scroll_mode_snapshot, scroll_keys.snapshot);
     if (was_latched != scroll_keys.latched) {
+        /* Each lock session starts unrotated; a held aA override does not reset it. */
+        tp_scroll_rotation_reset();
         LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
+    }
+    if (ev->state && ev->position != TP_LEFT_SHOULDER_POSITION &&
+        ev->position != TP_RIGHT_SHOULDER_POSITION) {
+        tp_scroll_shoulder_tap_cancel();
     }
     if (ev->position == TP_SYM_POSITION) { sym_physically_pressed = ev->state; }
     if (ev->position == TP_AA_POSITION || ev->position == TP_SYM_POSITION) {
@@ -275,6 +282,7 @@ static void a320_poll_work_handler(struct k_work *work) {
     bool scroll_locked = (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
     bool shoulder_slow = scroll_locked &&
                           (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U;
+    uint8_t scroll_rotation = tp_scroll_rotation_quadrants();
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
     bool slow_pointer = (speed & 1U) != 0;
 
@@ -298,6 +306,7 @@ static void a320_poll_work_handler(struct k_work *work) {
         tp_pointer_reset(&cursor_motion);
         last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
         last_scroll_locked = scroll_locked; last_shoulder_slow = shoulder_slow;
+        last_scroll_rotation = scroll_rotation;
 #ifdef CONFIG_A320_MICROTAP
         /* Reuse the old blocked/cancel path without changing any tap policy.
          * scroll=true here means no XY replay; it does NOT emit wheel data. */
@@ -332,6 +341,14 @@ static void a320_poll_work_handler(struct k_work *work) {
         shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
         last_scroll_locked = scroll_locked;
         last_shoulder_slow = shoulder_slow;
+    }
+    if (scroll_rotation != last_scroll_rotation) {
+        /* A new orientation must not inherit partial motion or odd half-speed notches. */
+        sum_dx = sum_dy = 0;
+        sample_cnt = 0;
+        last_read_time = 0;
+        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        last_scroll_rotation = scroll_rotation;
     }
     if (speed != last_cursor_speed_snapshot) {
         tp_pointer_reset(&cursor_motion);
@@ -437,10 +454,7 @@ static void a320_poll_work_handler(struct k_work *work) {
                     int16_t wheel_x = -scroll_x;
                     int16_t wheel_y = scroll_y;
                     if (scroll_locked) {
-                        /* HID +wheel is up: rotate the emitted (right, up) vector CCW. */
-                        int16_t unrotated_x = wheel_x;
-                        wheel_x = -wheel_y;
-                        wheel_y = unrotated_x;
+                        tp_scroll_apply_rotation(scroll_rotation, &wheel_x, &wheel_y);
                     }
                     if (shoulder_slow) {
                         wheel_x = scroll_half_with_remainder(wheel_x, &shoulder_scroll_remainder_x);
