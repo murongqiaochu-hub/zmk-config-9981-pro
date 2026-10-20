@@ -24,6 +24,18 @@
 #include "trackpad_key_state.h"
 #include "trackpad_pointer.h"
 #include "aa_sym_ctrl.h"
+#ifdef CONFIG_BBP9981_GAMEPAD
+#include "gamepad_runtime.h"
+/* Late ownership check also covers a layer change during an I2C read/replay.
+ * This does not revoke a mouse packet already admitted by the input/USB SDK. */
+#define a320_report_rel(dev, code, value, sync, timeout) \
+    do { if (!bbp_gamepad_layer_active()) { \
+        (void)input_report_rel(dev, code, value, sync, timeout); \
+    } } while (0)
+static uint32_t last_gamepad_pointer_epoch;
+#else
+#define a320_report_rel input_report_rel
+#endif
 #ifdef CONFIG_A320_TAP_OUTPUT
 #include "trackpad_tap_pipeline.h"
 #endif
@@ -229,8 +241,8 @@ static void micro_emit_cursor(void *opaque, int16_t dx, int16_t dy, uint32_t at_
     /* Only committed raw frames reach the ORIGINAL fractional pointer state.
      * A discarded gesture has never spent a fraction or moved the host cursor. */
     tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy, ctx->slow, at_ms, &x, &y);
-    input_report_rel(ctx->dev, INPUT_REL_X, x, false, K_FOREVER);
-    input_report_rel(ctx->dev, INPUT_REL_Y, y, true, K_FOREVER);
+    a320_report_rel(ctx->dev, INPUT_REL_X, x, false, K_FOREVER);
+    a320_report_rel(ctx->dev, INPUT_REL_Y, y, true, K_FOREVER);
 }
 #endif
 static void a320_poll_work_handler(struct k_work *work) {
@@ -248,6 +260,40 @@ static void a320_poll_work_handler(struct k_work *work) {
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
     uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
     bool slow_pointer = (speed & 1U) != 0;
+
+#ifdef CONFIG_BBP9981_GAMEPAD
+    uint32_t game_epoch = bbp_gamepad_pointer_epoch();
+    if (game_epoch != last_gamepad_pointer_epoch) {
+        sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
+        tp_pointer_reset(&cursor_motion);
+        last_gamepad_pointer_epoch = game_epoch;
+    }
+    if (bbp_gamepad_layer_active()) {
+        int16_t game_dx = 0, game_dy = 0;
+        bool valid = pin_state >= 0;
+        if (pin_state == 0) { valid = a320_read_motion(dev, &game_dx, &game_dy) == 0; }
+        atomic_set(&touched, valid && pin_state == 0);
+        bbp_gamepad_trackpad_poll(game_dx, game_dy, valid, k_uptime_get());
+        /* Never spend old cursor fractions or wheel accumulation in a stick. */
+        sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
+        tp_pointer_reset(&cursor_motion);
+        last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
+#ifdef CONFIG_A320_MICROTAP
+        /* Reuse the old blocked/cancel path without changing any tap policy.
+         * scroll=true here means no XY replay; it does NOT emit wheel data. */
+        tp_microtap_runtime_interrupt();
+        tp_microtap_runtime_poll(k_uptime_get_32(), 0, 0, false, true, snapshot, speed, NULL, NULL);
+#elif defined(CONFIG_A320_TAP_OUTPUT)
+        tp_tap_pipeline_poll(k_uptime_get_32(), 0, 0, true, true, snapshot);
+#endif
+#ifdef CONFIG_A320_CONTACT_PROBE
+        const struct a320_dev_config *game_probe_cfg = data->dev->config;
+        probe_poll(&game_probe_cfg->i2c, pin_state);
+#endif
+        k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
+        return;
+    }
+#endif
 
     /* Epoch also detects enter+exit entirely between two sensor polls. */
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
@@ -286,8 +332,8 @@ static void a320_poll_work_handler(struct k_work *work) {
                 int16_t cursor_x, cursor_y;
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
                                   slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
-                input_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
-                input_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
+                a320_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
+                a320_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
 #endif
             }
 
@@ -358,8 +404,8 @@ static void a320_poll_work_handler(struct k_work *work) {
                         scroll_y = 0;
                     }
 
-                    input_report_rel(dev, INPUT_REL_HWHEEL, -scroll_x, false, K_FOREVER);
-                    input_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);
+                    a320_report_rel(dev, INPUT_REL_HWHEEL, -scroll_x, false, K_FOREVER);
+                    a320_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);
                 }
             }
         } else {

@@ -61,6 +61,10 @@ def label(binding):
     if b == '&kp': return [NAMES.get(a[0], a[0])]
     if b == '&mkp': return ['左键' if a[0] == 'LCLK' else '右键']
     if b == '&microtap_shoulder': return ['左键', '三击轻拍开关']
+    if b == '&gamepad':
+        return [['↑'], ['↓'], ['←'], ['→'], ['A'], ['B'], ['X'], ['Y'], ['LB'], ['RB'],
+                ['LT'], ['RT'], ['View'], ['Menu'], ['Guide'], ['L3'], ['R3'],
+                ['按住→右杆'], ['L3/R3', '按黑莓模式']][int(a[0])]
     if b == '&mt': return [NAMES[a[1]], '按住 ' + NAMES[a[0]]]
     if b == '&sk_kp': return ['Ctrl', '点按一次性']
     if b == '&sl_mo': return ['SYM' if a[0] == '1' else 'aA', '点一次 / 按住']
@@ -87,7 +91,7 @@ def diagram(layer, items, geometry):
         yy, hh = y * .74, h * .74
         lines = label(binding)
         danger = layer == 'upper' and i in (4, 10, 11, 35)
-        tint = i in (37, 40, 41) or layer == 'upper' and i == 7
+        tint = i in (37, 40, 41) or layer == 'upper' and i == 7 or binding.startswith('&gamepad ')
         fill, stroke, ink = ('#fff0f1', '#dc8491', '#a32839') if danger else (('#e7f6f5', '#95cccb', '#087d7e') if tint else ('#f8fafc', '#cbd6e2', '#20364d'))
         if binding == '&none': ink = '#9daabd'
         out.append(f'<g data-key="{i}" data-binding="{html.escape(binding, quote=True)}"><rect x="{x+4}" y="{yy+4}" width="{w-8}" height="{hh-8}" rx="9" fill="{fill}" stroke="{stroke}" stroke-width="2"/>')
@@ -164,7 +168,7 @@ html,body{margin:0;padding:0}body{font-family:ManualHan,Arial,sans-serif;font-si
 h2{font-size:23px;line-height:1.3;margin:0 0 11px;font-weight:700}h3{font-size:15px;line-height:1.4;margin:13px 0 6px}p{margin:7px 0}ul,ol{padding-left:20px;margin:8px 0}li{margin:5px 0}strong{font-weight:700;color:#124d7d}
 a{color:#125bb4;text-decoration:none;overflow-wrap:anywhere}code{font-family:Consolas,monospace;font-size:.9em;overflow-wrap:anywhere;word-break:break-all;color:#335576}
 table{width:100%;border-collapse:collapse;font-size:11.6px;line-height:1.48;margin:9px 0;table-layout:fixed}th,td{padding:5px 6px;border-bottom:1px solid #dbe5ef;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eaf2ff;color:#125bb4;font-weight:700}tr:nth-child(even) td{background:#f8fafc}th:first-child,td:first-child{width:32%}table[data-cols="4"] th,table[data-cols="4"] td{width:auto}table[data-cols="4"] th:nth-child(odd),table[data-cols="4"] td:nth-child(odd){width:9%}
-.map{margin:6px 0}.map svg{width:100%;height:auto;display:block}.caption{color:#607389;font-size:10px;margin:2px 0 5px}.footer{position:absolute;bottom:7mm;left:10mm;right:10mm;border-top:1px solid #dbe5ef;padding-top:5px;font-size:9px;color:#607389;display:flex;justify-content:space-between}.content{display:flow-root}#p01 h2{font-size:28px}#p13 table th,#p13 table td{padding-top:3px;padding-bottom:3px}#p23 table{font-size:10.8px}#p23 p{font-size:12px}#p22 p,#p22 li{font-size:12.5px}
+.map{margin:6px 0}.map svg{width:100%;height:auto;display:block}.caption{color:#607389;font-size:10px;margin:2px 0 5px}.footer{position:absolute;bottom:7mm;left:10mm;right:10mm;border-top:1px solid #dbe5ef;padding-top:5px;font-size:9px;color:#607389;display:flex;justify-content:space-between}.content{display:flow-root}#p01 h2{font-size:28px}#p13 table th,#p13 table td{padding-top:3px;padding-bottom:3px}#p23 table{font-size:10.8px}#p23 p{font-size:12px}#p22 p,#p22 li,#p24 p,#p24 li,#p25 p,#p25 li{font-size:12.5px}#p17 table th,#p17 table td{padding-top:3px;padding-bottom:3px}
 @page{size:A5;margin:0}@media screen{.page{margin:18px auto;box-shadow:0 8px 28px #19304a18}}@media print{body{background:#fff}.page{margin:0;box-shadow:none}}
 '''
 

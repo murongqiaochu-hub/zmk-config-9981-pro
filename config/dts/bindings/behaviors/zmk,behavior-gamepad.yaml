@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+description: Xbox-layout standard HID action in MEDIA (UP0 DOWN1 LEFT2 RIGHT3 A4 B5 X6 Y7 LB8 RB9 LT10 RT11 VIEW12 MENU13 GUIDE14 L3-15 R3-16 RIGHTMOD17 CLICK18); not XInput
+compatible: "zmk,behavior-gamepad"
+include: one_param.yaml

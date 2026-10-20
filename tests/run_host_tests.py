@@ -55,6 +55,7 @@ subprocess.run([str(exe)], check=True)
 BASE = 'd7e535e'
 paths = ['config/bbp9981.keymap', 'config/boards/arm/bbp9981/bbp9981.keymap']
 def layers(text):
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
     result = {}
     for name in ['default_layer', 'sym_layer', 'upper_layer', 'media_layer']:
         body = re.search(r'\b' + name + r'\s*\{\s*bindings\s*=\s*<(.*?)>;', text, re.S).group(1)
@@ -71,10 +72,16 @@ for relative in paths:
     before['default_layer'][0] = '&microtap_shoulder'
     assert before['upper_layer'][7] == '&none'
     before['upper_layer'][7] = '&out OUT_BLE'
+    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 18, 6: 9, 8: 0, 11: 12, 12: 13,
+               14: 7, 17: 2, 18: 1, 19: 3, 23: 6, 25: 5, 34: 4, 39: 14}
+    for position, action in gamepad.items():
+        assert before['media_layer'][position] == '&none'
+        before['media_layer'][position] = f'&gamepad {action}'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: only left shoulder, SYM Ctrl and unused UPPER-Q explicit OUT_BLE differ from original; all other bindings preserved')
+print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; 17 formerly-empty MEDIA positions gain Xbox-layout HID actions, WASD remains Dpad, IY/JX/LB/MA; three exits and all other bindings unchanged')
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/run_diag_hid.py')], check=True)

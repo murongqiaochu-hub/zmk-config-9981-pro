@@ -77,4 +77,14 @@ config BBP9981_MENU_DIAG
       Observe only three matrix keys, GUI/button snapshots and mouse TX outcomes.
       Does not change GPIO, HID descriptors, key behavior or transport preference.
 
+config BBP9981_GAMEPAD
+    bool "Xbox-layout standard HID gamepad on MEDIA layer"
+    depends on BOARD_BBP9981 && (ZMK_USB || ZMK_BLE)
+    default n
+    help
+      Add report ID4 and a gamepad behavior without using keyboard keycodes.
+      USB uses its own HID_1 interface; BLE appends an encrypted input report.
+      Requires matching bindings. Relative trackpad motion drives one stick
+      at a time; LT/RT are digital. This is not native XInput and has no rumble.
+
 endmenu

@@ -47,6 +47,9 @@
  */
 
 #include "trackpad_tap_output.h"
+#ifdef CONFIG_BBP9981_GAMEPAD
+#include "gamepad_runtime.h"
+#endif
 
 #include <errno.h>
 #include <zephyr/kernel.h>
@@ -93,6 +96,9 @@ static struct {
     struct zmk_endpoint_instance request_endpoint;
     uint32_t request_lifecycle_epoch;
     uint32_t request_context_epoch;
+#ifdef CONFIG_BBP9981_GAMEPAD
+    uint32_t context_gamepad_epoch, request_gamepad_epoch;
+#endif
     uint32_t request_usb_epoch;
     uint32_t observed_usb_epoch;
     uint32_t last_up_at;
@@ -163,6 +169,12 @@ static bool same_lifecycle_locked(void) {
 }
 
 static bool candidate_valid_locked(void) {
+#ifdef CONFIG_BBP9981_GAMEPAD
+    /* DOWN-only gate; UP must still release an already-owned mouse reference.
+     * An enter+exit between worker callbacks is stale even if game is now off. */
+    if (bbp_gamepad_layer_active() ||
+        tap_output.request_gamepad_epoch != bbp_gamepad_pointer_epoch()) { return false; }
+#endif
     return same_lifecycle_locked() && !tap_output.status.cancel_requested &&
            tap_output.request_context_epoch == tap_output.context.epoch &&
            tap_output.context.enabled && tap_output.context.physical_left_known &&
@@ -293,6 +305,11 @@ int tp_tap_output_submit(void) {
     observe_locked(endpoint, ready);
     if (tap_output.status.phase != TP_TAP_OUTPUT_IDLE || tap_output.status.owns_left) {
         ret = -EBUSY;
+#ifdef CONFIG_BBP9981_GAMEPAD
+    } else if (bbp_gamepad_layer_active() ||
+               tap_output.context_gamepad_epoch != bbp_gamepad_pointer_epoch()) {
+        ret = -EACCES;
+#endif
     } else if (!tap_output.context.enabled) {
         ret = -EACCES;
     } else if (!tap_output.context.physical_left_known) {
@@ -312,6 +329,9 @@ int tp_tap_output_submit(void) {
         tap_output.request_endpoint = endpoint;
         tap_output.request_lifecycle_epoch = tap_output.status.lifecycle_epoch;
         tap_output.request_context_epoch = tap_output.context.epoch;
+#ifdef CONFIG_BBP9981_GAMEPAD
+        tap_output.request_gamepad_epoch = tap_output.context_gamepad_epoch;
+#endif
         tap_output.request_usb_epoch = tap_output.observed_usb_epoch;
         tap_output.status.phase = TP_TAP_OUTPUT_QUEUED;
         tap_output.status.cancel_requested = false;
@@ -352,6 +372,9 @@ int tp_tap_output_update_context(struct tp_tap_output_context context) {
     } else {
         bool cancel = context.epoch != tap_output.context.epoch || !context.enabled ||
                       !context.physical_left_known || context.physical_left_down;
+#ifdef CONFIG_BBP9981_GAMEPAD
+        tap_output.context_gamepad_epoch = bbp_gamepad_pointer_epoch();
+#endif
         tap_output.context = context;
         if (cancel && tap_output.status.phase != TP_TAP_OUTPUT_IDLE) {
             if (!tap_output.status.cancel_requested) {
