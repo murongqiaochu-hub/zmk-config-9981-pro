@@ -1,6 +1,6 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-20，与[使用说明书 v2.2.1](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局的标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为本地研发集成，未 ARM 构建、生成 Xbox UF2、USB / BT 枚举、刷写或 App 实玩，未交付或实机验收；2026-10-20 10:44 已获本次 Xbox 分支推送 / Actions / UF2 校验授权，不刷写或清设置。功能源码见手册第 23 章；完整主机回归已实际通过，构建 / 设备验收尚未做。
+2026-10-20，与[使用说明书 v2.2.1](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局的标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。已完成 ARM 云编译、UF2 边界与实际描述符校验并归档；未 USB / BT 实机枚举、刷写或 App 实玩，不能称实机验收；2026-10-20 10:44 已获本次 Xbox 分支推送 / Actions / UF2 校验授权，不刷写或清设置。功能源码见手册第 23 章；完整主机回归与 ARM 构建均已通过；设备验收尚未做，实际来源见[当前交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
@@ -66,7 +66,7 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 - USB 既有专项覆盖旧 ready、SUBMITTING 间隙、early completion、reset/abort、非 0x81 端点、原 HID_0 隔离、最终 IRQ 提交前协议 / context 失效、raw CONFIGURED(0) 与复位协议恢复；固定 HOG/USB/USB_HID/HID fixtures 与对应上游 raw 核对证据沿用同批记录。
 - 实际 runtime、新 A320/micro 所有权与真实异步 bridge 专项均以 strict UBSan 实际通过；原 micro / pointer / wheel / bridge suite 还在 GP 已编译但普通模式下执行通过。它们是软件模型验证，不是 ARM、真实 IRQ/RTOS 或设备验收。完整主机回归已实际通过，覆盖旧键鼠 / 灯光 / 持久化 / SDK 原源回放 / 矩阵 / 文档同步及新手柄全部专项。
 - [范围闸](<../tests/check_tap_successor_scope.py>)实际通过：46 份旧配置字节不动、3 份接入源恢复核对、8 个既有配置接入点及 9 份新增 GP 配置源；旧 gesture 参数、桥接 I/O / UP、灯光、GPIO / 矩阵均保留。矩阵三键鬼键风险未消除，移动 + modifier + 开火仍需实机测试。
-- 完整主机回归和[同步检查](<../tests/check_manual_sync.py>)已实际通过，日志保存于本任务交付目录；后续正文排版修订须再刷新 manifest 并复查同步。ARM / UF2、USB / BT 枚举、刷写和目标 App 实玩均未做；本次 Xbox 分支推送 / 云编译已获授权，未清配对、擦 NVS 或改主机设置。
+- 完整主机回归和[同步检查](<../tests/check_manual_sync.py>)已实际通过，日志保存于本任务交付目录；后续正文排版修订须再刷新 manifest 并复查同步。本轮 ARM / UF2 已另外构建校验归档，但 USB / BT 实机枚举、刷写和目标 App 实玩仍未做；本次 Xbox 分支推送 / 云编译已获授权，未清配对、擦 NVS 或改主机设置。
 
 ## 明确不承诺
 

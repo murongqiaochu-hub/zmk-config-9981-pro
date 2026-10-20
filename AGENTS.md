@@ -26,8 +26,10 @@
 - 触板只有相对光学位移：默认左 X/Y、按住黑莓右 Z/Rz，raw 右正下正；velocity 不累计位置。默认 gain8 / 逻辑 deadzone4 / 75%新+25%旧对称舍入，最大输入首帧为 ±95 而非满量程；有效位移续时，120ms 无有效位移本地归零，GPIO/I2C 故障清轴但不代替按钮 UP。不能把本地计时写成 host ACK 或收包时限；停住手指不能保持杆倾斜，单触板不能独立双杆或同时 L3/R3。
 - 游戏层新增 driver 独占分支、晚发送 gate 及轻拍临时保护 / 取消旧候选，退出恢复原鼠标；不能声称触板 driver / microtap runtime / 输出 bridge 整文件未变。三者仅新增 GP 所有权与代际门；原 gesture 参数、开机 OFF、三击开关、桥接 I/O / 必要 UP、灯光和 GPIO / 矩阵保留。范围闸验证 46 份旧配置字节相同、3 份源去门后精确恢复（仅归一历史 CRLF）。P37 slow、P41 滚轮物理监听仍存在，但游戏层不发鼠标 / 滚轮，P37 不是摇杆加速。
 - 标准 HID ID4：body9，USB10（aligned staging12 但只发10），BLE9 无 ID；13 个真实 Button usages、四轴、数字 LT/RT。它不是 Xbox 原生 XInput，不保证 Windows XInput-only、Xbox 主机或各版本目标 App 兼容；无振动 / Share，Guide 可能被系统截获。矩阵三键鬼键风险未消除，移动 + modifier + 开火等组合必须实测。
-- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。当前未 ARM / UF2、USB / BT 枚举、刷写或 App 实玩；纯核、runtime 新轴合并 / quiet、真实 driver、异步 bridge 及新 ABI 专项已实际通过；完整主机回归已实际通过，含原键鼠 / 灯光 / 矩阵 / 文档同步与新手柄专项；这不是 ARM 或实机验收。
+- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。本次 ARM / UF2 已构建校验并归档，实际构建源 `1c61b81`、Run `39361865259`，见[当前交付记录](<firmware-delivery/XBOX_CURRENT.md>)；未 USB / BT 实机枚举、刷写或 App 实玩；纯核、runtime 新轴合并 / quiet、真实 driver、异步 bridge 及新 ABI 专项已实际通过；完整主机回归已实际通过，含原键鼠 / 灯光 / 矩阵 / 文档同步与新手柄专项；host 结果不是实机验收；ARM 构建已另行通过，不能据此声称应用兼容。
 - [使用说明书](<docs/9981Pro_使用说明书.md>)、[实现笔记](<docs/gamepad_implementation_notes.md>)、[README](<README.md>)、[核对清单](<docs/manual_manifest.json>)与四层图稿须同批同步；导出 PDF / Word / HTML 并核对排版。下面的维护命令不是推送、Actions、刷写或清设置授权。
+
+- 本次 NAS 工作树的 `origin` 是旧本地工作树，不是 GitHub；本次使用已核实的仓库 HTTPS 地址和单命令凭证 helper 发布，未改全局 Git / 代理。后续须先核对 remote，不把本机路径推断成云端。
 
 ## 更新和导出的最短流程
 

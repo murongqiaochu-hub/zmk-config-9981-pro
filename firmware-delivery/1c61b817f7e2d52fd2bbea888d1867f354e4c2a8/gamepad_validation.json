@@ -1,0 +1,42 @@
+{
+  "bytes": 604672,
+  "blocks": 1181,
+  "family": "0xada52840",
+  "address_start": "0x1000",
+  "address_end_exclusive": "0x4ad00",
+  "sha256": "3b0b5124cd740b63889bcaaf720dfa532ee5cf1ad6574685a4ffbb767e02289c",
+  "source_commit": "1c61b817f7e2d52fd2bbea888d1867f354e4c2a8",
+  "source_run": 39361865259,
+  "run_url": "https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39361865259",
+  "artifact_equals_git_archived_uf2": true,
+  "descriptor_bytes": 141,
+  "descriptor_sha256": "eefd91130364cb1b529e92a20978c50f77d092d7f0f42383eed9ae4a5a0e4114",
+  "descriptor_addresses": [
+    "0x444ed",
+    "0x46255"
+  ],
+  "descriptor_matches_production_source": true,
+  "compiled_gamepad_policy": "GAMEPAD_POLICY report=4 body=9 layer=3 hat=8 xbox=13 axes=6",
+  "report_id": 4,
+  "body_bytes": 9,
+  "usb_report_bytes": 10,
+  "real_buttons": 13,
+  "four_signed_stick_axes": true,
+  "digital_lt_rt_with_simulation_axes": true,
+  "no_bootloader_or_nvs_blocks": true,
+  "flashed": false,
+  "device_or_app_tested": false,
+  "sdk_pins_verified_from_arm_job_log": true,
+  "zmk": "edf5c0814fd3ea202e43aad2d68fd32e882a518c",
+  "zephyr": "dacab4875df72109b96cc8977547a0dc04875bcd",
+  "hal_nordic": "884c4d61746bc35fbd379c169fc87ddb56c6461d",
+  "actual_config": {
+    "CONFIG_BBP9981_GAMEPAD": "y",
+    "CONFIG_A320_MICROTAP": "y",
+    "CONFIG_USB_HID_DEVICE_COUNT": 2,
+    "CONFIG_USB_HID_REPORTS": 4
+  },
+  "unchanged_microtap_policy_in_actual_rom": true,
+  "flash_used_bytes": 302168,
+  "ram_used_bytes": 88694
+}

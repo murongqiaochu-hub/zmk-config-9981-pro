@@ -31,7 +31,7 @@ done
 
 **本批次验证状态（2026-10-20，Xbox 布局标准 HID，非 XInput）：** 新 ABI 为 `9-byte / 72-bit body`、`10-byte / 80-bit USB report`、`12-byte aligned staging`、独立 `10-byte EP0 snapshot`。父代理已实际编译并执行 USB `BOOT=0/1 × 10 modes` 共20组合及全部5个HOG配置，`-Wall -Wextra -Werror`、UBSan、不恢复 sanitizer 错误条件下全部 **PASS**；父代理已收集任务 `bash-7ff9ae3f124f47f6`，退出码0。本 transport 子会话无 shell/exec，以上执行证据由父代理提供，不是本子会话独立运行。
 
-上述早期结果仅为 transport harness；后续集成现已完成，实际 runtime 合并/quiet、真实 A320/micro 与异步 bridge，以及[完整主机回归](<../run_host_tests.py>)均已由主任务实际执行通过（功能源 `58b5f3b`，日志 exit0）。仍未 ARM 构建、真实枚举、实机验收或发布，不将 mock 结果当作硬件证明。
+上述早期结果仅为 transport harness；后续集成现已完成，实际 runtime 合并/quiet、真实 A320/micro 与异步 bridge，以及[完整主机回归](<../run_host_tests.py>)均已由主任务实际执行通过（功能源 `58b5f3b`，日志 exit0）。本次已另行完成 ARM 云编译与 UF2 校验归档，见[当前交付记录](<../../firmware-delivery/XBOX_CURRENT.md>)；仍未真实枚举或设备验收，不将 mock 结果当作硬件证明。
 
 先前撤回的 GBA `7-byte body / 8-byte report` 在父代理执行中曾通过 20 个 USB 组合和 5 个 BLE 组合；**那是旧 ABI 的历史结果，不是本轮 Xbox ABI 的验证结果**。父代理维护的 [run_gamepad_tests.py](<../run_gamepad_tests.py>) 还会校验四个 pinned fixture 的 SHA；本批次未改这些 fixture。不能把 host 模型结果写成 ARM 构建、真实枚举或实机通过。
 
