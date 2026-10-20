@@ -71,7 +71,8 @@ def label(binding):
     if b == '&tdc_to_SYM': return [';', '双击 SYM']
     if b == '&tdc_to_MEDIA': return ['静音', '双击 MEDIA']
     if b == '&msc': return ['滚↑' if a[0] == 'SCRL_UP' else '滚↓']
-    if b == '&aa_scroll_shoulder': return ['滚↑' if a[0] == 'SCRL_UP' else '滚↓', '锁轮半速键']
+    if b == '&aa_scroll_shoulder':
+        return ['滚↑', '半速/三击右→上'] if a[0] == 'SCRL_UP' else ['滚↓', '半速/三击左→上']
     if b == '&bt': return ['蓝牙槽 ' + a[-1]]
     if b == '&out': return ['BLE 偏好']
     if b == '&td0': return ['左键', '双击清当前槽']
