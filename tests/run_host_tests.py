@@ -52,7 +52,7 @@ subprocess.run([cc, '-DTEST_TWO_LEDS=1', '-std=c11', '-Wall', '-Wextra', '-Werro
 subprocess.run([str(exe)], check=True)
 
 # Ensure both stock keymaps preserve every other key and all other layers.
-BASE = 'd7e535e'
+BASE = '51c5efd51d826ae46fdacc549208e2900fc75576'
 paths = ['config/bbp9981.keymap', 'config/boards/arm/bbp9981/bbp9981.keymap']
 def layers(text):
     text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
@@ -67,23 +67,18 @@ updated = []
 for relative in paths:
     before = layers(subprocess.check_output(['git', 'show', BASE + ':' + relative], cwd=ROOT, text=True))
     after = layers((ROOT / relative).read_text())
-    assert before['upper_layer'][40] == '&to DEFAULT'
-    before['upper_layer'][40] = '&aa_sym_ctrl'
-    assert before['upper_layer'][41] == '&to DEFAULT'
-    before['upper_layer'][41] = '&to UPPER'  # double-tap scroll lock pins UPPER
-    assert before['upper_layer'][0] == '&msc SCRL_UP'
-    assert before['upper_layer'][1] == '&msc SCRL_DOWN'
-    before['upper_layer'][0] = '&aa_scroll_shoulder SCRL_UP'
-    before['upper_layer'][1] = '&aa_scroll_shoulder SCRL_DOWN'
-    before['default_layer'][0] = '&microtap_shoulder'
+    assert before['upper_layer'][40] == '&aa_sym_ctrl'
+    assert before['upper_layer'][41] == '&to UPPER'
+    assert before['upper_layer'][0] == '&aa_scroll_shoulder SCRL_UP'
+    assert before['upper_layer'][1] == '&aa_scroll_shoulder SCRL_DOWN'
+    assert before['default_layer'][0] == '&microtap_shoulder'
     assert before['default_layer'][1] == '&mkp RCLK'
     before['default_layer'][1] = '&microtap_shoulder'
     assert before['upper_layer'][3] == '&bt BT_SEL 1'
     assert before['upper_layer'][5] == '&bt BT_SEL 2'
     before['upper_layer'][3] = '&aa_scroll_gesture_key'
     before['upper_layer'][5] = '&aa_scroll_gesture_key'
-    assert before['upper_layer'][7] == '&none'
-    before['upper_layer'][7] = '&out OUT_BLE'
+    assert before['upper_layer'][7] == '&out OUT_BLE'
     old_gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 9: 0, 11: 12, 12: 13,
                    14: 7, 18: 2, 19: 15, 20: 3, 23: 6, 24: 16, 25: 5, 29: 1, 34: 4, 39: 14}
     for position, action in old_gamepad.items():
