@@ -194,6 +194,10 @@ static int pressed(struct zmk_behavior_binding *binding,
 
     enum gesture_mode mode = current_mode(event.position);
     if (mode == GESTURE_NONE) {
+        /* Selecting the already-active BT slot raises no endpoint event, but it
+         * is still another key and must break an incomplete F double-tap.
+         */
+        tp_scroll_gesture_cancel();
         if (child != NULL && dispatch_slot(child, event, true) == 0) {
             bt_forwarded_mask |= bit;
         }

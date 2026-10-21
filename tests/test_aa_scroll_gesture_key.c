@@ -145,6 +145,17 @@ static void test_F_without_aA_and_context_cancellation(void) {
     assert(rotation_steps == 0U);
 }
 
+static void test_bt_same_slot_breaks_mouse_double_without_endpoint_event(void) {
+    reset(); fake_aa_pressed = true;
+    tap(TP_MOUSE_TOGGLE_POSITION, 10, 30);
+    tap(TP_BACK_POSITION, 70, 30); /* The native BT mock raises no endpoint event. */
+    tap(TP_MOUSE_TOGGLE_POSITION, 130, 30);
+    assert(mouse_toggles == 0U && invoke_count == 2U && invokes[0].param2 == 2U);
+    tap(TP_BLACKBERRY_POSITION, 190, 30);
+    tap(TP_MOUSE_TOGGLE_POSITION, 250, 30);
+    assert(mouse_toggles == 0U && invoke_count == 4U && invokes[2].param2 == 1U);
+}
+
 static void test_timing_and_explicit_cancellation(void) {
     reset(); fake_latched = fake_locked = true;
     tap(TP_BLACKBERRY_POSITION, 0, 30);
@@ -185,6 +196,7 @@ int main(void) {
     test_aA_held_F_double_toggles_mouse_and_suppresses_bt();
     test_aA_held_always_restores_immediate_bt_slots();
     test_F_without_aA_and_context_cancellation();
+    test_bt_same_slot_breaks_mouse_double_without_endpoint_event();
     test_timing_and_explicit_cancellation();
     test_press_ownership_survives_context_change();
     puts("PASS UPPER gestures: hands-free locked BlackBerry/Back triples, held-aA immediate BT slots 1/2, aA+F mouse toggle, timing, context cancellation and press ownership");
