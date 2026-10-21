@@ -1,7 +1,9 @@
 # Xbox 布局标准 HID：v2.2.8 固定方向档 / R/U 菜单候选（2026-10-21）
 
-- 功能源码 SHA：`88edf7f323b643465fa1470fdc2e090dd3ee0ffa`；构建提交：`PENDING`；拟新候选分支 `codex/xbox-layout-v2.2.8-20261021`。完整host exit0，70配置/四层42键图/手册manifest同步PASS。**Actions/ARM/UF2尚待，尚无本版已验证UF2；PDF/Word/HTML最终导出待完成。** 不以历史 v2.2.7 的成功冒充新版。未发布/归档、未刷写/未实机验收。
-- 主任务回传定向strict UBSan PASS：全部旧档位绝对选档/幂等/互切、两种listener顺序真实A320双档四向/aA临时覆盖且不触BT、真实preset API全向量/饱和；scope gate PASS（45旧配置/8集成+16新增）。这些专项不代替完整host、ARM或实机验收。
+- 功能源码：`88edf7f323b643465fa1470fdc2e090dd3ee0ffa`；构建提交：`ffc41698f6972f3a26cc4ce459956a06fe8c3a46`；候选分支 `codex/xbox-layout-v2.2.8-20261021`。完整host exit0、70配置/四层42键图/manifest同步PASS；[Actions Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>) 的regression、bbp9981 ARM和合并artifact均成功，deliver job按候选条件跳过。未发布/归档，未刷写/实机验收。
+- 新UF2本地边界验证PASS：SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`，613376 B/1198块/family `0xada52840`/连续应用区`[0x1000,0x4be00)`。[候选UF2](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/bbp9981-zmk.uf2>)、[校验记录](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/validation.json>)、[SHA256SUMS](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/SHA256SUMS>)；device_tested=false。
+- 云端最终DTS逐项核验42个MEDIA位置：View R/P10、Menu U/P13，T/Y None；与v2.2.7相比仅MEDIA P10–P13四位置变化，其余三层全部绑定一致。见[DTS核对JSON](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/11_云端DTS键位核对.json>)；原始日志确认固定档/手势对象实际编译，FLASH306576B/RAM88862B。
+- 主任务回传定向strict UBSan PASS：全部旧档位绝对选档/幂等/互切、两种listener顺序真实A320双档四向/aA临时覆盖且不触BT、真实preset API全向量/饱和；scope gate PASS（45旧配置/8集成+16新增）。完整host和ARM现已另行通过；这些结果仍不代替实机验收。
 - 用户于 **2026-10-21 14:33** 确认 v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用；要求方向改为固定档而非累加，并将MEDIA菜单移到R/U。该反馈只覆盖所述现象，不是USB/BT、全部App、多键及保护场景全面硬件验收；旧校验记录的 `device_tested=false` 保留原状。
 - 固定方向档只在 **aA松开且锁轮生效** 时选择：P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左**；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右**。同键重复幂等，无论原档位都直接选目标；换另一键直接选其目标，不继续转90°。默认锁轮0°、解锁/重锁回正；按住aA临时原方向与原生肩轮，松开恢复所选固定档，肩键半速/屏蔽自身Wheel不变。
 - 按住右aA时P3/P5立即 `BT_SEL 1/2`，已锁轮亦优先选槽；aA+F/P20双击鼠标翻转不改。三击按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列，其余点按吞掉；aA锁轮双击每拍<450ms、间隔≤350ms不变。
