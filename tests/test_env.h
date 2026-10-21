@@ -164,9 +164,21 @@ static int fake_layer, layer_to_calls;
 static int zmk_keymap_layer_to(int layer) { fake_layer=layer;layer_to_calls++;return 0; }
 static int zmk_keymap_highest_layer_active(void) { return fake_layer; }
 struct zmk_position_state_changed { uint32_t position; bool state; int64_t timestamp; };
-typedef struct { struct zmk_position_state_changed data; bool valid; } zmk_event_t;
+struct zmk_layer_state_changed { uint8_t layer; bool state; };
+struct zmk_endpoint_changed { int unused; };
+typedef struct {
+    struct zmk_position_state_changed data; bool valid;
+    struct zmk_layer_state_changed layer_data; bool layer_valid;
+    struct zmk_endpoint_changed endpoint_data; bool endpoint_valid;
+} zmk_event_t;
 static const struct zmk_position_state_changed *as_zmk_position_state_changed(const zmk_event_t *e) {
     return e->valid?&e->data:NULL;
+}
+static const struct zmk_layer_state_changed *as_zmk_layer_state_changed(const zmk_event_t *e) {
+    return e->layer_valid?&e->layer_data:NULL;
+}
+static const struct zmk_endpoint_changed *as_zmk_endpoint_changed(const zmk_event_t *e) {
+    return e->endpoint_valid?&e->endpoint_data:NULL;
 }
 enum zmk_activity_state { ZMK_ACTIVITY_ACTIVE, ZMK_ACTIVITY_IDLE };
 static enum zmk_activity_state fake_activity=ZMK_ACTIVITY_ACTIVE;

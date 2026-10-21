@@ -6,7 +6,8 @@ if(CONFIG_BOARD_BBP9981)
     zephyr_library_sources(custom_driver/a320_0x57.c)
     zephyr_library_sources(custom_driver/behavior_aa_sym_ctrl.c
                            custom_driver/behavior_aa_scroll_shoulder.c
-                           custom_driver/behavior_aa_scroll_gesture_key.c)
+                           custom_driver/behavior_aa_scroll_gesture_key.c
+                           custom_driver/behavior_aa_layer.c)
     zephyr_library_sources(custom_driver/trackpad_led.c)
     zephyr_library_sources(custom_driver/keyboard_backlight.c)
     # Compile final-DT assertions for this controlled column-drive experiment.

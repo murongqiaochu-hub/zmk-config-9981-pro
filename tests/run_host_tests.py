@@ -29,10 +29,19 @@ for relative in HEADERS:
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'aa_scroll_gesture_key', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
+# Byte-exact ZMK v0.3.0 sticky/mo/to sources: never silently test a rewritten SDK.
+for path, size, expected in [
+    ('tests/sdk_v0_3_0_sticky_key.c', 16254, 'babdeb7da2406f7789f006fd094908b20b76245b'),
+    ('tests/aa_layer_mocks/sdk_v0_3_0_momentary_layer.c', 1901, '78bf7a3b28dc3576a3f400ef69c1f094c3e8ac57'),
+    ('tests/aa_layer_mocks/sdk_v0_3_0_to_layer.c', 1989, 'dae19ebccc5b5acbb450552d2f8eb278b3c1d3fe'),
+]:
+    data = (ROOT / path).read_bytes()
+    assert len(data) == size
+    assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == expected, path
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'aa_scroll_gesture_key', 'aa_layer_owner', 'scroll_gesture_pipeline', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name in ['keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm'] else []
-    special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks', 'menu_diag': 'menu_endpoints_mocks', 'menu_endpoints': 'menu_endpoints_mocks'}
+    special = {'aa_layer_owner': 'aa_layer_mocks', 'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks', 'menu_diag': 'menu_endpoints_mocks', 'menu_endpoints': 'menu_endpoints_mocks'}
     include = ROOT / 'tests' / special[name] if name in special else STUBS
     sources = [str(ROOT / 'tests' / ('test_' + name + '.c'))]
     if name == 'tap_pipeline':
@@ -71,6 +80,12 @@ for relative in paths:
     assert before['upper_layer'][41] == '&to UPPER'
     assert before['upper_layer'][0] == '&aa_scroll_shoulder SCRL_UP'
     assert before['upper_layer'][1] == '&aa_scroll_shoulder SCRL_DOWN'
+    for layer in ['default_layer', 'sym_layer']:
+        assert before[layer][41] == '&sl_mo 2 2'
+        before[layer][41] = '&aa_mo 0 1'
+    before['upper_layer'][41] = '&aa_layer 2'
+    assert before['upper_layer'][20] == '&none'
+    before['upper_layer'][20] = '&aa_scroll_gesture_key'
     assert before['default_layer'][0] == '&microtap_shoulder'
     assert before['default_layer'][1] == '&mkp RCLK'
     before['default_layer'][1] = '&microtap_shoulder'
@@ -87,15 +102,15 @@ for relative in paths:
     assert before['media_layer'][35] == '&to DEFAULT'
     before['media_layer'][35] = '&none'
     assert before['media_layer'][40] == before['media_layer'][41] == '&to DEFAULT'
-    gamepad = {0: 8, 1: 9, 2: 10, 3: 17, 4: 14, 6: 11, 9: 0, 11: 12, 12: 13,
-               15: 7, 17: 2, 19: 15, 20: 3, 24: 6, 25: 16, 26: 5, 29: 1, 35: 4, 39: 14}
+    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 8: 0, 11: 12, 12: 13,
+               15: 7, 17: 2, 18: 15, 19: 3, 24: 6, 25: 16, 26: 5, 28: 1, 35: 4, 39: 14}
     for position, action in gamepad.items():
         assert before['media_layer'][position] == '&none'
         before['media_layer'][position] = f'&gamepad {action}'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: both 42-key layers synchronized; MEDIA D-pad left=A, L3=D/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LB/RB and Call/End LT/RT; only SYM/aA exit; UPPER P3/P5 gestures wrap BT safely')
+print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, F toggles mouse; owned aA sticky/fixed layer')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

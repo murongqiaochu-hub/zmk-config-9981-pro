@@ -65,8 +65,9 @@ def label(binding, layer=None, position=None):
         if layer == 'default' and position == 1: return ['右键↔左键']
         return ['鼠标肩键角色互换']
     if b == '&aa_scroll_gesture_key':
-        if layer == 'upper' and position == 3: return ['槽1 / 锁轮三击左→上']
-        if layer == 'upper' and position == 5: return ['槽2 / 锁轮三击右→上', 'aA双击翻鼠标']
+        if layer == 'upper' and position == 3: return ['aA按住:槽1', '松开:锁轮三击左→上']
+        if layer == 'upper' and position == 5: return ['aA按住:槽2', '松开:锁轮三击右→上']
+        if layer == 'upper' and position == 20: return ['aA按住:双击翻鼠标']
         return ['aA层手势']
     if b == '&gamepad':
         return [['↑'], ['↓'], ['←'], ['→'], ['A'], ['B'], ['X'], ['Y'], ['LB'], ['RB'],
@@ -74,6 +75,8 @@ def label(binding, layer=None, position=None):
                 ['按住→右杆'], ['L3/R3', '按黑莓模式']][int(a[0])]
     if b == '&mt': return [NAMES[a[1]], '按住 ' + NAMES[a[0]]]
     if b == '&sk_kp': return ['Ctrl', '点按一次性']
+    if b == '&aa_mo': return ['aA', '点一次 / 按住']
+    if b == '&aa_layer': return ['固定 aA 层']
     if b == '&sl_mo': return ['SYM' if a[0] == '1' else 'aA', '点一次 / 按住']
     if b == '&tdc_to_SYM': return [';', '双击 SYM']
     if b == '&tdc_to_MEDIA': return ['静音', '双击 MEDIA']

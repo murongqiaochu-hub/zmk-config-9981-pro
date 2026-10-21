@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: MIT
-description: UPPER shoulders use native msc during aA override; while locked they halve trackpad scrolling, suppress their own wheel, and rotate one quarter-turn per completed triple tap
+description: UPPER shoulders use native msc while unlocked or aA-held; while locked they halve trackpad scrolling and suppress their own wheel
 compatible: "zmk,behavior-aa-scroll-shoulder"
 include: one_param.yaml

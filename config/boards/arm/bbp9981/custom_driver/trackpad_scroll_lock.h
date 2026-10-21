@@ -13,6 +13,8 @@
 #define TP_TRACKPAD_POSITION 4u
 #define TP_BACK_POSITION 5u
 #define TP_ENDCALL_POSITION 6u
+/* Physical F is unused in UPPER; the mouse shortcut must not occupy a BT key. */
+#define TP_MOUSE_TOGGLE_POSITION 20u
 
 #define TP_SCROLL_SHOULDER_LEFT_BIT 1u
 #define TP_SCROLL_SHOULDER_RIGHT_BIT 2u
@@ -41,7 +43,7 @@ void tp_scroll_rotation_reset(void);
 uint8_t tp_scroll_rotation_quadrants(void);
 /** Add a normalized quarter-turn to the current locked-scroll orientation. */
 void tp_scroll_rotation_step(uint8_t step);
-/** Cancel an incomplete BlackBerry/Back multi-tap sequence. */
+/** Cancel an incomplete BlackBerry/Back/F multi-tap sequence. */
 void tp_scroll_gesture_cancel(void);
 
 /** Volatile inverted-mouse mode; applies only to default-layer mouse output. */

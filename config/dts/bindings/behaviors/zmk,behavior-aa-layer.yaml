@@ -1,0 +1,5 @@
+description: Right-aA UPPER layer ownership (momentary, sticky child, fixed)
+compatible: "zmk,behavior-aa-layer"
+include: one_param.yaml
+binding-cells:
+  - operation

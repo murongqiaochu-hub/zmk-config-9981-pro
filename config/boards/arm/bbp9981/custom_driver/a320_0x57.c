@@ -233,7 +233,8 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
         LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
     }
     if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&
-         ev->position != TP_BACK_POSITION) || ev->position == TP_AA_POSITION) {
+         ev->position != TP_BACK_POSITION && ev->position != TP_MOUSE_TOGGLE_POSITION) ||
+        ev->position == TP_AA_POSITION) {
         /* Other keys and either aA edge invalidate a partial gesture/shortcut. */
         tp_scroll_gesture_cancel();
     }

@@ -16,10 +16,11 @@ ALLOWED = {'config/bbp9981.conf', 'config/bbp9981.keymap', 'config/boards/arm/bb
 NEW = {PREFIX + n for n in ['gamepad_report.h', 'gamepad_stick.h', 'gamepad_runtime.h',
        'behavior_gamepad.c', 'gamepad_usb.c', 'gamepad_usb_extension.h',
        'gamepad_usb_lifecycle.h', 'gamepad_ble_extension.h', 'trackpad_scroll_lock.h',
-        'behavior_aa_scroll_shoulder.c', 'behavior_aa_scroll_gesture_key.c']}
+        'behavior_aa_scroll_shoulder.c', 'behavior_aa_scroll_gesture_key.c', 'behavior_aa_layer.c']}
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-gamepad.yaml')
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-aa-scroll-shoulder.yaml')
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-aa-scroll-gesture-key.yaml')
+NEW.add('config/dts/bindings/behaviors/zmk,behavior-aa-layer.yaml')
 paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', BASE, 'config'], cwd=ROOT, text=True).splitlines()
 
 def old(p):
@@ -50,7 +51,7 @@ current = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.i
 assert current - set(paths) == NEW, sorted(current - set(paths))
 assert len(protected) >= 45  # One additional, mode-aware default-shoulder source is now in scope.
 
-# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4-v2.2.6
+# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4-v2.2.7
 # scroll-lock, gesture, and mouse-orientation additions, then compare every remaining old source byte. Only
 # A320's historical full-CRLF line endings normalize to LF; no other whitespace is ignored.
 a320 = (ROOT / (PREFIX + 'a320_0x57.c')).read_text()
@@ -72,7 +73,7 @@ a320 = a320.replace('    struct micro_cursor_context cursor_ctx = {\n        .de
 a320 = remove_exact(a320, '#include "trackpad_scroll_lock.h"\n')
 a320 = remove_exact(a320, 'static uint8_t last_scroll_rotation;\n')
 a320 = remove_exact(a320, '        /* Each lock session starts unrotated; a held aA override does not reset it. */\n        tp_scroll_rotation_reset();\n        tp_scroll_gesture_cancel();\n')
-a320 = remove_exact(a320, '    if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&\n         ev->position != TP_BACK_POSITION) || ev->position == TP_AA_POSITION) {\n        /* Other keys and either aA edge invalidate a partial gesture/shortcut. */\n        tp_scroll_gesture_cancel();\n    }\n')
+a320 = remove_exact(a320, '    if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&\n         ev->position != TP_BACK_POSITION && ev->position != TP_MOUSE_TOGGLE_POSITION) ||\n        ev->position == TP_AA_POSITION) {\n        /* Other keys and either aA edge invalidate a partial gesture/shortcut. */\n        tp_scroll_gesture_cancel();\n    }\n')
 a320 = remove_exact(a320, '/* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */\nstatic atomic_t scroll_shoulder_modifier_snapshot;\n')
 a320 = remove_exact(a320, 'static bool last_scroll_locked;\nstatic bool last_shoulder_slow;\nstatic int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;\n')
 a320 = remove_exact(a320, '/* Halve discrete wheel reports without discarding every odd notch. */\nstatic int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {\n    int32_t total = (int32_t)value + *remainder;\n    int16_t scaled = (int16_t)(total / 2);\n    *remainder = (int16_t)(total % 2);\n    return scaled;\n}\n\n')
@@ -144,4 +145,4 @@ assert workflow.count(f'refs/heads/{branch}') == 1 and workflow.count(f'HEAD:{br
 conf = (ROOT / 'config/bbp9981.conf').read_text()
 assert conf == old('config/bbp9981.conf').decode().replace('\r\n', '\n').replace('CONFIG_ZMK_BLE=y\n',
     'CONFIG_ZMK_BLE=y\n\n# Keep the stock keyboard/mouse HID_0; expose the gamepad on its own USB HID_1.\nCONFIG_BBP9981_GAMEPAD=y\nCONFIG_USB_HID_DEVICE_COUNT=2\nCONFIG_USB_HID_REPORTS=4\n')
-print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4-v2.2.6 scroll/mouse additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 14 new gamepad/scroll config files only')
+print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4-v2.2.7 scroll/mouse additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 16 new gamepad/scroll config files only')

@@ -9,6 +9,9 @@
 #include <drivers/behavior.h>
 #include <dt-bindings/zmk/bt.h>
 #include <zmk/behavior.h>
+#include <zmk/event_manager.h>
+#include <zmk/events/layer_state_changed.h>
+#include <zmk/events/endpoint_changed.h>
 #include <zephyr/logging/log.h>
 
 #include "trackpad_scroll_lock.h"
@@ -51,6 +54,7 @@ static const struct zmk_behavior_binding bt_slot_2 = {
 static uint32_t key_bit(uint32_t position) {
     if (position == TP_BLACKBERRY_POSITION) { return 1U; }
     if (position == TP_BACK_POSITION) { return 2U; }
+    if (position == TP_MOUSE_TOGGLE_POSITION) { return 4U; }
     return 0U;
 }
 
@@ -68,13 +72,16 @@ void tp_scroll_gesture_cancel(void) {
 }
 
 static enum gesture_mode current_mode(uint32_t position) {
-    if (position == TP_BLACKBERRY_POSITION && tp_scroll_lock_is_latched()) {
-        /* During aA's temporary override, suppress slot 1 but do not rotate. */
-        return tp_scroll_is_locked() ? GESTURE_LEFT_TO_UP : GESTURE_SWALLOW;
+    if (position == TP_MOUSE_TOGGLE_POSITION) {
+        return tp_scroll_aa_is_pressed() ? GESTURE_MOUSE_TOGGLE : GESTURE_SWALLOW;
     }
-    if (position == TP_BACK_POSITION) {
-        if (tp_scroll_is_locked()) { return GESTURE_RIGHT_TO_UP; }
-        if (tp_scroll_aa_is_pressed()) { return GESTURE_MOUSE_TOGGLE; }
+    /* An explicit aA+BT chord always keeps the original immediate slot action,
+     * including during a latched session's temporary aA override.
+     */
+    if (tp_scroll_aa_is_pressed()) { return GESTURE_NONE; }
+    if (tp_scroll_is_locked()) {
+        if (position == TP_BLACKBERRY_POSITION) { return GESTURE_LEFT_TO_UP; }
+        if (position == TP_BACK_POSITION) { return GESTURE_RIGHT_TO_UP; }
     }
     return GESTURE_NONE;
 }
@@ -180,14 +187,16 @@ static int pressed(struct zmk_behavior_binding *binding,
     (void)binding;
     uint32_t bit = key_bit(event.position);
     const struct zmk_behavior_binding *child = slot_binding(event.position);
-    if (bit == 0U || child == NULL) {
+    if (bit == 0U) {
         LOG_ERR("Unexpected UPPER gesture key at position %u", event.position);
         return ZMK_BEHAVIOR_OPAQUE;
     }
 
     enum gesture_mode mode = current_mode(event.position);
     if (mode == GESTURE_NONE) {
-        if (dispatch_slot(child, event, true) == 0) { bt_forwarded_mask |= bit; }
+        if (child != NULL && dispatch_slot(child, event, true) == 0) {
+            bt_forwarded_mask |= bit;
+        }
         return ZMK_BEHAVIOR_OPAQUE;
     }
 
@@ -200,13 +209,13 @@ static int released(struct zmk_behavior_binding *binding,
     (void)binding;
     uint32_t bit = key_bit(event.position);
     const struct zmk_behavior_binding *child = slot_binding(event.position);
-    if (bit == 0U || child == NULL) {
+    if (bit == 0U) {
         LOG_ERR("Unexpected UPPER gesture-key release at position %u", event.position);
         return ZMK_BEHAVIOR_OPAQUE;
     }
 
     if ((bt_forwarded_mask & bit) != 0U) {
-        (void)dispatch_slot(child, event, false);
+        if (child != NULL) { (void)dispatch_slot(child, event, false); }
         bt_forwarded_mask &= ~bit;
         return ZMK_BEHAVIOR_OPAQUE;
     }
@@ -215,6 +224,18 @@ static int released(struct zmk_behavior_binding *binding,
     update_gesture(event.position, false, event.timestamp, gesture.mode);
     return ZMK_BEHAVIOR_OPAQUE;
 }
+
+static int gesture_context_listener(const zmk_event_t *eh) {
+    const struct zmk_layer_state_changed *layer = as_zmk_layer_state_changed(eh);
+    if ((layer != NULL && layer->layer == 2U && !layer->state) ||
+        as_zmk_endpoint_changed(eh) != NULL) {
+        tp_scroll_gesture_cancel();
+    }
+    return ZMK_EV_EVENT_BUBBLE;
+}
+ZMK_LISTENER(aa_scroll_gesture_context, gesture_context_listener);
+ZMK_SUBSCRIPTION(aa_scroll_gesture_context, zmk_layer_state_changed);
+ZMK_SUBSCRIPTION(aa_scroll_gesture_context, zmk_endpoint_changed);
 
 static const struct behavior_driver_api api = {
     .binding_pressed = pressed,
