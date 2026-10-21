@@ -1,9 +1,11 @@
-# Xbox 布局标准 HID：v2.2.7 本地修正候选（2026-10-21）
+# Xbox 布局标准 HID：v2.2.7 已构建修正候选（2026-10-21）
 
-- 功能源码：`88e744f51e386db853ae25c4438b33cb23557af5`；新候选分支 `codex/xbox-layout-v2.2.7-20261021`。完整主机回归exit0（含70配置/四层42键图与手册同步）。**Actions ARM、新UF2/SHA与边界校验待完成；尚无v2.2.7可刷交付，未刷写/未实机验收。** 用户授权本轮及今后同范围修正直接完成必要候选分支推送/Actions/UF2校验；不推稳定分支、不发布/归档、不刷写/清设置。
+- 功能源码：`88e744f51e386db853ae25c4438b33cb23557af5`；构建提交：`045a7a3a0da9ba372d99ea747e27a15ababb8694`，分支 `codex/xbox-layout-v2.2.7-20261021`。完整主机回归exit0（70配置/四层42键图与手册同步）；[Actions Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 的regression与`bbp9981` ARM构建均PASS，候选deliver job跳过。**v2.2.7仍未发布/归档、未刷写/未实机验收。** 用户授权本轮及今后同范围修正直接完成必要候选分支推送/Actions/UF2校验；不推稳定分支、不发布/归档、不刷写/清设置。
+- 新UF2本地边界验证PASS：SHA-256 `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，613376 bytes、1198 blocks、family `0xada52840`、连续应用区 `[0x1000,0x4be00)`，无bootloader/NVS块。[候选UF2](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/bbp9981-zmk.uf2>)、[SHA256SUMS](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/SHA256SUMS>)、[validation.json](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/validation.json>)；`device_tested=false`。
+- 云端最终DTS的42个MEDIA位置及DEFAULT/SYM/UPPER右aA、P3/P5/F绑定已独立核对，见[逐位置核对JSON](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/11_云端DTS键位核对.json>)；日志确认新AA owner实际编译，FLASH306592B/RAM88862B，仍非设备验收。
 - 最终MEDIA：W/P8↑、D/P19→、Z/P28↓、A/P17←；S/P18=L3、L/P25=R3；肩P0/P1=LT/RT，Call/End P2/P6=LB/RB。O/K/BSPC/$=Y/X/B/A，P4/Space=Guide，T/Y=View/Menu不变；E/X/F新空，19绑定/2出口/21None，仅P40/P41退出。
 - 恢复蓝牙槽：按住右aA时P3/P5立即选槽1/2，即使scroll latch已锁定；松aA且锁轮时P3/P5三击分别左→上/右→上，其他点按吞掉。鼠标翻转改到右aA按住+F/P20双击（180/220ms），再次切回；普通Y/DEFAULT肩键互换，其余与volatile限制不变。aA双击450/350ms、三击180/220ms保留。
-- aA层由momentary/sticky/fixed owner仲裁；旧sticky的3秒超时/迟到UP不撤销fixed，SYM退层不解scroll latch。pinned sticky/mo/to三份Git blob身份、owner12case旧bug/新修复、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate PASS（45旧配置/8集成+16新增）；不替代完整回归或硬件验收。
+- aA层由momentary/sticky/fixed owner仲裁；旧sticky的3秒超时/迟到UP不撤销fixed，SYM退层不解scroll latch。pinned sticky/mo/to三份Git blob身份、owner12case旧bug/新修复、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate PASS（45旧配置/8集成+16新增）；完整回归现已通过，但这些模型/构建结果仍不替代硬件验收。
 - 用户已确认刷入 **v2.2.6**、未在Studio保存，反馈映射、手势与第三蓝牙槽入口异常。该旧版实际默认图不是本次最终图；不能将其host/ARM PASS或历史`device_tested=false`改写成v2.2.7硬件通过。
 
 ## 历史构建：v2.2.6（不含本次修正）

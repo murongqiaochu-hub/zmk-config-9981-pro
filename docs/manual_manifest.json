@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.7",
   "manual_date": "2026-10-21",
-  "updated": "2026-10-21T13:46:50+08:00",
-  "source_commit": "88e744f51e386db853ae25c4438b33cb23557af5",
+  "updated": "2026-10-21T13:57:22+08:00",
+  "source_commit": "045a7a3a0da9ba372d99ea747e27a15ababb8694",
   "reference_delivery_commit": null,
-  "source_run": null,
+  "source_run": 39551522029,
   "device_tested": false,
-  "review_note": "v2.2.7 最终键位与槽/手势分流已核对；完整主机回归exit0，70配置/四层42键图同步、真实SDK sticky旧反例/新owner对照与A320联动通过；ARM/UF2待候选构建。",
+  "review_note": "v2.2.7 真实SDK旧反例/新owner、实际A320联动、完整主机与70配置/四层图同步PASS；Run39551522029 regression/ARM成功，云端最终DTS逐位置符合合同，UF2本地边界/SHA验证PASS（140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6）；未刷写/实机验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "3f6e010ebc1c595ff4bd74cc16a88be3d963440c767df6e8efcd4d92feb75799",
+  "manual_sha256": "b8428b31ad0dc4ffc26b863fe59fb932aef7d9e08fb03490a40fe2d967f1fc43",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "3436bd5363a2e873a00a640bb25bf24ca717db4059e01490ee5f40cd11cb853e",
@@ -262,7 +262,7 @@
   "diagrams_sha256": {
     "docs/说明书图示/01_普通层.svg": "b575b7071b083987d94070f4c570b27063bd66761b1967e9bc02219b8ed58205",
     "docs/说明书图示/02_SYM层.svg": "5f65044902480f660cd2646a3d079ccd40a41a78797e5acacfbdbdbd72f4ab37",
-    "docs/说明书图示/03_aA层.svg": "9c504a2949f55d69ba01dfd326dc6753cd75fb6b42ea56aecef8661133b415bc",
+    "docs/说明书图示/03_aA层.svg": "0e3375c304375b86d89fa47df9ff23f39d701103b40f88a1ddba6a55469110c4",
     "docs/说明书图示/04_MEDIA层.svg": "29ada9671aea81b65ebba6b2def8663fbdabe020083b3415cb81f998bc4f965d"
   }
 }

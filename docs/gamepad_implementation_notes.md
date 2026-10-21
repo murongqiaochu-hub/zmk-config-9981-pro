@@ -1,6 +1,6 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-21，与[使用说明书 v2.2.7](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为 v2.2.7 本地修正候选，功能提交 `88e744f51e386db853ae25c4438b33cb23557af5`，分支 `codex/xbox-layout-v2.2.7-20261021`；pinned sticky/mo/to 身份对照、owner/真实驱动联动、gamepad专项与范围闸已通过，完整主机回归exit0、70配置/四层42键图同步PASS；ARM 构建和新 UF2 校验待完成。用户确认已刷 v2.2.6、未用 Studio 保存，反馈映射、手势和第三蓝牙槽入口失灵；该反馈不等于 v2.2.7 硬件验收。历史构建/SHA 保留在[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+2026-10-21，与[使用说明书 v2.2.7](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为已构建的 v2.2.7 未发布修正候选，功能提交 `88e744f51e386db853ae25c4438b33cb23557af5`，分支 `codex/xbox-layout-v2.2.7-20261021`；pinned sticky/mo/to 身份对照、owner/真实驱动联动、gamepad专项与范围闸已通过，完整主机回归exit0、70配置/四层42键图同步PASS；[Actions Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 的regression与bbp9981 ARM均PASS，构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`；新UF2本地边界验证PASS：613376 B/1198 blocks/`[0x1000,0x4be00)`，SHA-256 `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，候选deliver job跳过。用户确认已刷 v2.2.6、未用 Studio 保存，反馈映射、手势和第三蓝牙槽入口失灵；该反馈不等于 v2.2.7 硬件验收。历史构建/SHA 保留在[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
@@ -12,9 +12,11 @@
 
 鼠标翻转快捷键从 aA+P5 移到 **aA 按住+F/P20 双击**（同为180/220ms），再做切回；UPPER F 原本留空，不满足组合时仍无输出。同槽 BT 键也会取消未完成 F 双击候选，不依赖 endpoint change；已定向验证 F→P5→F 不翻转。模式 volatile：普通指针Y反向、DEFAULT 两肩 LCLK/RCLK 角色互换；X、滚轮、手柄与 SYM/UPPER/MEDIA 其他绑定不变，重启关闭。
 
-为避免第一次 aA tap 的旧 sticky 3秒计时撤销已固定 UPPER，新增 `aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky 的 quick-release/3000ms，但 child 为 `aa_layer` 而非直接 `mo`；`aa_mo` 为450ms hold-preferred，children 为 `aa_layer / aa_sl`。DEFAULT/SYM 的 P41 为 `&aa_mo 0 1`，UPPER P41 为 `&aa_layer 2`；迟到 sticky UP 只释放自己的 owner，不撤 fixed。aA 双击仍每拍<450ms、释放间隔≤350ms；SYM 退出 UPPER 但不清 scroll latch。AA 参数行为须继承 `one_param.yaml` 的 `param1` cell，避免仲裁参数全读0，已附契约assert。本轮已核对 pinned SDK sticky/mo/to 三份 Git blob 身份并通过 owner 旧bug/新修复模型对照；完整主机回归已exit0；ARM/真实RTOS及设备行为仍待核验。
+为避免第一次 aA tap 的旧 sticky 3秒计时撤销已固定 UPPER，新增 `aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky 的 quick-release/3000ms，但 child 为 `aa_layer` 而非直接 `mo`；`aa_mo` 为450ms hold-preferred，children 为 `aa_layer / aa_sl`。DEFAULT/SYM 的 P41 为 `&aa_mo 0 1`，UPPER P41 为 `&aa_layer 2`；迟到 sticky UP 只释放自己的 owner，不撤 fixed。aA 双击仍每拍<450ms、释放间隔≤350ms；SYM 退出 UPPER 但不清 scroll latch。AA 参数行为须继承 `one_param.yaml` 的 `param1` cell，避免仲裁参数全读0，已附契约assert。本轮已核对 pinned SDK sticky/mo/to 三份 Git blob 身份并通过 owner 旧bug/新修复模型对照；完整主机回归已exit0，Run39551522029的ARM构建也已PASS；真实RTOS及设备行为仍待实机核验。
 
 [主键图](<../config/bbp9981.keymap>)与[板级镜像](<../config/boards/arm/bbp9981/bbp9981.keymap>)须一致：19 个 gamepad 绑定为 `P0=10, P1=11, P2=8, P3=17, P4=14, P6=9, P8(W)=0, P11(T)=12, P12(Y)=13, P15(O)=7, P17(A)=2, P18(S)=15, P19(D)=3, P24(K)=6, P25(L)=16, P26(Backspace)=5, P28(Z)=1, P35($)=4, P39(Space)=14`；仅 `P40(SYM) / P41(右aA)` 两出口回 DEFAULT，其余 21 个位置显式 None，不透明回落。
+
+云端最终 DTS 另已对照核验：42个MEDIA位置全部与最终合同一致，DEFAULT/SYM右aA实际为`aa_mo 0 1`，UPPER为`aa_layer 2`且P3/P5/F均指向新手势行为；aa_sl的child/3000ms quick-release与aa_mo的450ms/children均正确，日志确认新`behavior_aa_layer.c`对象实际编译。FLASH 306592 B/844 KB、RAM 88862 B/256 KB。原始日志和逐位置核对JSON保留在本次交付目录，仍非设备验收。
 
 ### 描述符与报告 ABI
 
@@ -65,7 +67,7 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 已执行与未执行
 
-**当前 v2.2.7：** 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`。pinned SDK sticky/mo/to 三份 Git blob 身份对照一致；owner12case含旧bug复现/新修复对照exit0；真实A320/owner/gesture/rotation pipeline两种listener顺序PASS，覆盖超3秒固定层、按住aA切槽的两种松手顺序、解锁重锁回正与F鼠标模式；gamepad专项及scope gate PASS（45份旧配置、8集成+16新增）。完整主机回归exit0，70配置/四层42键图/手册manifest同步PASS。**Actions ARM和新UF2边界/SHA仍pending；未刷写/未实机验收。**
+**当前 v2.2.7：** 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`。pinned SDK sticky/mo/to 三份 Git blob 身份对照一致；owner12case含旧bug复现/新修复对照exit0；真实A320/owner/gesture/rotation pipeline两种listener顺序PASS，覆盖超3秒固定层、按住aA切槽的两种松手顺序、解锁重锁回正与F鼠标模式；gamepad专项及scope gate PASS（45份旧配置、8集成+16新增）。完整主机回归exit0，70配置/四层42键图/手册manifest同步PASS。**Actions Run39551522029的regression/ARM与新UF2本地边界/SHA验证PASS，记录见上方及交付记录；仍未发布/归档、未刷写/未实机验收。**
 
 以下为 v2.2.3–v2.2.6 历史验证记录，不作为 v2.2.7 的完整回归、云构建或硬件通过结果；v2.2.6 用户后续实机失败反馈须与历史PASS并列保留：
 

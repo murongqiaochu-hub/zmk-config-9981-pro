@@ -67,7 +67,7 @@ def label(binding, layer=None, position=None):
     if b == '&aa_scroll_gesture_key':
         if layer == 'upper' and position == 3: return ['aA按住:槽1', '松开:锁轮三击左→上']
         if layer == 'upper' and position == 5: return ['aA按住:槽2', '松开:锁轮三击右→上']
-        if layer == 'upper' and position == 20: return ['aA按住:双击翻鼠标']
+        if layer == 'upper' and position == 20: return ['aA按住双击', '翻转鼠标']
         return ['aA层手势']
     if b == '&gamepad':
         return [['↑'], ['↓'], ['←'], ['→'], ['A'], ['B'], ['X'], ['Y'], ['LB'], ['RB'],
@@ -180,7 +180,7 @@ html,body{margin:0;padding:0}body{font-family:ManualHan,Arial,sans-serif;font-si
 h2{font-size:23px;line-height:1.3;margin:0 0 11px;font-weight:700}h3{font-size:15px;line-height:1.4;margin:13px 0 6px}p{margin:7px 0}ul,ol{padding-left:20px;margin:8px 0}li{margin:5px 0}strong{font-weight:700;color:#124d7d}
 a{color:#125bb4;text-decoration:none;overflow-wrap:anywhere}code{font-family:Consolas,monospace;font-size:.9em;overflow-wrap:anywhere;word-break:break-all;color:#335576}
 table{width:100%;border-collapse:collapse;font-size:11.6px;line-height:1.48;margin:9px 0;table-layout:fixed}th,td{padding:5px 6px;border-bottom:1px solid #dbe5ef;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eaf2ff;color:#125bb4;font-weight:700}tr:nth-child(even) td{background:#f8fafc}th:first-child,td:first-child{width:32%}table[data-cols="4"] th,table[data-cols="4"] td{width:auto}table[data-cols="4"] th:nth-child(odd),table[data-cols="4"] td:nth-child(odd){width:9%}
-.map{margin:6px 0}.map svg{width:100%;height:auto;display:block}.caption{color:#607389;font-size:10px;margin:2px 0 5px}.footer{position:absolute;bottom:7mm;left:10mm;right:10mm;border-top:1px solid #dbe5ef;padding-top:5px;font-size:9px;color:#607389;display:flex;justify-content:space-between}.content{display:flow-root}#p01 h2{font-size:28px}#p01 table th,#p01 table td,#p04 table th,#p04 table td{padding-top:3px;padding-bottom:3px}#p13 table th,#p13 table td{padding-top:2px;padding-bottom:2px}#p23 table{font-size:10.8px}#p23 p{font-size:12px}#p27 p{margin:6px 0}#p22 p,#p22 li,#p24 p,#p24 li,#p25 p,#p25 li{font-size:12.5px}#p17 table th,#p17 table td{padding-top:3px;padding-bottom:3px}
+.map{margin:6px 0}.map svg{width:100%;height:auto;display:block}.caption{color:#607389;font-size:10px;margin:2px 0 5px}.footer{position:absolute;bottom:7mm;left:10mm;right:10mm;border-top:1px solid #dbe5ef;padding-top:5px;font-size:9px;color:#607389;display:flex;justify-content:space-between}.content{display:flow-root}#p01 h2{font-size:28px}#p01 table th,#p01 table td,#p04 table th,#p04 table td{padding-top:3px;padding-bottom:3px}#p13 table th,#p13 table td{padding-top:1.5px;padding-bottom:1.5px}#p25 li{margin:4px 0}#p23 table{font-size:10.8px}#p23 p{font-size:12px}#p27 p{margin:6px 0}#p22 p,#p22 li,#p24 p,#p24 li,#p25 p,#p25 li{font-size:12.5px}#p17 table th,#p17 table td{padding-top:3px;padding-bottom:3px}
 @page{size:A5;margin:0}@media screen{.page{margin:18px auto;box-shadow:0 8px 28px #19304a18}}@media print{body{background:#fff}.page{margin:0;box-shadow:none}}
 '''
 
