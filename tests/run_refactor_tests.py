@@ -34,6 +34,15 @@ def scope_checks():
     expected = {'config/boards/arm/bbp9981/CMakeLists.txt'} | {DRIVER + p for p in [
         'a320_0x57.c', 'behavior_gamepad.c', 'gamepad_runtime.h', 'gamepad_usb.c',
         'gamepad_usb_extension.h', 'keyboard_backlight.c', 'trackpad_led.c']}
+    # v2.3.1 is a separately scoped USB snapshot lifetime/protocol fix. Keep the
+    # original refactor allowlist and immutable Git base; verify the entire new
+    # release against v2.3.0 before admitting this single documented exception.
+    snapshot = DRIVER + 'trackpad_usb_snapshot.h'
+    actual_changed_count = len(changed)
+    if snapshot in changed:
+        from check_stability_scope import verify_stability_scope
+        verify_stability_scope()
+        changed.remove(snapshot)
     assert changed == expected, ('unexpected refactor edits', changed ^ expected)
     added = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.is_file()} - set(previous)
     new = {DRIVER + p for p in ['trackpad_mode.c', 'trackpad_mode.h', 'trackpad_scroll.h',
@@ -41,8 +50,8 @@ def scope_checks():
     new |= {'config/boards/arm/bbp9981/cmake/' + p for p in ['matrix_guard.cmake',
             'tap_extensions.cmake', 'gamepad.cmake', 'gamepad_sdk_guard.cmake', 'diagnostics.cmake']}
     assert added == new, ('unexpected refactor files', added ^ new)
-    print(f'PASS refactor scope: {len(previous)-len(changed)} baseline config files byte-identical; '
-          f'{len(changed)} explicit existing files / {len(new)} explicit new files')
+    print(f'PASS refactor scope: {len(previous)-actual_changed_count} baseline config files byte-identical; '
+          f'{len(changed)} refactor edits / {actual_changed_count-len(changed)} separately guarded stability fix / {len(new)} explicit new files')
 
     # All sensor I/O, diagnostic probe transactions and mode/listener bodies are frozen.
     old = reference(DRIVER + 'a320_0x57.c').decode()

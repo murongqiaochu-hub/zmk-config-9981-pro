@@ -177,3 +177,5 @@ print('PASS endpoint diagnostics: four unchanged SDK fixtures, actual preinclude
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_refactor_tests.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_matrix_isolation.py'), '-v'], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_micro_source_contrast.py')], check=True)
+# v2.3.1 keeps the historical refactor reference, adding one evidenced fix only.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_stability_tests.py')], check=True)

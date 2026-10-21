@@ -124,10 +124,17 @@ int bbp_gamepad_key_event(uint32_t position, uint32_t action, bool pressed, int6
     identical(current(DRIVER + 'gamepad_runtime.h'),
               old(DRIVER + 'gamepad_runtime.h').replace('struct bt_conn;\n\n',
                   'struct bt_conn;\n\n' + header_addition, 1), 'gamepad_runtime.h')
-    for path in ['gamepad_ble_extension.h', 'gamepad_usb_lifecycle.h', 'trackpad_usb_epoch.h',
-                 'trackpad_usb_snapshot.h']:
+    for path in ['gamepad_ble_extension.h', 'gamepad_usb_lifecycle.h', 'trackpad_usb_epoch.h']:
         identical(current(DRIVER + path), old(DRIVER + path), path)
-    print('PASS BLE and USB SDK/lifecycle prefixes unchanged')
+    snapshot_path = DRIVER + 'trackpad_usb_snapshot.h'
+    if current(snapshot_path) == old(snapshot_path):
+        identical(current(snapshot_path), old(snapshot_path), 'trackpad_usb_snapshot.h')
+    else:
+        # The old stack source/protocol window is deliberately fixed in v2.3.1;
+        # no other production changes are admitted by its independent scope gate.
+        from check_stability_scope import verify_stability_scope
+        verify_stability_scope()
+    print('PASS gamepad BLE/USB lifecycle and epoch prefixes unchanged; click snapshot separately stability-guarded')
 
     runtime_test = 'tests/test_gamepad_runtime.c'
     expected_test = old(runtime_test).replace(
