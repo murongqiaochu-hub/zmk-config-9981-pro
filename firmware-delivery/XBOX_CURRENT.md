@@ -1,12 +1,22 @@
-# Xbox 布局标准 HID：v2.2.7 已构建修正候选（2026-10-21）
+# Xbox 布局标准 HID：v2.2.8 固定方向档 / R/U 菜单候选（2026-10-21）
 
-- 功能源码：`88e744f51e386db853ae25c4438b33cb23557af5`；构建提交：`045a7a3a0da9ba372d99ea747e27a15ababb8694`，分支 `codex/xbox-layout-v2.2.7-20261021`。完整主机回归exit0（70配置/四层42键图与手册同步）；[Actions Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 的regression与`bbp9981` ARM构建均PASS，候选deliver job跳过。**v2.2.7仍未发布/归档、未刷写/未实机验收。** 用户授权本轮及今后同范围修正直接完成必要候选分支推送/Actions/UF2校验；不推稳定分支、不发布/归档、不刷写/清设置。
+- 功能源码 SHA：`88edf7f323b643465fa1470fdc2e090dd3ee0ffa`；构建提交：`PENDING`；拟新候选分支 `codex/xbox-layout-v2.2.8-20261021`。完整host exit0，70配置/四层42键图/手册manifest同步PASS。**Actions/ARM/UF2尚待，尚无本版已验证UF2；PDF/Word/HTML最终导出待完成。** 不以历史 v2.2.7 的成功冒充新版。未发布/归档、未刷写/未实机验收。
+- 主任务回传定向strict UBSan PASS：全部旧档位绝对选档/幂等/互切、两种listener顺序真实A320双档四向/aA临时覆盖且不触BT、真实preset API全向量/饱和；scope gate PASS（45旧配置/8集成+16新增）。这些专项不代替完整host、ARM或实机验收。
+- 用户于 **2026-10-21 14:33** 确认 v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用；要求方向改为固定档而非累加，并将MEDIA菜单移到R/U。该反馈只覆盖所述现象，不是USB/BT、全部App、多键及保护场景全面硬件验收；旧校验记录的 `device_tested=false` 保留原状。
+- 固定方向档只在 **aA松开且锁轮生效** 时选择：P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左**；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右**。同键重复幂等，无论原档位都直接选目标；换另一键直接选其目标，不继续转90°。默认锁轮0°、解锁/重锁回正；按住aA临时原方向与原生肩轮，松开恢复所选固定档，肩键半速/屏蔽自身Wheel不变。
+- 按住右aA时P3/P5立即 `BT_SEL 1/2`，已锁轮亦优先选槽；aA+F/P20双击鼠标翻转不改。三击按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列，其余点按吞掉；aA锁轮双击每拍<450ms、间隔≤350ms不变。
+- 仅MEDIA：View从T/P11移到 **R/P10（action12）**，Menu从Y/P12移到 **U/P13（action13）**，原T/Y留空。其余保持v2.2.7：W↑D→Z↓A←，S/L=L3/R3，肩LT/RT、Call/End LB/RB，O/K/BSPC/$=Y/X/B/A，P4/Space=Guide，19绑定/2出口/21None，仅P40/P41退出。aA层owner仲裁、鼠标/手柄隔离、协议和安全限制均保留。
+- 用户已授权今后同范围固件修正直接完成必要的版本专属新候选分支推送、既有Actions ARM构建、下载及UF2校验，不再重复询问；仍须核验精确仓库，不推稳定/已发布分支，不发布、归档回推、刷写、清配对、擦设置或改主机。v2.2.4仍为最后已发布/归档版本。
+
+## 历史构建：v2.2.7（不含本次固定档与R/U菜单）
+
+- 功能源码：`88e744f51e386db853ae25c4438b33cb23557af5`；构建提交：`045a7a3a0da9ba372d99ea747e27a15ababb8694`，分支 `codex/xbox-layout-v2.2.7-20261021`。完整主机回归exit0（70配置/四层42键图与手册同步）；[Actions Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 的regression与`bbp9981` ARM构建均PASS，候选deliver job跳过。v2.2.7未发布/归档；交付时记录未刷写/未实机验收，用户14:33后续反馈见上方，不能外推全场景通过。
 - 新UF2本地边界验证PASS：SHA-256 `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，613376 bytes、1198 blocks、family `0xada52840`、连续应用区 `[0x1000,0x4be00)`，无bootloader/NVS块。[候选UF2](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/bbp9981-zmk.uf2>)、[SHA256SUMS](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/SHA256SUMS>)、[validation.json](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/09_云端构建产物/validation.json>)；`device_tested=false`。
 - 云端最终DTS的42个MEDIA位置及DEFAULT/SYM/UPPER右aA、P3/P5/F绑定已独立核对，见[逐位置核对JSON](</vol1/1000/agent/output/1021/133611_9981Pro修正版_v2.2.7/11_云端DTS键位核对.json>)；日志确认新AA owner实际编译，FLASH306592B/RAM88862B，仍非设备验收。
 - 最终MEDIA：W/P8↑、D/P19→、Z/P28↓、A/P17←；S/P18=L3、L/P25=R3；肩P0/P1=LT/RT，Call/End P2/P6=LB/RB。O/K/BSPC/$=Y/X/B/A，P4/Space=Guide，T/Y=View/Menu不变；E/X/F新空，19绑定/2出口/21None，仅P40/P41退出。
 - 恢复蓝牙槽：按住右aA时P3/P5立即选槽1/2，即使scroll latch已锁定；松aA且锁轮时P3/P5三击分别左→上/右→上，其他点按吞掉。鼠标翻转改到右aA按住+F/P20双击（180/220ms），再次切回；普通Y/DEFAULT肩键互换，其余与volatile限制不变。aA双击450/350ms、三击180/220ms保留。
 - aA层由momentary/sticky/fixed owner仲裁；旧sticky的3秒超时/迟到UP不撤销fixed，SYM退层不解scroll latch。pinned sticky/mo/to三份Git blob身份、owner12case旧bug/新修复、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate PASS（45旧配置/8集成+16新增）；完整回归现已通过，但这些模型/构建结果仍不替代硬件验收。
-- 用户已确认刷入 **v2.2.6**、未在Studio保存，反馈映射、手势与第三蓝牙槽入口异常。该旧版实际默认图不是本次最终图；不能将其host/ARM PASS或历史`device_tested=false`改写成v2.2.7硬件通过。
+- 用户此前确认刷入 **v2.2.6**、未在Studio保存，反馈映射、手势与第三蓝牙槽入口异常。该旧版实际默认图不是v2.2.7图；v2.2.7的14:33有限正面反馈见本页开头，不追改v2.2.6/v2.2.7旧校验记录，也不将host/ARM PASS改写为全面硬件通过。
 
 ## 历史构建：v2.2.6（不含本次修正）
 

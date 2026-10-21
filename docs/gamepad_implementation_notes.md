@@ -1,22 +1,22 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-21，与[使用说明书 v2.2.7](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为已构建的 v2.2.7 未发布修正候选，功能提交 `88e744f51e386db853ae25c4438b33cb23557af5`，分支 `codex/xbox-layout-v2.2.7-20261021`；pinned sticky/mo/to 身份对照、owner/真实驱动联动、gamepad专项与范围闸已通过，完整主机回归exit0、70配置/四层42键图同步PASS；[Actions Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 的regression与bbp9981 ARM均PASS，构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`；新UF2本地边界验证PASS：613376 B/1198 blocks/`[0x1000,0x4be00)`，SHA-256 `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，候选deliver job跳过。用户确认已刷 v2.2.6、未用 Studio 保存，反馈映射、手势和第三蓝牙槽入口失灵；该反馈不等于 v2.2.7 硬件验收。历史构建/SHA 保留在[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+2026-10-21，与[使用说明书 v2.2.8](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为 v2.2.8 固定方向档 / R/U 菜单候选，功能源码 SHA `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`，拟新分支 `codex/xbox-layout-v2.2.8-20261021`；完整host exit0及70配置/四层42键图/手册manifest同步PASS；构建提交、Actions/ARM、UF2与最终文档导出尚待，不能冒用 v2.2.7 成功。用户于2026-10-21 14:33确认 v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用；固定方向语义和R/U菜单仍待新版，不是全场景硬件验收，不改旧校验记录的 `device_tested=false`。v2.2.7 功能源码 `88e744f51e386db853ae25c4438b33cb23557af5`、构建 `045a7a3a0da9ba372d99ea747e27a15ababb8694`、[Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 和 UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6` 均为历史，详情保留在[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
 ## 范围与映射
 
-第 3 层保留名称 MEDIA，使用独立 gamepad behavior，不让模拟器把字母当按钮。v2.2.7 按用户最终确认修正为：W/P8 上、D/P19 右、Z/P28 下、A/P17 左；S/P18=L3、L/P25=R3，**不是左杆**；双肩 P0/P1=LT/RT，Call/End P2/P6=LB/RB；O/K/Backspace/$=Y/X/B/A、T/Y=View/Menu、P4 触板机械点击与 P39 空格=Guide 不变。E/P9、X/P29、F/P20 在 MEDIA 新留空。仅 P40/P41 两出口；19 个 gamepad 绑定、2 个出口、21 个显式 None，不发字母。
+第 3 层保留名称 MEDIA，使用独立 gamepad behavior，不让模拟器把字母当按钮。v2.2.8 仅将 View 从 T/P11 移到 **R/P10（action12）**、Menu 从 Y/P12 移到 **U/P13（action13）**，原 T/Y 留空；其余保持 v2.2.7：W/P8 上、D/P19 右、Z/P28 下、A/P17 左；S/P18=L3、L/P25=R3，**不是左杆**；双肩 P0/P1=LT/RT，Call/End P2/P6=LB/RB；O/K/Backspace/$=Y/X/B/A、P4 触板机械点击与 P39 空格=Guide。E/P9、X/P29、F/P20 等仍在 MEDIA 留空。仅 P40/P41 两出口；19 个 gamepad 绑定、2 个出口、21 个显式 None，不发字母，非MEDIA层不随此改键。
 
-锁轮沿用默认0°、每组完整三击一步、解锁/重锁回正及肩键半速/自身 wheel 屏蔽；按住 aA 暂时恢复原方向和原生肩轮。v2.2.7 恢复槽优先：**物理右 aA 按住时 P3/P5 立即 BT_SEL 1/2，即便 scroll latch 已锁定**。只在 aA 松开且锁轮生效时，P3 三击左→上、P5 三击右→上，其余点按吞掉；三击仍为按住≤180ms、释放至下次按下≤220ms，其他键取消序列。
+锁轮默认0°、解锁/重锁回正及肩键半速/自身 wheel 屏蔽均保留；按住 aA 临时恢复原方向和原生肩轮，松开恢复所选固定档。v2.2.8 将累加步进改为**固定档选择**：只在 aA 松开且锁轮生效时，P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左** 档；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右** 档。第三次松开直接写入该目标，同键重复幂等，无论原档位都直接选目标；换另一键不是在原档继续转90°。其他点按吞掉，完整三击仍为按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列。**物理右 aA 按住时 P3/P5 立即 BT_SEL 1/2，即便 scroll latch 已锁定**，不参与固定档选择。
 
-鼠标翻转快捷键从 aA+P5 移到 **aA 按住+F/P20 双击**（同为180/220ms），再做切回；UPPER F 原本留空，不满足组合时仍无输出。同槽 BT 键也会取消未完成 F 双击候选，不依赖 endpoint change；已定向验证 F→P5→F 不翻转。模式 volatile：普通指针Y反向、DEFAULT 两肩 LCLK/RCLK 角色互换；X、滚轮、手柄与 SYM/UPPER/MEDIA 其他绑定不变，重启关闭。
+鼠标翻转沿用 v2.2.7 的 **aA 按住+F/P20 双击**（180/220ms），再做切回，不改为其他入口；UPPER F 不满足组合时仍无输出。同槽 BT 键也会取消未完成 F 双击候选，不依赖 endpoint change；v2.2.7 曾定向验证 F→P5→F 不翻转。模式 volatile：普通指针Y反向、DEFAULT 两肩 LCLK/RCLK 角色互换；X、滚轮、手柄与 SYM/UPPER/MEDIA 其他绑定不变，重启关闭。
 
-为避免第一次 aA tap 的旧 sticky 3秒计时撤销已固定 UPPER，新增 `aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky 的 quick-release/3000ms，但 child 为 `aa_layer` 而非直接 `mo`；`aa_mo` 为450ms hold-preferred，children 为 `aa_layer / aa_sl`。DEFAULT/SYM 的 P41 为 `&aa_mo 0 1`，UPPER P41 为 `&aa_layer 2`；迟到 sticky UP 只释放自己的 owner，不撤 fixed。aA 双击仍每拍<450ms、释放间隔≤350ms；SYM 退出 UPPER 但不清 scroll latch。AA 参数行为须继承 `one_param.yaml` 的 `param1` cell，避免仲裁参数全读0，已附契约assert。本轮已核对 pinned SDK sticky/mo/to 三份 Git blob 身份并通过 owner 旧bug/新修复模型对照；完整主机回归已exit0，Run39551522029的ARM构建也已PASS；真实RTOS及设备行为仍待实机核验。
+为避免第一次 aA tap 的旧 sticky 3秒计时撤销已固定 UPPER，v2.2.7 新增、v2.2.8 保留 `aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky 的 quick-release/3000ms，但 child 为 `aa_layer` 而非直接 `mo`；`aa_mo` 为450ms hold-preferred，children 为 `aa_layer / aa_sl`。DEFAULT/SYM 的 P41 为 `&aa_mo 0 1`，UPPER P41 为 `&aa_layer 2`；迟到 sticky UP 只释放自己的 owner，不撤 fixed。aA 双击仍每拍<450ms、释放间隔≤350ms；SYM 退出 UPPER 但不清 scroll latch。AA 参数行为须继承 `one_param.yaml` 的 `param1` cell，避免仲裁参数全读0，已有契约assert。pinned SDK sticky/mo/to 三份 Git blob 身份、owner 旧bug/新修复模型对照及 Run39551522029 的完整host/ARM PASS 均是 v2.2.7 历史证据；v2.2.8 完整主机回归现已exit0，真实RTOS/设备验收仍未完成。
 
-[主键图](<../config/bbp9981.keymap>)与[板级镜像](<../config/boards/arm/bbp9981/bbp9981.keymap>)须一致：19 个 gamepad 绑定为 `P0=10, P1=11, P2=8, P3=17, P4=14, P6=9, P8(W)=0, P11(T)=12, P12(Y)=13, P15(O)=7, P17(A)=2, P18(S)=15, P19(D)=3, P24(K)=6, P25(L)=16, P26(Backspace)=5, P28(Z)=1, P35($)=4, P39(Space)=14`；仅 `P40(SYM) / P41(右aA)` 两出口回 DEFAULT，其余 21 个位置显式 None，不透明回落。
+[主键图](<../config/bbp9981.keymap>)与[板级镜像](<../config/boards/arm/bbp9981/bbp9981.keymap>)须按 v2.2.8 合同一致：19 个 gamepad 绑定为 `P0=10, P1=11, P2=8, P3=17, P4=14, P6=9, P8(W)=0, P10(R)=12, P13(U)=13, P15(O)=7, P17(A)=2, P18(S)=15, P19(D)=3, P24(K)=6, P25(L)=16, P26(Backspace)=5, P28(Z)=1, P35($)=4, P39(Space)=14`；`P11(T)/P12(Y)=None`，仅 `P40(SYM) / P41(右aA)` 两出口回 DEFAULT，其余 21 个位置显式 None，不透明回落。此为本版目标，最终源码/云端DTS核验尚待主任务回传。
 
-云端最终 DTS 另已对照核验：42个MEDIA位置全部与最终合同一致，DEFAULT/SYM右aA实际为`aa_mo 0 1`，UPPER为`aa_layer 2`且P3/P5/F均指向新手势行为；aa_sl的child/3000ms quick-release与aa_mo的450ms/children均正确，日志确认新`behavior_aa_layer.c`对象实际编译。FLASH 306592 B/844 KB、RAM 88862 B/256 KB。原始日志和逐位置核对JSON保留在本次交付目录，仍非设备验收。
+历史 v2.2.7 云端最终 DTS 曾逐项核验其42个MEDIA位置（含当时 T/Y=View/Menu），DEFAULT/SYM右aA为`aa_mo 0 1`、UPPER为`aa_layer 2`且P3/P5/F指向对应手势；aa_sl的child/3000ms quick-release与aa_mo的450ms/children均正确，日志确认新`behavior_aa_layer.c`对象编译。旧 FLASH 306592 B/844 KB、RAM 88862 B/256 KB。原始日志和逐位置核对JSON保留在v2.2.7交付目录；这不是v2.2.8 DTS/资源核验，也非设备全面验收。
 
 ### 描述符与报告 ABI
 
@@ -44,7 +44,7 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 实际[gamepad 运行时](<../config/boards/arm/bbp9981/custom_driver/behavior_gamepad.c>)原有 32 帧 FIFO 与每位置 action owner；release 用原 owner。入 / 退出、输出路由变化清本地 owner、取消旧队列代际并尝试发 neutral；旧目标由 worker 持有 captured conn 引用释放。新目标先 neutral，旧按住键不能因另一键或重连而重播。帧寿命 250ms，旧目标释放最多 40 次 / 400ms；旧目标拒绝释放期间在新主机立即按的首键可能过期，须重按。断线或预算耗尽不能保证旧主机收到 UP。
 
-**历史版本 runtime 主机专项已通过，不作为 v2.2.7 回归结果：** 10000 次 motion 不占离散 FIFO；只在 FIFO 空时捕获最新轴快照，发送前仅刷新四轴，保留按钮 / 帽 / 触发器边沿。测试覆盖同值运动续 quiet、119/120ms、按钮仍按住时归轴零、GPIO/I2C 故障只清轴、BB/R3 owner、旧主机 neutral / 新主机初始化、同 profile 换 conn、producer wake0 不被 retry 覆盖。采样已老于 quiet 时拒绝，锁内 fresh clock 提交避免 getter 先观察新 tick 后把新样本误判倒退；不将此 mock 定时证明扩写为真实 RTOS / 主机到达保证。
+**历史版本 runtime 主机专项已通过，不作为 v2.2.8 回归结果：** 10000 次 motion 不占离散 FIFO；只在 FIFO 空时捕获最新轴快照，发送前仅刷新四轴，保留按钮 / 帽 / 触发器边沿。测试覆盖同值运动续 quiet、119/120ms、按钮仍按住时归轴零、GPIO/I2C 故障只清轴、BB/R3 owner、旧主机 neutral / 新主机初始化、同 profile 换 conn、producer wake0 不被 retry 覆盖。采样已老于 quiet 时拒绝，锁内 fresh clock 提交避免 getter 先观察新 tick 后把新样本误判倒退；不将此 mock 定时证明扩写为真实 RTOS / 主机到达保证。
 
 普通层也进行首次neutral初始化。安全成功通过原子readiness标志重启短重试预算；安全降级清上下文。CCC聚合值不一定随新peer订阅改变，因此40次短重试后仅以2Hz探测当前peer的全新neutral，不保留旧帧/引用，不反复请求L2，也不恢复取消的held actions。BLE HOG Control Point suspend仍继承stock限制，不宣称本轮新增了完整处理。
 
@@ -52,7 +52,7 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 已加入真实 driver 的游戏层独占分支与鼠标晚发送 gate：MEDIA 时将 raw 运动交给虚拟杆，不同时产鼠标、滚轮或轻拍；入 / 退出或路由变化时取消不能跨上下文的旧队列 / 候选，退出恢复原鼠标路径。原物理 P37 slow、P41 aA 按住滚轮 / 双击锁轮监听仍存在，但游戏层不因此生成鼠标 / 滚轮；P37 不是摇杆加速键。v2.2.7 的 UPPER 由 `aa_layer` 分离临时/一次性/固定持有，SYM（P40）退普通层但不解 scroll latch；MEDIA 仅 P40/P41 两个 DEFAULT 出口，P35($) 在 MEDIA 是 A 按钮。
 
-轻拍仅新增 GP 临时阻断与旧候选取消，不调优原 gesture 参数、开机 OFF 或普通层三击开关，不自动改 ON/OFF。触板 driver、microtap runtime、输出 bridge 有 GP 门；A320 的 v2.2.5 锁轮方向步进与 v2.2.6 鼠标朝向状态并存，切换朝向时仅重置鼠标指针小数并取消旧 microtap 候选；滚轮 remainder 与手柄状态不变。肩键 LCLK/RCLK 角色路由保留按下/抬起 owner，受鼠标模式约束仅 DEFAULT 行为变化。历史 v2.2.6 范围闸曾验证 **45 份旧配置字节相同**；对 A320 精确剥离滚轮锁定、鼠标翻转与 GP 门并归一其历史 CRLF 后，剩余源码还原基线，当时为8个集成、14个新增配置。v2.2.7 新增 aA owner 仲裁后已重验范围（45旧配置/8集成+16新增），不是沿用旧计数/PASS；指针/轻拍数学、bridge I/O / 必要 UP、肩键 Ctrl、灯光、GPIO / 矩阵仍须保留。
+轻拍仅有 GP 临时阻断与旧候选取消，不调优原 gesture 参数、开机 OFF 或普通层三击开关，不自动改 ON/OFF。触板 driver、microtap runtime、输出 bridge 有 GP 门；A320 的锁轮方向在 v2.2.5–v2.2.7 是累加步进，v2.2.8 改为上文固定档选择，鼠标朝向状态仍独立。切换鼠标朝向时仅重置指针小数并取消旧 microtap 候选；滚轮 remainder 与手柄状态不变。肩键 LCLK/RCLK 角色路由保留按下/抬起 owner，受鼠标模式约束仅 DEFAULT 行为变化。历史 v2.2.6 范围闸曾验证 **45 份旧配置字节相同**；对 A320 精确剥离滚轮锁定、鼠标翻转与 GP 门并归一其历史 CRLF 后，剩余源码还原基线，当时为8个集成、14个新增配置。v2.2.7 新增 aA owner 仲裁后曾重验范围（45旧配置/8集成+16新增）；v2.2.8 已独立重验scope并PASS（45旧配置/8集成+16新增），完整host亦已exit0，70配置/四层图同步PASS，不冒用旧版成功。指针/轻拍数学、bridge I/O / 必要 UP、肩键 Ctrl、灯光、GPIO / 矩阵仍须保留。
 
 历史版本独立只读复核发现并修复一项 P1：已 submit、尚在 QUEUED 的旧轻拍 worker 可早于下次 sensor poll 发 DOWN。现在 GP 生命周期立即 cancel，bridge 分别保存策略 context 与 request 的 pointer epoch，submit / QUEUED / DOWN 最终门拒 active 或旧代际；UP 仍归还自己的一份引用。micro poll 起点捕获 pointer epoch，晚门也识别同 poll enter+exit。新增[真实异步 bridge 组合测试](<../tests/test_gamepad_tap_bridge.c>)已实际通过旧 22 cases（GP 编译但 OFF）及 QUEUED/IDLE gap/最终拒 DOWN/必要 UP/foreign ref 保留用例；[真实 driver 组合测试](<../tests/test_gamepad_driver.c>)覆盖同 poll 往返、原普通模式和退出恢复。独立只读复验确认该 P1 收口；最终检查→SDK hook 仍非原子，已 admitted / 已进入 SDK 的旧包不保证撤回。
 
@@ -67,9 +67,11 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 已执行与未执行
 
-**当前 v2.2.7：** 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`。pinned SDK sticky/mo/to 三份 Git blob 身份对照一致；owner12case含旧bug复现/新修复对照exit0；真实A320/owner/gesture/rotation pipeline两种listener顺序PASS，覆盖超3秒固定层、按住aA切槽的两种松手顺序、解锁重锁回正与F鼠标模式；gamepad专项及scope gate PASS（45份旧配置、8集成+16新增）。完整主机回归exit0，70配置/四层42键图/手册manifest同步PASS。**Actions Run39551522029的regression/ARM与新UF2本地边界/SHA验证PASS，记录见上方及交付记录；仍未发布/归档、未刷写/未实机验收。**
+**当前 v2.2.8：** 功能源码 SHA `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、构建提交 `PENDING`，拟候选分支 `codex/xbox-layout-v2.2.8-20261021`。主任务已回传定向strict UBSan PASS：gesture从全部旧档位绝对选1/3档、同键重复/互切；真实A320联动在两种listener顺序验证两档各四个raw方向、同键重复/交替、aA临时原方向/松手回档且不触BT；真实shoulder preset API覆盖两档×四旧档×16次重复全向量及饱和。scope gate PASS（45旧配置/8集成+16新增）。完整host exit0、70配置/两键图/四层图/手册清单同步PASS；Actions/ARM、最终DTS及UF2仍 pending，不能将定向专项当完整回归或已构建产物。未发布/归档、未刷写/实机验收。用户14:33对v2.2.7的有限正面反馈见开头，不等于上述新增语义通过。
 
-以下为 v2.2.3–v2.2.6 历史验证记录，不作为 v2.2.7 的完整回归、云构建或硬件通过结果；v2.2.6 用户后续实机失败反馈须与历史PASS并列保留：
+**历史 v2.2.7：** 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`。pinned SDK sticky/mo/to 三份 Git blob 身份对照一致；owner12case含旧bug复现/新修复对照exit0；真实A320/owner/gesture/rotation pipeline两种listener顺序PASS，覆盖超3秒固定层、按住aA切槽的两种松手顺序、解锁重锁回正与F鼠标模式；gamepad专项及scope gate PASS（45份旧配置、8集成+16新增）。完整主机回归exit0，70配置/四层42键图/手册manifest同步PASS。Actions Run39551522029的regression/ARM通过；旧UF2为613376 B/1198 blocks/`[0x1000,0x4be00)`、family `0xada52840`、SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，本地边界校验PASS，deliver job跳过。该版仍是累加方向/T/Y菜单，不满足v2.2.8合同；交付时未刷未验，14:33后续反馈不追改旧validation记录。
+
+以下为 v2.2.3–v2.2.6 历史验证记录，不作为 v2.2.8 的完整回归、云构建或硬件通过结果；v2.2.6 用户后续实机失败反馈须与历史PASS并列保留：
 
 - [专项 runner](<../tests/run_gamepad_tests.py>)纯核以 strict Wall/Wextra/Werror + UBSan 通过 **13 buttons 的 8192 × 16 方向全组合**、250000 owner 随机边沿、32768 motion 压力；覆盖动作捕获、四轴 / 数字 trigger、虚拟杆过滤与本地归零纯核。不能把纯核 quiet 测试等同于 RTOS 定时发送已验收。
 - 新报告 ABI 在 **5 个真实 HOG 配置**及 **USB BOOT0/1 × 10 模式**均已通过。覆盖 BLE 9-byte offsets、USB ID4 共 10 bytes、trigger-only 旧 context 拒发；USB 延迟 DMA 测试消费完整 10 bytes，EP0 snapshot 与中断 TX 隔离，不用 12-byte staging 容量作发送长度。

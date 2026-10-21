@@ -50,15 +50,25 @@
 - 鼠标翻转是独立 volatile DEFAULT-mouse 功能：反转普通指针 Y，并交换默认层两肩的 LCLK/RCLK 角色；不改 X、滚轮、手柄轴或 SYM/UPPER/MEDIA 肩键，不持久化，重启关闭。
 - 候选分支 `codex/xbox-layout-v2.2.6-20261021` 已推送，功能源码提交 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`，构建提交 `b05dee65dc929855c809036c539b14488cd7d4b0`。完整 `python3 -B tests/run_host_tests.py` exit 0（68 份配置、四层42键图/手册同步、strict UBSan host regressions），范围闸 45 份旧配置逐字节相同、8 个集成 +14 个新增配置；回归基线为实际父提交 `51c5efd`。Actions Run `39540020475` 的 regression 与 `bbp9981` ARM build PASS；UF2 本地验证 SHA `9f4daf7b22ab833c01ed5322115b1a8977cbd4aff8701c04e29ddd73b76d155a`，611328 B / 1194 blocks / `[0x1000,0x4ba00)`。仅候选分支，不归档、不刷写、不清配对、不擦设置、不改主机；v2.2.4 仍是最后已发布 / 归档件，host / cloud build 不等于实机验收。
 
-## v2.2.7 修正候选与用户最终合同（2026-10-21）
+## v2.2.7 历史修正候选与当时合同（2026-10-21）
 
-- 本节为当前合同，前述 v2.2.5/v2.2.6 均保留作历史，不自动沿用其映射或验收状态。用户确认已刷入 v2.2.6、未用 Studio 保存过键图，反馈方向/肩键与期望不符、手势和“右aA+P5第三蓝牙槽”入口失灵；不将这些反馈归因 Studio 覆盖，不改写历史产物的 `device_tested=false` 为新版硬件通过。
+- 本节仅适用于 v2.2.7 历史候选，方向仍为累加步进、MEDIA 菜单仍在 T/Y；当前合同见下方 v2.2.8，不自动沿用旧映射或验收状态。此前用户确认已刷入 v2.2.6、未用 Studio 保存过键图，反馈方向/肩键与期望不符、手势和“右aA+P5第三蓝牙槽”入口失灵；不将这些反馈归因 Studio 覆盖，不改写历史产物的 `device_tested=false` 为新版硬件通过。
 - 最终 MEDIA：W/P8=上、D/P19=右、Z/P28=下、A/P17=左；S/P18=L3、L/P25=R3；P0/P1 肩键=数字 LT/RT，P2 Call/P6 End=LB/RB。O/K/Backspace/$=Y/X/B/A，P4/Space=Guide，T/Y=View/Menu；E/P9、X/P29、F/P20 在 MEDIA 留空。19绑定/2出口/21None，仅 P40/P41 回 DEFAULT。
 - 恢复槽优先：物理右 aA 按住时 P3/P5 立即 `BT_SEL 1/2`，即使 scroll latch 已锁定；只有 aA 松开且锁轮时，P3/P5 完整三击分别左→上/右→上，其余点按吞掉。三击按住≤180ms、释放至下次按下≤220ms；aA 双击仍每拍<450ms、间隔≤350ms，解锁/重锁回正。
 - 鼠标翻转快捷键移到物理右 aA 按住+F/P20 双击（180/220ms），再做切回；UPPER F 未满足组合时无输出。普通指针Y反向、DEFAULT肩键LCLK/RCLK互换；X、滚轮、手柄/其他层不变，volatile、重启关闭；P5 不再被鼠标双击占用。
 - 修复3秒退层：`aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky quick-release/3000ms、child改为 `aa_layer`；`aa_mo` 为450ms hold-preferred、children `aa_layer/aa_sl`。DEFAULT/SYM P41=`&aa_mo 0 1`，UPPER P41=`&aa_layer 2`；sticky迟到UP仅清自己的owner，不撤fixed。SYM退层但不清 scroll latch。
-- 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`，候选分支 `codex/xbox-layout-v2.2.7-20261021`。pinned SDK sticky/mo/to 三份Git blob身份对照、owner12case旧bug/新修复对照、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、按住aA切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate均PASS；范围45份旧配置/8集成+16新增。完整 `python3 -B tests/run_host_tests.py` exit 0，70配置/四层42键图与手册清单同步PASS；初次完整运行只因矩阵测试仍断言旧aA绑定而失败，修正为精确`aa_mo/aa_layer`契约后全部通过，未放宽GPIO/鬼键断言。**Actions Run `39551522029`（构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`）的regression与bbp9981 ARM均PASS，deliver job按候选条件跳过。新UF2本地验证PASS：SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，613376 B/1198 blocks/family `0xada52840`/`[0x1000,0x4be00)`；v2.2.7仍未刷写/未实机验收。**
+- 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`，候选分支 `codex/xbox-layout-v2.2.7-20261021`。pinned SDK sticky/mo/to 三份Git blob身份对照、owner12case旧bug/新修复对照、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、按住aA切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate均PASS；范围45份旧配置/8集成+16新增。完整 `python3 -B tests/run_host_tests.py` exit 0，70配置/四层42键图与手册清单同步PASS；初次完整运行只因矩阵测试仍断言旧aA绑定而失败，修正为精确`aa_mo/aa_layer`契约后全部通过，未放宽GPIO/鬼键断言。**Actions Run `39551522029`（构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`）的regression与bbp9981 ARM均PASS，deliver job按候选条件跳过。新UF2本地验证PASS：SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，613376 B/1198 blocks/family `0xada52840`/`[0x1000,0x4be00)`；交付时未刷写/未实机验收，用户14:33后续反馈见下方v2.2.8节，不追改旧校验记录。**
 - 用户在本轮被问是否构建时再次直接要求“以后都直接构建”：**本轮 v2.2.7 及今后本项目同范围固件修正，直接执行必要的版本专属新候选分支推送、既有 Actions ARM 构建、下载与UF2校验，不为同流程重复询问。** 仍须核验精确仓库；不推稳定/已发布分支，不发布、不自动归档回推，不刷写、清配对、擦设置或改主机。范围/目标不同仍先确认；本文档不把构建成功当实机验收。
+
+## v2.2.8 固定方向档与 R/U 菜单当前合同（2026-10-21）
+
+- 本节为当前合同；前述 v2.2.5–v2.2.7 仅作各自版本历史，不能沿用其累加方向语义、T/Y 菜单位置或验证结果。版本 v2.2.8，拟新候选分支 `codex/xbox-layout-v2.2.8-20261021`，功能源码 SHA `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、构建提交 `PENDING`；定向strict UBSan与范围闸已PASS（旧档绝对选择/幂等/互切、两种listener顺序真实A320四向/aA覆盖、preset全向量与饱和；scope45旧配置/8集成+16新增）。本版完整host exit0，70配置/四层42键图/说明书manifest同步PASS；Actions/ARM/UF2及最终文档导出尚待，不沿用历史产物。
+- 用户于2026-10-21 14:33确认 **v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用**；固定方向语义与R/U菜单仍待新版。这是有限用户反馈，不是全部USB/BT、App、多键、保护场景全面硬件验收；不改旧校验记录的 `device_tested=false`。
+- **固定档而非累加：** 仅 aA 松开且锁轮生效时，P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左** 档；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右** 档。同键重复幂等，无论原档位都直接选目标；切换另一键直接选其目标，不在原档继续转90°。默认锁轮0°，解锁/重锁回正；按住aA临时原方向和原生肩轮，松开恢复所选固定档；锁轮肩键半速与屏蔽自身Wheel保留。
+- 按住物理右aA时 P3/P5 立即 `BT_SEL 1/2`，已锁轮亦优先选槽；aA+F/P20双击鼠标翻转不改。完整三击每拍按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列，其余点按吞掉；aA锁轮双击仍每拍<450ms、间隔≤350ms。aA owner仲裁、SYM退层不解锁轮与volatile鼠标模式限制均继承v2.2.7。
+- **仅MEDIA移动菜单两键：** View 从 T/P11 移到 **R/P10（action12）**，Menu 从 Y/P12 移到 **U/P13（action13）**，原 T/Y 在MEDIA留空；其余保持v2.2.7：W↑D→Z↓A←、S/L=L3/R3、肩LT/RT、Call/End LB/RB、O/K/BSPC/$=Y/X/B/A、P4/Space=Guide，19绑定/2出口/21None，仅P40/P41回DEFAULT。非MEDIA层不随此改键，触板虚拟杆、协议、轻拍、灯光、GPIO/矩阵及保护限制不变。
+- v2.2.7 历史构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`、Run `39551522029`、UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6` 保留，不能当v2.2.8构建。v2.2.4仍为最后发布/归档版。
+- **继续保留用户“以后都直接构建”授权：今后本项目同范围固件修正，直接执行必要的版本专属新候选分支推送、既有Actions ARM构建、下载与UF2校验，不为同流程重复询问。** 仍须核验精确仓库；不推稳定/已发布分支，不发布、不自动归档回推，不刷写、清配对、擦settings或改主机。范围/目标不同仍先确认，构建成功不等于实机验收。
 
 ## 更新和导出的最短流程
 
