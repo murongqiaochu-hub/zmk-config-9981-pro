@@ -41,6 +41,7 @@ int tp_sym_ctrl_release(int64_t timestamp) { (void)timestamp; return 0; }
 int tp_sym_ctrl_update(bool aa, bool sym, int64_t timestamp) {
     (void)aa; (void)sym; (void)timestamp; return 0;
 }
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_mode.c"
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 #undef DT_DRV_COMPAT
 #define api shoulder_api
@@ -168,8 +169,8 @@ static void fixture(void) {
     gesture = (struct gesture_state){.sequence_position = UINT32_MAX}; bt_forwarded_mask = 0;
     atomic_set(&cursor_speed_snapshot, 0); last_cursor_speed_snapshot = 0;
     atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
-    sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
-    shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+    scroll_motion.sum_dx = scroll_motion.sum_dy = 0; scroll_motion.sample_cnt = 0; scroll_motion.last_read_time = 0;
+    scroll_motion.remainder_x = scroll_motion.remainder_y = 0;
     fake_gpio_state = 0; fake_i2c_error = 0; fake_now = 0; sym_physically_pressed = false;
 }
 static void lock_then_expire_old_sticky(void) {

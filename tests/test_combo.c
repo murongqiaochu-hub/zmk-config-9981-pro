@@ -4,6 +4,7 @@ void tp_scroll_rotation_reset(void) { fake_scroll_rotation = 0; }
 uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
 void tp_scroll_gesture_cancel(void) {}
 uint8_t indicator_tp_get_last_valid_brightness(void) { return 40; }
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_mode.c"
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 #undef DT_DRV_COMPAT
 #include "../config/boards/arm/bbp9981/custom_driver/behavior_aa_sym_ctrl.c"

@@ -8,6 +8,7 @@ void tp_scroll_rotation_reset(void) { rotation_reset_count++;fake_scroll_rotatio
 uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
 void tp_scroll_gesture_cancel(void) { tap_cancel_count++; }
 uint8_t indicator_tp_get_last_valid_brightness(void) { return 40; }
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_mode.c"
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 
 static void key(uint32_t p,bool down,int64_t t) {
@@ -70,12 +71,12 @@ int main(void) {
 
     struct a320_dev_config cfg={.i2c={.bus=&fake_device}};
     struct a320_data data={0};struct device dev={.name="sensor",.config=&cfg,.data=&data};data.dev=&dev;
-    sum_dx=40;sum_dy=40;sample_cnt=3;last_read_time=10;fake_gpio_state=1;
-    a320_poll_work_handler(&data.poll_work.work);assert(sum_dx==0 && sample_cnt==0);
+    scroll_motion.sum_dx=40;scroll_motion.sum_dy=40;scroll_motion.sample_cnt=3;scroll_motion.last_read_time=10;fake_gpio_state=1;
+    a320_poll_work_handler(&data.poll_work.work);assert(scroll_motion.sum_dx==0 && scroll_motion.sample_cnt==0);
     fake_gpio_state=0;fake_i2c_error=0;fake_dx=2;fake_dy=3;
     a320_poll_work_handler(&data.poll_work.work);assert(tp_is_touched() && report_count==2);
-    sum_dx=30;sum_dy=30;sample_cnt=2;fake_i2c_error=-EIO;
-    a320_poll_work_handler(&data.poll_work.work);assert(!tp_is_touched() && sample_cnt==0 && sum_dx==0);
+    scroll_motion.sum_dx=30;scroll_motion.sum_dy=30;scroll_motion.sample_cnt=2;fake_i2c_error=-EIO;
+    a320_poll_work_handler(&data.poll_work.work);assert(!tp_is_touched() && scroll_motion.sample_cnt==0 && scroll_motion.sum_dx==0);
     fake_i2c_error=0;fake_gpio_config_error=-EIO;assert(a320_init(&dev)==-EIO);
     fake_gpio_config_error=0;assert(a320_init(&dev)==0);
     assert(sym_release_count>0);

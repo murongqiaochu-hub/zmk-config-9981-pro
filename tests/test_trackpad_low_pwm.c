@@ -1,7 +1,83 @@
 /* Real trackpad driver, independent fractional PWM/tick assertions. */
+#include "test_env.h"
+
+/* Keep existing mocks/legacy assertions; trace only this translation unit. */
+static bool backend_record;
+static int backend_unready = -1;
+static unsigned backend_order[4], backend_calls;
+static void backend_record_call(unsigned call) {
+    if (!backend_record) { return; }
+    assert(backend_calls < sizeof(backend_order) / sizeof(backend_order[0]));
+    backend_order[backend_calls++] = call;
+}
+static bool backend_ready(const struct pwm_dt_spec *pwm) {
+    backend_record_call(2U * pwm->channel);
+    return (int)pwm->channel != backend_unready && pwm_is_ready_dt(pwm);
+}
+static int backend_write(const struct pwm_dt_spec *pwm, uint32_t period, uint32_t pulse) {
+    backend_record_call(2U * pwm->channel + 1U);
+    return pwm_set_dt(pwm, period, pulse);
+}
+#define pwm_is_ready_dt backend_ready
+#define pwm_set_dt backend_write
 #define main legacy_trackpad_suite
 #include "test_trackpad_led.c"
 #undef main
+#undef pwm_set_dt
+#undef pwm_is_ready_dt
+
+static void begin_backend_trace(int unready) {
+    backend_calls = 0; backend_unready = unready; backend_record = true;
+}
+static void assert_backend_order(int unready) {
+    unsigned call = 0;
+    for (unsigned i = 0; i < (unsigned)INDICATOR_LED_NUM_LEDS; i++) {
+        assert(call < backend_calls && backend_order[call++] == 2U * i);
+        if ((int)i != unready) {
+            assert(call < backend_calls && backend_order[call++] == 2U * i + 1U);
+        }
+    }
+    assert(call == backend_calls);
+    backend_record = false; backend_unready = -1;
+}
+static void test_backend_contract(void) {
+    last_valid_brt = 100; fake_pwm_ready = true;
+    fake_led_error = 0; fake_led_error_index = -1;
+    pwm_cache_valid = false; set_led_brightness(25);
+    assert(pwm_cache_valid && last_led_level == 25);
+    last_led_level = 123;
+    begin_backend_trace(-1); set_led_brightness(25);
+    assert(backend_calls == 0U && last_led_level == 123 && pwm_cache_valid);
+    backend_record = false;
+    for (int ready_failure = 0; ready_failure <= 1; ready_failure++) {
+        for (int bad = 0; bad < INDICATOR_LED_NUM_LEDS; bad++) {
+            uint32_t cached[INDICATOR_LED_NUM_LEDS];
+            memcpy(cached, last_pwm_pulse_ns, sizeof(cached));
+            unsigned writes = fake_pwm_writes;
+            fake_led_error = ready_failure ? 0 : -EIO; fake_led_error_index = bad;
+            begin_backend_trace(ready_failure ? bad : -1); set_led_brightness(50);
+            assert_backend_order(ready_failure ? bad : -1);
+            assert(!pwm_cache_valid && last_led_level == -1 && requested_pattern == 50U);
+            assert(fake_pwm_writes == writes + INDICATOR_LED_NUM_LEDS - (unsigned)ready_failure);
+            for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+                assert(last_pwm_pulse_ns[i] == cached[i]);
+                assert(fake_pwm_pulses[i] == (i == bad ? 41666U : 83333U));
+            }
+            writes = fake_pwm_writes; fake_led_error = 0;
+            begin_backend_trace(-1); set_led_brightness(25); assert_backend_order(-1);
+            assert(pwm_cache_valid && last_led_level == 25);
+            assert(fake_pwm_writes == writes + INDICATOR_LED_NUM_LEDS);
+            for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+                assert(last_pwm_pulse_ns[i] == 41666U && fake_pwm_pulses[i] == 41666U);
+            }
+        }
+    }
+    last_valid_brt = UINT8_MAX;
+    begin_backend_trace(-1); set_led_brightness(UINT8_MAX); assert_backend_order(-1);
+    assert(pwm_cache_valid && last_led_level == 100 && requested_pattern == UINT8_MAX);
+    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) { assert(last_pwm_pulse_ns[i] == 166666U); }
+    puts("PASS trackpad backend contract: per-channel ready/write order, unchanged diagnostic cache hit, no partial cache commit, old-value full retry and uint8 clamps");
+}
 
 static void all_raw_pattern_pairs(void) {
     reset_usb(35000U,100);
@@ -121,5 +197,6 @@ int main(void) {
     assert(distinct>=15U);
     printf("PASS BLE/scroll fractional duty: %u distinct low-brightness tick levels, not integer OFF/ON\n",distinct);
     puts("PASS fractional trackpad PWM; host mock only, optical brightness/hardware response/visual smoothness not asserted");
+    test_backend_contract();
     return 0;
 }

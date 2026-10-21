@@ -17,6 +17,7 @@ static int pointer_burst(const struct i2c_dt_spec *spec, int reg, uint8_t *buf, 
     return i2c_burst_read_dt(spec, reg, buf, n);
 }
 #define i2c_burst_read_dt pointer_burst
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_mode.c"
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 #undef i2c_burst_read_dt
 
@@ -31,12 +32,12 @@ static void fixture(void) {
     atomic_set(&mouse_orientation_snapshot, 0); last_mouse_orientation_reversed = false;
     atomic_set(&scroll_shoulder_modifier_snapshot, 0);
     last_scroll_locked = last_shoulder_slow = false;
-    shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+    scroll_motion.remainder_x = scroll_motion.remainder_y = 0;
     fake_scroll_rotation = 0; last_scroll_rotation = 0;
     rotation_reset_calls = tap_cancel_calls = 0;
     atomic_set(&cursor_speed_snapshot, 0); last_cursor_speed_snapshot = 0;
     atomic_set(&touched, 0); tp_pointer_reset(&cursor_motion);
-    sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
+    scroll_motion.sum_dx = scroll_motion.sum_dy = 0; scroll_motion.sample_cnt = 0; scroll_motion.last_read_time = 0;
     fake_now = 1000; pointer_brightness = 40; brightness_reads = 0;
     fake_gpio_state = 0; fake_i2c_error = 0; burst_error = 0;
     report_count = 0; memset(report_values, 0, sizeof(report_values));
@@ -184,7 +185,7 @@ static void test_wheel_unchanged(void) {
         for (int sign = -1; sign <= 1; sign += 2) {
             fixture(); key(41, true, 900);
             poll(1, (int8_t)sign, 1000);
-            sum_dx = 9; sum_dy = sign * (totals[i] - 1); sample_cnt = 3; last_read_time = 1000;
+            scroll_motion.sum_dx = 9; scroll_motion.sum_dy = sign * (totals[i] - 1); scroll_motion.sample_cnt = 3; scroll_motion.last_read_time = 1000;
             poll(1, (int8_t)sign, 1010);
             int horizontal, vertical;
             legacy_wheel(10, sign * totals[i], &horizontal, &vertical);

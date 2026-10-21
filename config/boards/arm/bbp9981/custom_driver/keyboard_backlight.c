@@ -11,6 +11,7 @@
 #include <zephyr/logging/log.h>
 
 #include "indicator_brightness.h"
+#include "indicator_pwm.h"
 #include <zmk/rgb_underglow.h>
 #include <zmk/event_manager.h>
 #include <zmk/activity.h>
@@ -59,26 +60,18 @@ static const struct pwm_dt_spec kb_pwms[] = {
 static int last_led_level = -1;
 static uint32_t kb_last_pulses[INDICATOR_LED_NUM_LEDS];
 static bool kb_pwm_valid;
+static void kb_pwm_error(int channel, int error) {
+    LOG_ERR("Keyboard PWM[%d] failed: %d", channel, error);
+}
 static void kb_set_fraction(uint32_t fraction) {
     if (fraction > 10000U) { fraction = 10000U; }
     uint32_t pulses[INDICATOR_LED_NUM_LEDS];
-    bool changed = !kb_pwm_valid;
-    for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) {
-        pulses[i] = (uint32_t)((uint64_t)kb_pwms[i].period * fraction / 10000U);
-        if (pulses[i] != kb_last_pulses[i]) { changed = true; }
+    enum indicator_pwm_result result = indicator_pwm_apply(
+        kb_pwms, INDICATOR_LED_NUM_LEDS, fraction, 10000U,
+        pulses, kb_last_pulses, &kb_pwm_valid, kb_pwm_error);
+    if (result != INDICATOR_PWM_UNCHANGED) {
+        last_led_level = result == INDICATOR_PWM_APPLIED ? (int)((fraction + 50U) / 100U) : -1;
     }
-    if (!changed) { return; }
-    bool ok = true;
-    for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) {
-        int ret = pwm_is_ready_dt(&kb_pwms[i]) ?
-            pwm_set_dt(&kb_pwms[i],kb_pwms[i].period,pulses[i]) : -ENODEV;
-        if (ret < 0) { ok=false;LOG_ERR("Keyboard PWM[%d] failed: %d",i,ret); }
-    }
-    kb_pwm_valid=ok;
-    if (ok) {
-        for (int i=0; i<INDICATOR_LED_NUM_LEDS; i++) { kb_last_pulses[i]=pulses[i]; }
-    }
-    last_led_level=ok?(int)((fraction+50U)/100U):-1;
 }
 static void set_led_brightness(uint8_t level) {
     kb_set_fraction((uint32_t)(level>100U?100U:level)*100U);

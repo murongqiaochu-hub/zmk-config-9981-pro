@@ -228,15 +228,15 @@ void bbp_gamepad_get_report(uint8_t transport, struct bbp_gamepad_report_body *o
 struct zmk_usb_conn_state_changed { enum zmk_usb_conn_state conn_state; };
 static int raise_zmk_usb_conn_state_changed(struct zmk_usb_conn_state_changed event) { return 0; }
 
-/* Original HID_0 prefixes and SDK fixtures are unchanged. The new header is
- * included as standalone code; it must NOT redirect any stock API or symbol. */
+/* Original HID_0 prefixes and SDK fixtures are unchanged. The standalone pad
+ * translation unit must NOT redirect any stock API or symbol. */
 #include "../config/boards/arm/bbp9981/custom_driver/trackpad_usb_epoch.h"
 #include "../config/boards/arm/bbp9981/custom_driver/gamepad_usb_lifecycle.h"
 #include "sdk_v0_3_0_usb.c"
 #undef usb_enable
 #include "../config/boards/arm/bbp9981/custom_driver/trackpad_usb_snapshot.h"
 #include "sdk_v0_3_0_usb_hid.c"
-#include "../config/boards/arm/bbp9981/custom_driver/gamepad_usb_extension.h"
+#include "../config/boards/arm/bbp9981/custom_driver/gamepad_usb.c"
 #ifdef hid_int_ep_write
 #error "Standalone Game Pad must not intercept HID_0 writes"
 #endif

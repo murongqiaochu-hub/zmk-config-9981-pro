@@ -65,7 +65,7 @@ static void latched_scroll_and_slow_do_not_steal_stick(void){
     assert(game_valid&&game_dx==4&&game_dy==5&&!report_count&&!submissions);
     struct bbp_gamepad_report_body r=bbp_gamepad_snapshot(&sensor_gamepad);
     assert(r.x==24&&r.y==30&&!r.z&&!r.rz);
-    assert(sum_dx==0&&sum_dy==0&&sample_cnt==0&&cursor_motion.x.remainder==0&&cursor_motion.y.remainder==0);
+    assert(scroll_motion.sum_dx==0&&scroll_motion.sum_dy==0&&scroll_motion.sample_cnt==0&&cursor_motion.x.remainder==0&&cursor_motion.y.remainder==0);
     assert(tp_scroll_mode_active());ownership(false);assert(tp_scroll_mode_active());
 }
 static void sensor_fault_centres_without_mouse(void){

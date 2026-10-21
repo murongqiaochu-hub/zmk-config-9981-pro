@@ -1,5 +1,82 @@
 #include "test_env.h"
+
+/* Instrument the real leaf without changing the shared host mocks. */
+static bool backend_record;
+static int backend_unready = -1;
+static unsigned backend_order[4], backend_calls;
+static void backend_record_call(unsigned call) {
+    if (!backend_record) { return; }
+    assert(backend_calls < sizeof(backend_order) / sizeof(backend_order[0]));
+    backend_order[backend_calls++] = call;
+}
+static bool backend_ready(const struct pwm_dt_spec *pwm) {
+    backend_record_call(2U * pwm->channel);
+    return (int)pwm->channel != backend_unready && pwm_is_ready_dt(pwm);
+}
+static int backend_write(const struct pwm_dt_spec *pwm, uint32_t period, uint32_t pulse) {
+    backend_record_call(2U * pwm->channel + 1U);
+    return pwm_set_dt(pwm, period, pulse);
+}
+#define pwm_is_ready_dt backend_ready
+#define pwm_set_dt backend_write
 #include "../config/boards/arm/bbp9981/custom_driver/keyboard_backlight.c"
+#undef pwm_set_dt
+#undef pwm_is_ready_dt
+
+static void begin_backend_trace(int unready) {
+    backend_calls = 0; backend_unready = unready; backend_record = true;
+}
+static void assert_backend_order(int unready) {
+    unsigned call = 0;
+    for (unsigned i = 0; i < (unsigned)INDICATOR_LED_NUM_LEDS; i++) {
+        assert(call < backend_calls && backend_order[call++] == 2U * i);
+        if ((int)i != unready) {
+            assert(call < backend_calls && backend_order[call++] == 2U * i + 1U);
+        }
+    }
+    assert(call == backend_calls);
+    backend_record = false; backend_unready = -1;
+}
+static void test_backend_contract(void) {
+    fake_brightness = 100; fake_rgb_on = true; fake_pwm_ready = true;
+    fake_led_error = 0; fake_led_error_index = -1;
+    kb_pwm_valid = false; set_mode_brightness(25);
+    assert(kb_pwm_valid && last_led_level == 25);
+    /* The old cache-hit return must not recompute even diagnostic state. */
+    last_led_level = 123;
+    begin_backend_trace(-1); set_mode_brightness(25);
+    assert(backend_calls == 0U && last_led_level == 123 && kb_pwm_valid);
+    backend_record = false;
+    for (int ready_failure = 0; ready_failure <= 1; ready_failure++) {
+        for (int bad = 0; bad < INDICATOR_LED_NUM_LEDS; bad++) {
+            uint32_t cached[INDICATOR_LED_NUM_LEDS];
+            memcpy(cached, kb_last_pulses, sizeof(cached));
+            unsigned writes = fake_pwm_writes;
+            fake_led_error = ready_failure ? 0 : -EIO; fake_led_error_index = bad;
+            begin_backend_trace(ready_failure ? bad : -1); set_mode_brightness(50);
+            assert_backend_order(ready_failure ? bad : -1);
+            assert(!kb_pwm_valid && last_led_level == -1 && requested_pattern == 50U);
+            assert(fake_pwm_writes == writes + INDICATOR_LED_NUM_LEDS - (unsigned)ready_failure);
+            for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+                assert(kb_last_pulses[i] == cached[i]);
+                assert(fake_pwm_pulses[i] == (i == bad ? 125000U : 250000U));
+            }
+            /* Retry the old cached value: invalidation still rewrites BOTH. */
+            writes = fake_pwm_writes; fake_led_error = 0;
+            begin_backend_trace(-1); set_mode_brightness(25); assert_backend_order(-1);
+            assert(kb_pwm_valid && last_led_level == 25);
+            assert(fake_pwm_writes == writes + INDICATOR_LED_NUM_LEDS);
+            for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
+                assert(kb_last_pulses[i] == 125000U && fake_pwm_pulses[i] == 125000U);
+            }
+        }
+    }
+    begin_backend_trace(-1); kb_set_fraction(UINT32_MAX); assert_backend_order(-1);
+    assert(kb_pwm_valid && last_led_level == 100);
+    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) { assert(kb_last_pulses[i] == 500000U); }
+    set_led_brightness(UINT8_MAX); assert(last_led_level == 100);
+    puts("PASS keyboard backend contract: per-channel ready/write order, unchanged diagnostic cache hit, no partial cache commit, old-value full retry and fraction clamp");
+}
 int main(void) {
     assert(INDICATOR_LED_NUM_LEDS==2&&keyboardbacklight_init()==0);
     fake_brightness=1;fake_rgb_on=true;fake_activity=ZMK_ACTIVITY_ACTIVE;fake_layer=2;
@@ -28,5 +105,6 @@ int main(void) {
     assert(!kb_pwm_valid&&last_led_level==-1);fake_led_error=0;set_mode_brightness(25);
     assert(kb_pwm_valid&&fake_pwm_pulses[0]==1250U&&fake_pwm_pulses[1]==1250U);
     printf("PASS keyboard all-path fractional PWM: %u low-cycle levels on BOTH channels, 2kHz, all256 caps, zero/B-off, poll cache and partial retry; no hardware visual claim\n",count);
+    test_backend_contract();
     return 0;
 }

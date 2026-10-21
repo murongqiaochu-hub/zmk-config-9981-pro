@@ -14,6 +14,7 @@
 #include <zmk/backlight.h>
 #include <zmk/activity.h>
 #include "indicator_brightness.h"
+#include "indicator_pwm.h"
 #include "trackpad_led.h"
 #include "a320_0x57.h"
 
@@ -69,35 +70,22 @@ static uint32_t usb_breath_last_ms;
 static uint32_t usb_breath_phase_ms;
 static bool usb_mode = false;
 
+static void trackpad_pwm_error(int channel, int error) {
+    LOG_ERR("Failed to set trackpad PWM[%d]: %d", channel, error);
+}
 static void set_led_brightness(uint8_t pattern) {
     requested_pattern = pattern;
     uint8_t level = indicator_pattern_level(pattern, last_valid_brt);
     uint32_t pulses[INDICATOR_LED_NUM_LEDS];
-    bool changed = !pwm_cache_valid;
     const uint32_t bounded_pattern = pattern > 100U ? 100U : pattern;
     const uint32_t limit = indicator_user_limit(last_valid_brt);
-    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        /* TP-only 1/3 output gain; preserve fractional duty in every mode
-         * without changing the raw user limit or rounding it to zero first. */
-        uint64_t scaled = (uint64_t)trackpad_pwms[i].period * bounded_pattern * limit;
-        pulses[i] = (uint32_t)(scaled / (10000U * 3U));
-        if (last_pwm_pulse_ns[i] != pulses[i]) { changed = true; }
+    /* TP-only 1/3 output gain, with no intermediate integer-percent rounding. */
+    enum indicator_pwm_result result = indicator_pwm_apply(
+        trackpad_pwms, INDICATOR_LED_NUM_LEDS, bounded_pattern * limit, 30000U,
+        pulses, last_pwm_pulse_ns, &pwm_cache_valid, trackpad_pwm_error);
+    if (result != INDICATOR_PWM_UNCHANGED) {
+        last_led_level = result == INDICATOR_PWM_APPLIED ? level : -1;
     }
-    if (!changed) { return; }
-    bool all_written = true;
-    for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) {
-        int err = pwm_is_ready_dt(&trackpad_pwms[i]) ?
-                  pwm_set_dt(&trackpad_pwms[i], trackpad_pwms[i].period, pulses[i]) : -ENODEV;
-        if (err < 0) {
-            all_written = false;
-            LOG_ERR("Failed to set trackpad PWM[%d]: %d", i, err);
-        }
-    }
-    pwm_cache_valid = all_written;
-    if (all_written) {
-        for (int i = 0; i < INDICATOR_LED_NUM_LEDS; i++) { last_pwm_pulse_ns[i] = pulses[i]; }
-    }
-    last_led_level = all_written ? level : -1;
 }
 
 static uint8_t usb_breathing_pattern(uint32_t phase_ms) {

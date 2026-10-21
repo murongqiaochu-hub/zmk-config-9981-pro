@@ -94,6 +94,10 @@ def main():
         if not p.exists(): p.write_text('/* declarations from gamepad_runtime_env.h */\n')
     runtime = build('test_gamepad_runtime', includes=[includes], flags=['-Wno-unused-function'])
     run([str(runtime)])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_gamepad_refactor_structure.py')])
+    api = build('test_gamepad_refactor_api', includes=[includes], flags=['-Wno-unused-function'])
+    run([str(api)])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_refactor_link.py')])
     driver = build('test_gamepad_driver', includes=[includes],
                    flags=['-Wno-unused-function', '-Wno-unused-variable'])
     run([str(driver)])

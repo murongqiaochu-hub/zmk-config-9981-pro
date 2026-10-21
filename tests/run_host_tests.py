@@ -38,7 +38,7 @@ for path, size, expected in [
     data = (ROOT / path).read_bytes()
     assert len(data) == size
     assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == expected, path
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'aa_scroll_gesture_key', 'aa_layer_owner', 'scroll_gesture_pipeline', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'aa_scroll_gesture_key', 'aa_layer_owner', 'scroll_gesture_pipeline', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'indicator_pwm', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name in ['keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm'] else []
     special = {'aa_layer_owner': 'aa_layer_mocks', 'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks', 'menu_diag': 'menu_endpoints_mocks', 'menu_endpoints': 'menu_endpoints_mocks'}
@@ -168,9 +168,12 @@ for label, flag in [('settings_off', '-DCONFIG_SETTINGS=0'), ('explicit_fault_mo
     subprocess.run([str(exe)], check=True)
 negative = subprocess.run([*common, '-DMD_TEST_NO_ENDPOINT_SNAPSHOT=1', str(ROOT / 'tests/test_menu_diag.c'), '-o', str(BUILD / 'missing_snapshot_negative')], text=True, capture_output=True)
 assert negative.returncode != 0 and 'bbp_menu_diag_endpoints_snapshot' in negative.stderr and 'undefined reference' in negative.stderr
-cmake = (ROOT / 'config/boards/arm/bbp9981/CMakeLists.txt').read_text()
+from refactor_support import expand_cmake
+cmake = expand_cmake(ROOT / 'config/boards/arm/bbp9981/CMakeLists.txt')
 assert '"${APPLICATION_SOURCE_DIR}/src/endpoints.c"' in cmake and cmake.count('menu_diag_endpoints.h') == 1
 print('PASS endpoint diagnostics: four unchanged SDK fixtures, actual preinclude across USB/BLE variants, settings-off/fault-mock, missing-snapshot negative link, source-specific CMake target')
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_tap_successor_scope.py')], check=True)
+# The historical byte-restoration gate still runs against the frozen v2.2.9 tree;
+# current structural edits are guarded by exact scope + unchanged bodies + traces.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_refactor_tests.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_matrix_isolation.py'), '-v'], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_micro_source_contrast.py')], check=True)

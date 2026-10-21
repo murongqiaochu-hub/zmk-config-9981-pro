@@ -22,9 +22,10 @@
 #include <zephyr/dt-bindings/input/input-event-codes.h>
 #include "a320_0x57.h"
 #include "trackpad_key_state.h"
+#include "trackpad_mode.h"
 #include "trackpad_scroll_lock.h"
 #include "trackpad_pointer.h"
-#include "aa_sym_ctrl.h"
+#include "trackpad_scroll.h"
 #ifdef CONFIG_BBP9981_GAMEPAD
 #include "gamepad_runtime.h"
 /* Late ownership check also covers a layer change during an I2C read/replay.
@@ -57,14 +58,6 @@ extern void tp_microtap_shoulder_motion(uint32_t now);
 
 LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 
-static struct tp_key_state scroll_keys;
-/* Coherent mode + transition epoch, also safe for future cross-thread readers. */
-static atomic_t scroll_mode_snapshot;
-/* Mouse orientation is a volatile mouse-only flag; other layers ignore it. */
-static atomic_t mouse_orientation_snapshot;
-/* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */
-static atomic_t scroll_shoulder_modifier_snapshot;
-
 /* === Configure Motion GPIO === */
 #define MOTION_GPIO_NODE DT_NODELABEL(gpio0)
 #define MOTION_GPIO_PIN 2
@@ -73,25 +66,14 @@ static const struct device *motion_gpio_dev;
 /* Atomic publication is defensive; current non-split callbacks share one workqueue. */
 static atomic_t touched;
 
-static int16_t sum_dx = 0, sum_dy = 0;
-static uint16_t sample_cnt = 0;
+static struct tp_scroll_state scroll_motion;
 static uint32_t last_scroll_snapshot;
-static uint32_t last_read_time = 0;
 static bool last_scroll_locked;
 static bool last_shoulder_slow;
-static int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;
 static uint8_t last_scroll_rotation;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
 static bool last_mouse_orientation_reversed;
-
-/* Halve discrete wheel reports without discarding every odd notch. */
-static int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {
-    int32_t total = (int32_t)value + *remainder;
-    int16_t scaled = (int16_t)(total / 2);
-    *remainder = (int16_t)(total % 2);
-    return scaled;
-}
 
 /* =========================
  *   Data & Config structs
@@ -201,61 +183,6 @@ static void probe_poll(const struct i2c_dt_spec *bus, int motion_gpio) {
 #endif
 
 
-/* Bit 0 is physical Ctrl; upper bits record every speed transition.
- * Detect press+release between polls without clearing pointer state in the listener.
- */
-static atomic_t cursor_speed_snapshot;
-static bool sym_physically_pressed;
-#define TP_SYM_POSITION 40
-
-/* ==== position_state_changed event listener ==== */
-static int ctrl_listener_cb(const zmk_event_t *eh) {
-    const struct zmk_position_state_changed *ev = as_zmk_position_state_changed(eh);
-    if (!ev) {
-        return ZMK_EV_EVENT_BUBBLE;
-    }
-
-    if (ev->position == 37) {
-        /* Keep original physical Ctrl slow-pointer behavior, separate from SYM Ctrl. */
-        uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
-        if (((speed & 1U) != 0) != ev->state) {
-            uint32_t next = ((speed + 2U) & ~1U) | (ev->state ? 1U : 0U);
-            atomic_set(&cursor_speed_snapshot, (int32_t)next);
-        }
-    }
-    bool was_latched = scroll_keys.latched;
-    tp_key_state_update(&scroll_keys, ev->position, ev->state, ev->timestamp);
-    atomic_set(&scroll_mode_snapshot, scroll_keys.snapshot);
-    if (was_latched != scroll_keys.latched) {
-        /* Each lock session starts unrotated; a held aA override does not reset it. */
-        tp_scroll_rotation_reset();
-        tp_scroll_gesture_cancel();
-        LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
-    }
-    if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&
-         ev->position != TP_BACK_POSITION && ev->position != TP_MOUSE_TOGGLE_POSITION) ||
-        ev->position == TP_AA_POSITION) {
-        /* Other keys and either aA edge invalidate a partial gesture/shortcut. */
-        tp_scroll_gesture_cancel();
-    }
-    if (ev->position == TP_SYM_POSITION) { sym_physically_pressed = ev->state; }
-    if (ev->position == TP_AA_POSITION || ev->position == TP_SYM_POSITION) {
-        if (scroll_keys.pressed && sym_physically_pressed) {
-            /* SYM-first is also a chord, never an aA double-tap scroll toggle. */
-            scroll_keys.interrupted = true;
-            scroll_keys.tap_pending = false;
-            scroll_keys.double_candidate = false;
-        }
-        int err = tp_sym_ctrl_update(scroll_keys.pressed, sym_physically_pressed, ev->timestamp);
-        if (err < 0) {
-            LOG_ERR("aA/SYM Ctrl state update failed: %d", err);
-        }
-    }
-    return ZMK_EV_EVENT_BUBBLE;
-}
-ZMK_LISTENER(a320_ctrl_listener, ctrl_listener_cb);
-ZMK_SUBSCRIPTION(a320_ctrl_listener, zmk_position_state_changed);
-
 /* =========================
  *   Work handler (polling)
  * ========================= */
@@ -284,7 +211,7 @@ static void a320_poll_work_handler(struct k_work *work) {
     bool tap_motion_fault=pin_state<0;
 #endif
 
-    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
+    uint32_t snapshot = tp_mode_scroll_snapshot();
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
     bool scroll_locked = (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
     bool mouse_reversed = tp_mouse_orientation_reversed();
@@ -297,16 +224,15 @@ static void a320_poll_work_handler(struct k_work *work) {
 #endif
     }
     bool shoulder_slow = scroll_locked &&
-                          (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U;
+                          tp_mode_shoulder_snapshot() != 0U;
     uint8_t scroll_rotation = tp_scroll_rotation_quadrants();
-    uint32_t speed = (uint32_t)atomic_get(&cursor_speed_snapshot);
+    uint32_t speed = tp_mode_speed_snapshot();
     bool slow_pointer = (speed & 1U) != 0;
 
 #ifdef CONFIG_BBP9981_GAMEPAD
     uint32_t game_epoch = bbp_gamepad_pointer_epoch();
     if (game_epoch != last_gamepad_pointer_epoch) {
-        sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
-        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
         last_gamepad_pointer_epoch = game_epoch;
     }
@@ -317,8 +243,7 @@ static void a320_poll_work_handler(struct k_work *work) {
         atomic_set(&touched, valid && pin_state == 0);
         bbp_gamepad_trackpad_poll(game_dx, game_dy, valid, k_uptime_get());
         /* Never spend old cursor fractions or wheel accumulation in a stick. */
-        sum_dx = sum_dy = 0; sample_cnt = 0; last_read_time = 0;
-        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
         last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
         last_scroll_locked = scroll_locked; last_shoulder_slow = shoulder_slow;
@@ -342,28 +267,18 @@ static void a320_poll_work_handler(struct k_work *work) {
 
     /* Epoch also detects enter+exit entirely between two sensor polls. */
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
-        sum_dx = 0;
-        sum_dy = 0;
-        sample_cnt = 0;
-        last_read_time = 0;
-        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
     }
     if (scroll_locked != last_scroll_locked || shoulder_slow != last_shoulder_slow) {
         /* Do not carry raw samples or fractional wheel notches across lock/speed edges. */
-        sum_dx = sum_dy = 0;
-        sample_cnt = 0;
-        last_read_time = 0;
-        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        tp_scroll_reset(&scroll_motion);
         last_scroll_locked = scroll_locked;
         last_shoulder_slow = shoulder_slow;
     }
     if (scroll_rotation != last_scroll_rotation) {
         /* A new orientation must not inherit partial motion or odd half-speed notches. */
-        sum_dx = sum_dy = 0;
-        sample_cnt = 0;
-        last_read_time = 0;
-        shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+        tp_scroll_reset(&scroll_motion);
         last_scroll_rotation = scroll_rotation;
     }
     if (speed != last_cursor_speed_snapshot) {
@@ -411,72 +326,11 @@ static void a320_poll_work_handler(struct k_work *work) {
 
                 uint32_t now = k_uptime_get_32();
 
-                /* --- Condition 1: dx=0 && dy=0 → clear accumulated scroll, avoid direction residue
-                 * --- */
-                if (dx == 0 && dy == 0) {
-                    sum_dx = 0;
-                    sum_dy = 0;
-                    sample_cnt = 0;
-                }
-
-                /* --- Condition 2: time since last read > 50ms → treat as new swipe, clear
-                   accumulation --- */
-                else if (now - last_read_time > 50) {
-                    sum_dx = 0;
-                    sum_dy = 0;
-                    sample_cnt = 0;
-                }
-
-                /* Update timestamp (must be after successful data read) */
-                last_read_time = now;
-
-                /* Normal accumulation logic */
-                sum_dx += dx;
-                sum_dy += dy;
-                sample_cnt++;
-
-                /* Preserve the current 40 ms window; never allow a zero threshold. */
+                /* Keep the historical 40 ms window; the core has no clock or I/O. */
                 uint16_t threshold = MAX(1, 40 / CONFIG_A320_POLL_INTERVAL_MS);
-
-                if (sample_cnt >= threshold) {
-                    int16_t sx = sum_dx;
-                    int16_t sy = sum_dy;
-
-                    sum_dx = 0;
-                    sum_dy = 0;
-                    sample_cnt = 0;
-
-                    int16_t scroll_x = 0, scroll_y = 0;
-
-                    if (abs(sy) >= 128) {
-                        scroll_x = -sx / 24;
-                        scroll_y = -sy / 24;
-                    } else if (abs(sy) >= 64) {
-                        scroll_x = -sx / 16;
-                        scroll_y = -sy / 16;
-                    } else if (abs(sy) >= 32) {
-                        scroll_x = -sx / 12;
-                        scroll_y = -sy / 12;
-                    } else if (abs(sy) >= 21) {
-                        scroll_x = -sx / 8;
-                        scroll_y = -sy / 8;
-                    } else if (abs(sy) >= 3) {
-                        scroll_x = (sx > 0) ? -1 : (sx < 0) ? 1 : 0;
-                        scroll_y = (sy > 0) ? -1 : (sy < 0) ? 1 : 0;
-                    } else {
-                        scroll_x = (sx > 0) ? -1 : (sx < 0) ? 1 : 0;
-                        scroll_y = 0;
-                    }
-
-                    int16_t wheel_x = -scroll_x;
-                    int16_t wheel_y = scroll_y;
-                    if (scroll_locked) {
-                        tp_scroll_apply_rotation(scroll_rotation, &wheel_x, &wheel_y);
-                    }
-                    if (shoulder_slow) {
-                        wheel_x = scroll_half_with_remainder(wheel_x, &shoulder_scroll_remainder_x);
-                        wheel_y = scroll_half_with_remainder(wheel_y, &shoulder_scroll_remainder_y);
-                    }
+                int16_t wheel_x, wheel_y;
+                if (tp_scroll_push(&scroll_motion, dx, dy, now, threshold, scroll_locked,
+                                   scroll_rotation, shoulder_slow, &wheel_x, &wheel_y)) {
                     a320_report_rel(dev, INPUT_REL_HWHEEL, wheel_x, false, K_FOREVER);
                     a320_report_rel(dev, INPUT_REL_WHEEL, wheel_y, true, K_FOREVER);
                 }
@@ -487,10 +341,7 @@ static void a320_poll_work_handler(struct k_work *work) {
 #endif
             /* Do not leave touch/scroll residue latched after a sensor read failure. */
             atomic_set(&touched, 0);
-            sum_dx = sum_dy = 0;
-            sample_cnt = 0;
-            last_read_time = 0;
-            shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
+            tp_scroll_reset(&scroll_motion);
             tp_pointer_reset(&cursor_motion);
         }
     } else {
@@ -559,45 +410,6 @@ static int a320_read_motion(const struct device *dev, int16_t *dx, int16_t *dy) 
 }
 
 bool tp_is_touched(void) { return atomic_get(&touched) != 0; }
-bool tp_scroll_mode_active(void) {
-    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_FLAGS) != 0;
-}
-bool tp_scroll_lock_is_latched(void) {
-    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_LATCHED) != 0U;
-}
-bool tp_scroll_aa_is_pressed(void) { return tp_aa_is_pressed(); }
-bool tp_scroll_is_locked(void) {
-    /* A held aA temporarily restores the original scroll mode over a latched lock. */
-    return tp_scroll_lock_is_latched() && !tp_scroll_aa_is_pressed();
-}
-bool tp_mouse_orientation_reversed(void) {
-    return atomic_get(&mouse_orientation_snapshot) != 0;
-}
-bool tp_mouse_orientation_toggle(void) {
-    int32_t next = tp_mouse_orientation_reversed() ? 0 : 1;
-    atomic_set(&mouse_orientation_snapshot, next);
-    return next != 0;
-}
-static uint32_t scroll_shoulder_bit(uint32_t position) {
-    if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }
-    if (position == TP_RIGHT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_RIGHT_BIT; }
-    return 0U;
-}
-void tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed) {
-    uint32_t bit = scroll_shoulder_bit(position);
-    if (bit == 0U) { return; }
-    uint32_t current = (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot);
-    uint32_t next = pressed ? (current | bit) : (current & ~bit);
-    atomic_set(&scroll_shoulder_modifier_snapshot, (int32_t)next);
-}
-bool tp_scroll_shoulder_slow_active(void) {
-    return tp_scroll_is_locked() &&
-           ((uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U);
-}
-bool tp_aa_is_pressed(void) {
-    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_PRESSED) != 0;
-}
-
 /* =========================
  *   Device init
  * ========================= */
@@ -624,7 +436,7 @@ static int a320_init(const struct device *dev) {
     }
 
     data->dev = dev;
-    atomic_set(&scroll_shoulder_modifier_snapshot, 0);
+    tp_mode_init();
 #ifdef CONFIG_A320_MICROTAP
     tp_microtap_runtime_init();
 #elif defined(CONFIG_A320_TAP_OUTPUT)

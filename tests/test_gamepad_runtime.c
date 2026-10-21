@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "gamepad_runtime_env.h"
+#include "../config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c"
 #include "../config/boards/arm/bbp9981/custom_driver/behavior_gamepad.c"
 
 static unsigned tap_bridge_cancels;

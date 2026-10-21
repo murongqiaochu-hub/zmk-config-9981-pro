@@ -3,6 +3,11 @@
 #include "gamepad_report.h"
 struct bt_conn;
 
+/* Basic-type behavior boundary. Returns 0 for consumed/ignored events and
+ * -EINVAL for an invalid position or DOWN action. UP releases its captured
+ * owner regardless of action. ZMK adapters map 0 to ZMK_BEHAVIOR_OPAQUE. */
+int bbp_gamepad_key_event(uint32_t position, uint32_t action, bool pressed, int64_t timestamp);
+
 /* Epoch is a cancellation token, not host acknowledgement. Incremented on
  * layer/connection/protocol context changes; it never follows key-repeat rates. */
 uint32_t bbp_gamepad_context_epoch(void);
