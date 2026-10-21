@@ -5,7 +5,7 @@ static uint8_t fake_scroll_rotation;
 static unsigned rotation_reset_calls, tap_cancel_calls;
 void tp_scroll_rotation_reset(void) { rotation_reset_calls++;fake_scroll_rotation=0; }
 uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
-void tp_scroll_shoulder_tap_cancel(void) { tap_cancel_calls++; }
+void tp_scroll_gesture_cancel(void) { tap_cancel_calls++; }
 static uint8_t pointer_brightness = 40;
 static int burst_error;
 static unsigned brightness_reads;
@@ -28,6 +28,7 @@ static void fixture(void) {
     memset(&sensor_data, 0, sizeof(sensor_data)); sensor_data.dev = &sensor;
     memset(&scroll_keys, 0, sizeof(scroll_keys));
     atomic_set(&scroll_mode_snapshot, 0); last_scroll_snapshot = 0;
+    atomic_set(&mouse_orientation_snapshot, 0); last_mouse_orientation_reversed = false;
     atomic_set(&scroll_shoulder_modifier_snapshot, 0);
     last_scroll_locked = last_shoulder_slow = false;
     shoulder_scroll_remainder_x = shoulder_scroll_remainder_y = 0;
@@ -263,9 +264,54 @@ static void test_locked_scroll_rotation_and_shoulder_half(void) {
     fixture(); key(41, true, 100); tp_scroll_shoulder_modifier_update(TP_LEFT_SHOULDER_POSITION, true);
     assert(!tp_scroll_shoulder_slow_active()); /* shoulder slowdown is lock-only */
 }
+static void test_inverted_mouse_isolated_from_scroll(void) {
+#ifndef CONFIG_A320_MICROTAP
+    fixture();
+    poll(10, -7, 1000);
+    assert(report_count == 2U);
+    int normal_x = report_values[INPUT_REL_X - 1];
+    int normal_y = report_values[INPUT_REL_Y - 1];
+    assert(normal_x != 0 && normal_y != 0);
+
+    fixture();
+    assert(tp_mouse_orientation_toggle());
+    poll(10, -7, 1000);
+    assert(report_count == 2U);
+    assert(report_values[INPUT_REL_X - 1] == normal_x);
+    assert(report_values[INPUT_REL_Y - 1] == -normal_y);
+#else
+    /* Exercise the actual microtap cursor callback, whose final Y output is flipped. */
+    fixture();
+    struct micro_cursor_context ctx = {.dev = &sensor, .slow = false, .invert_y = false};
+    micro_emit_cursor(&ctx, 10, -7, 1000);
+    int normal_x = report_values[INPUT_REL_X - 1];
+    int normal_y = report_values[INPUT_REL_Y - 1];
+    assert(report_count == 2U && normal_x != 0 && normal_y != 0);
+
+    fixture();
+    assert(tp_mouse_orientation_toggle());
+    ctx.invert_y = tp_mouse_orientation_reversed();
+    micro_emit_cursor(&ctx, 10, -7, 1000);
+    assert(report_count == 2U);
+    assert(report_values[INPUT_REL_X - 1] == normal_x);
+    assert(report_values[INPUT_REL_Y - 1] == -normal_y);
+#endif
+
+    fixture();
+    lock_scroll();
+    assert(tp_mouse_orientation_toggle());
+    scroll_window(0, 10, 1000);
+    assert(report_values[INPUT_REL_HWHEEL - 1] == 0 &&
+           report_values[INPUT_REL_WHEEL - 1] == -3);
+    assert(report_values[INPUT_REL_X - 1] == 0 && report_values[INPUT_REL_Y - 1] == 0);
+    fixture();
+    assert(!tp_mouse_orientation_reversed()); /* Volatile flag resets on power-on. */
+}
+
 int main(void) {
     test_conservation(); test_idle_reverse(); test_transitions_faults(); test_wheel_unchanged();
     test_locked_scroll_rotation_and_shoulder_half();
-    puts("PASS Locked scroll: unrotated default, selected quarter-turns, held-aA override, half-speed remainder");
+    test_inverted_mouse_isolated_from_scroll();
+    puts("PASS Locked scroll and mouse mode: independent rotation/half-speed, X preserved, mouse Y inverted only, wheel unchanged, volatile reset");
     return 0;
 }

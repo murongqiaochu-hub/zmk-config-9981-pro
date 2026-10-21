@@ -11,13 +11,15 @@ BASE = '72c0cee8cb0dbd9e14e692a96d9ef3726bcc73e8'
 PREFIX = 'config/boards/arm/bbp9981/custom_driver/'
 GUARDED = {PREFIX + 'a320_0x57.c', PREFIX + 'trackpad_microtap_runtime.c', PREFIX + 'trackpad_tap_output.c'}
 ALLOWED = {'config/bbp9981.conf', 'config/bbp9981.keymap', 'config/boards/arm/bbp9981/bbp9981.keymap',
-           'config/boards/arm/bbp9981/CMakeLists.txt', 'config/boards/arm/bbp9981/Kconfig.board'} | GUARDED
+           'config/boards/arm/bbp9981/CMakeLists.txt', 'config/boards/arm/bbp9981/Kconfig.board',
+           PREFIX + 'behavior_microtap_shoulder.c'} | GUARDED
 NEW = {PREFIX + n for n in ['gamepad_report.h', 'gamepad_stick.h', 'gamepad_runtime.h',
        'behavior_gamepad.c', 'gamepad_usb.c', 'gamepad_usb_extension.h',
        'gamepad_usb_lifecycle.h', 'gamepad_ble_extension.h', 'trackpad_scroll_lock.h',
-        'behavior_aa_scroll_shoulder.c']}
+        'behavior_aa_scroll_shoulder.c', 'behavior_aa_scroll_gesture_key.c']}
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-gamepad.yaml')
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-aa-scroll-shoulder.yaml')
+NEW.add('config/dts/bindings/behaviors/zmk,behavior-aa-scroll-gesture-key.yaml')
 paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', BASE, 'config'], cwd=ROOT, text=True).splitlines()
 
 def old(p):
@@ -46,10 +48,10 @@ for p in paths:
         protected[p] = hashlib.sha256(b).hexdigest()
 current = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.is_file()}
 assert current - set(paths) == NEW, sorted(current - set(paths))
-assert len(protected) >= 46
+assert len(protected) >= 45  # One additional, mode-aware default-shoulder source is now in scope.
 
-# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4/v2.2.5
-# scroll-lock/rotation additions, then compare every remaining old source byte. Only
+# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4-v2.2.6
+# scroll-lock, gesture, and mouse-orientation additions, then compare every remaining old source byte. Only
 # A320's historical full-CRLF line endings normalize to LF; no other whitespace is ignored.
 a320 = (ROOT / (PREFIX + 'a320_0x57.c')).read_text()
 a320 = cut_to(a320, '#ifdef CONFIG_BBP9981_GAMEPAD\n#include "gamepad_runtime.h"',
@@ -57,10 +59,20 @@ a320 = cut_to(a320, '#ifdef CONFIG_BBP9981_GAMEPAD\n#include "gamepad_runtime.h"
 a320 = cut_to(a320, '#ifdef CONFIG_BBP9981_GAMEPAD\n    uint32_t game_epoch',
               '    /* Epoch also detects enter+exit entirely between two sensor polls. */')
 a320 = a320.replace('a320_report_rel(', 'input_report_rel(')
+a320 = remove_exact(a320, '/* Mouse orientation is a volatile mouse-only flag; other layers ignore it. */\n')
+a320 = remove_exact(a320, 'static atomic_t mouse_orientation_snapshot;\n')
+a320 = remove_exact(a320, 'static bool last_mouse_orientation_reversed;\n')
+a320 = a320.replace('struct micro_cursor_context { const struct device *dev; bool slow; bool invert_y; };\n',
+                    'struct micro_cursor_context { const struct device *dev; bool slow; };\n')
+a320 = remove_exact(a320, '    if (ctx->invert_y) { y = tp_scroll_negate_saturated(y); }\n')
+a320 = remove_exact(a320, '    bool mouse_reversed = tp_mouse_orientation_reversed();\n    if (mouse_reversed != last_mouse_orientation_reversed) {\n        /* Reset only mouse pointer fractions; leave scroll accumulation untouched. */\n        tp_pointer_reset(&cursor_motion);\n        last_mouse_orientation_reversed = mouse_reversed;\n#ifdef CONFIG_A320_MICROTAP\n        tp_microtap_runtime_interrupt();\n#endif\n    }\n')
+a320 = remove_exact(a320, '                if (mouse_reversed) { cursor_y = tp_scroll_negate_saturated(cursor_y); }\n')
+a320 = a320.replace('    struct micro_cursor_context cursor_ctx = {\n        .dev = dev, .slow = slow_pointer, .invert_y = mouse_reversed,\n    };\n',
+                    '    struct micro_cursor_context cursor_ctx = {.dev = dev, .slow = slow_pointer};\n')
 a320 = remove_exact(a320, '#include "trackpad_scroll_lock.h"\n')
 a320 = remove_exact(a320, 'static uint8_t last_scroll_rotation;\n')
-a320 = remove_exact(a320, '        /* Each lock session starts unrotated; a held aA override does not reset it. */\n        tp_scroll_rotation_reset();\n')
-a320 = remove_exact(a320, '    if (ev->state && ev->position != TP_LEFT_SHOULDER_POSITION &&\n        ev->position != TP_RIGHT_SHOULDER_POSITION) {\n        tp_scroll_shoulder_tap_cancel();\n    }\n')
+a320 = remove_exact(a320, '        /* Each lock session starts unrotated; a held aA override does not reset it. */\n        tp_scroll_rotation_reset();\n        tp_scroll_gesture_cancel();\n')
+a320 = remove_exact(a320, '    if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&\n         ev->position != TP_BACK_POSITION) || ev->position == TP_AA_POSITION) {\n        /* Other keys and either aA edge invalidate a partial gesture/shortcut. */\n        tp_scroll_gesture_cancel();\n    }\n')
 a320 = remove_exact(a320, '/* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */\nstatic atomic_t scroll_shoulder_modifier_snapshot;\n')
 a320 = remove_exact(a320, 'static bool last_scroll_locked;\nstatic bool last_shoulder_slow;\nstatic int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;\n')
 a320 = remove_exact(a320, '/* Halve discrete wheel reports without discarding every odd notch. */\nstatic int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {\n    int32_t total = (int32_t)value + *remainder;\n    int16_t scaled = (int16_t)(total / 2);\n    *remainder = (int16_t)(total % 2);\n    return scaled;\n}\n\n')
@@ -89,7 +101,9 @@ new_wheel = '''                    int16_t wheel_x = -scroll_x;
 new_wheel = re.sub(r'\n[ \t]*int16_t unrotated_x = wheel_x;\n[ \t]*wheel_x = -wheel_y;\n[ \t]*wheel_y = unrotated_x;', '', new_wheel)
 assert a320.count(new_wheel) == 1
 a320 = a320.replace(new_wheel, '                    input_report_rel(dev, INPUT_REL_HWHEEL, -scroll_x, false, K_FOREVER);\n                    input_report_rel(dev, INPUT_REL_WHEEL, scroll_y, true, K_FOREVER);\n')
-a320 = remove_exact(a320, 'bool tp_scroll_is_locked(void) {\n    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);\n    /* A held aA temporarily restores the original scroll mode over a latched lock. */\n    return (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;\n}\nstatic uint32_t scroll_shoulder_bit(uint32_t position) {\n    if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }\n    if (position == TP_RIGHT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_RIGHT_BIT; }\n    return 0U;\n}\nvoid tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed) {\n    uint32_t bit = scroll_shoulder_bit(position);\n    if (bit == 0U) { return; }\n    uint32_t current = (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot);\n    uint32_t next = pressed ? (current | bit) : (current & ~bit);\n    atomic_set(&scroll_shoulder_modifier_snapshot, (int32_t)next);\n}\nbool tp_scroll_shoulder_slow_active(void) {\n    return tp_scroll_is_locked() &&\n           ((uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U);\n}\n')
+a320 = remove_exact(a320, 'bool tp_scroll_lock_is_latched(void) {\n    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_LATCHED) != 0U;\n}\nbool tp_scroll_aa_is_pressed(void) { return tp_aa_is_pressed(); }\n')
+a320 = remove_exact(a320, 'bool tp_mouse_orientation_reversed(void) {\n    return atomic_get(&mouse_orientation_snapshot) != 0;\n}\nbool tp_mouse_orientation_toggle(void) {\n    int32_t next = tp_mouse_orientation_reversed() ? 0 : 1;\n    atomic_set(&mouse_orientation_snapshot, next);\n    return next != 0;\n}\n')
+a320 = remove_exact(a320, 'bool tp_scroll_is_locked(void) {\n    /* A held aA temporarily restores the original scroll mode over a latched lock. */\n    return tp_scroll_lock_is_latched() && !tp_scroll_aa_is_pressed();\n}\nstatic uint32_t scroll_shoulder_bit(uint32_t position) {\n    if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }\n    if (position == TP_RIGHT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_RIGHT_BIT; }\n    return 0U;\n}\nvoid tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed) {\n    uint32_t bit = scroll_shoulder_bit(position);\n    if (bit == 0U) { return; }\n    uint32_t current = (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot);\n    uint32_t next = pressed ? (current | bit) : (current & ~bit);\n    atomic_set(&scroll_shoulder_modifier_snapshot, (int32_t)next);\n}\nbool tp_scroll_shoulder_slow_active(void) {\n    return tp_scroll_is_locked() &&\n           ((uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U);\n}\n')
 a320 = remove_exact(a320, '    atomic_set(&scroll_shoulder_modifier_snapshot, 0);\n')
 expected_a320 = old(PREFIX + 'a320_0x57.c').replace(b'\r\n', b'\n').decode()
 if a320 != expected_a320:
@@ -130,4 +144,4 @@ assert workflow.count(f'refs/heads/{branch}') == 1 and workflow.count(f'HEAD:{br
 conf = (ROOT / 'config/bbp9981.conf').read_text()
 assert conf == old('config/bbp9981.conf').decode().replace('\r\n', '\n').replace('CONFIG_ZMK_BLE=y\n',
     'CONFIG_ZMK_BLE=y\n\n# Keep the stock keyboard/mouse HID_0; expose the gamepad on its own USB HID_1.\nCONFIG_BBP9981_GAMEPAD=y\nCONFIG_USB_HID_DEVICE_COUNT=2\nCONFIG_USB_HID_REPORTS=4\n')
-print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4/v2.2.5 scroll additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 12 new gamepad/scroll config files only')
+print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4-v2.2.6 scroll/mouse additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 14 new gamepad/scroll config files only')

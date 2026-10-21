@@ -29,7 +29,7 @@
         microtap_shoulder: microtap_shoulder {
             compatible = "zmk,behavior-microtap-shoulder";
             #binding-cells = <0>;
-            display-name = "Left shoulder: triple motion-click toggle";
+            display-name = "Mouse shoulders: logical L/R roles follow inverted mode";
         };
         aa_sym_ctrl: aa_sym_ctrl {
             compatible = "zmk,behavior-aa-sym-ctrl";
@@ -40,6 +40,11 @@
             compatible = "zmk,behavior-gamepad";
             #binding-cells = <1>;
             display-name = "Xbox-layout standard HID gamepad";
+        };
+        aa_scroll_gesture_key: aa_scroll_gesture_key {
+            compatible = "zmk,behavior-aa-scroll-gesture-key";
+            #binding-cells = <0>;
+            display-name = "aA: BlackBerry/Back triple-tap and mouse flip shortcut";
         };
     };
 
@@ -140,7 +145,7 @@
 //        |         aA     |         0           |           SPACE              |         SYM         |        aA          |       
 //        -----------------------------------------------------------------------------------------------------------------
 
-                 &microtap_shoulder                                                                                 &mkp RCLK
+                 &microtap_shoulder                                                                                 &microtap_shoulder
     &kp CLCK                &kp LGUI                            &mkp LCLK                          &mt ESC K_BACK                    &mt F4 TAB
     &kp Q        &kp W      &kp E       &kp R     &kp T         &kp Y             &kp U            &kp I            &kp O            &kp P
     &kp A        &kp S      &kp D       &kp F     &kp G         &kp H             &kp J            &kp K            &kp L            &kp BSPC
@@ -163,13 +168,14 @@
         };
 
         upper_layer {
-            /* Double-tap locks scrolling unrotated and pins UPPER; SYM exits. Unlock/relock
-             * resets orientation. In lock, either shoulder halves trackpad wheel and suppresses
-             * its own wheel; triple right rotates left->up, triple left rotates right->up.
-             * Holding aA temporarily restores original direction and native shoulder actions. */
+            /* Double-tap right aA locks scrolling unrotated and pins UPPER; SYM exits.
+             * Locked shoulders halve trackpad wheel and suppress native shoulder scroll.
+             * Triple BlackBerry maps left->up; triple top Back maps right->up. While locked,
+             * these keys are gesture-only. Hold right aA and double-tap top Back to toggle
+             * volatile inverted-mouse mode; it does not alter scroll or gamepad behavior. */
             bindings = <
                  &aa_scroll_shoulder SCRL_UP                                                                               &aa_scroll_shoulder SCRL_DOWN
-    &bt BT_SEL 0            &bt BT_SEL 1                                  &td0                              &bt BT_SEL 2                     &bt BT_SEL 3
+    &bt BT_SEL 0            &aa_scroll_gesture_key                        &td0                              &aa_scroll_gesture_key           &bt BT_SEL 3
     &out OUT_BLE &kp UP     &kp C_EJECT &sys_reset      &ext_power EP_TOG &none            &kp LT           &kp GT          &kp PIPE         &kp KP_EQUAL
     &kp LEFT     &kp DOWN   &kp RIGHT   &none           &kp BSLH          &kp AMPS         &kp LBRC         &kp RBRC        &kp CARET        &kp BSPC
     &kp LSHFT    &none      &none       &rgb_ug RGB_BRD &bl BL_DEC        &rgb_ug RGB_TOG  &bl BL_INC       &rgb_ug RGB_BRI &td_boot_out     &kp ENTER
@@ -178,15 +184,16 @@
         };
 
         media_layer {
-            /* Xbox-layout standard HID, not XInput: E/X/S/F=Dpad up/down/left/right; D=L3, K=R3.
-             * Trackpad click P4 and Space P39 are both Guide14; BB17 selects right stick while held.
-             * Call8/End9=LB/RB, shoulders10/11=LT/RT, T12/Y13=View/Menu, I/J/L/M=Y/X/B/A. */
+            /* Xbox-layout standard HID, not XInput. E/X/A/F=Dpad up/down/left/right;
+             * D=L3, L=R3; O/K/Backspace/$=Y/X/B/A. Trackpad click P4 and Space P39=Guide14;
+             * BB P3 selects the right stick while held. P0/P1=LB/RB, Call/End=LT/RT;
+             * T/Y=View/Menu. Only SYM and right aA exit MEDIA. */
             bindings = <
-                 &gamepad 10                                                                             &gamepad 11
-    &gamepad 8             &gamepad 17                         &gamepad 14                    &none                            &gamepad 9
-    &none        &none     &gamepad 0 &none       &gamepad 12  &gamepad 13   &none           &gamepad 7      &none            &none
-    &none        &gamepad 2 &gamepad 15 &gamepad 3 &none        &none         &gamepad 6      &gamepad 16     &gamepad 5       &none
-    &none        &none     &gamepad 1 &none      &none        &none         &none           &gamepad 4      &to DEFAULT      &none
+                 &gamepad 8                                                                              &gamepad 9
+    &gamepad 10            &gamepad 17                         &gamepad 14                    &none                            &gamepad 11
+    &none        &none     &gamepad 0 &none       &gamepad 12  &gamepad 13   &none           &none           &gamepad 7      &none
+    &gamepad 2   &none      &gamepad 15 &gamepad 3 &none        &none         &none           &gamepad 6      &gamepad 16     &gamepad 5
+    &none        &none     &gamepad 1 &none      &none        &none         &none           &none           &gamepad 4      &none
     &none                  &none                               &gamepad 14                   &to DEFAULT                      &to DEFAULT
             >;
         };

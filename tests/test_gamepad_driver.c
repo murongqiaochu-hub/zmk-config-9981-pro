@@ -60,6 +60,7 @@ static void latched_scroll_and_slow_do_not_steal_stick(void){
     bridge_fixture(false);
     key(41,true,1);key(41,false,10);key(41,true,20);key(41,false,30);
     assert(tp_scroll_mode_active());key(37,true,35);
+    assert(tp_mouse_orientation_toggle()); /* The volatile mouse flag must not rotate stick axes. */
     ownership(true);poll(4,5,50);
     assert(game_valid&&game_dx==4&&game_dy==5&&!report_count&&!submissions);
     struct bbp_gamepad_report_body r=bbp_gamepad_snapshot(&sensor_gamepad);

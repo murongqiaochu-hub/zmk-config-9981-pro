@@ -22,14 +22,14 @@ HEADERS = [
     'zmk/events/keycode_state_changed.h', 'zmk/events/position_state_changed.h',
     'zmk/events/activity_state_changed.h', 'zmk/events/endpoint_changed.h',
     'zmk/events/layer_state_changed.h',
-    'zmk/hid.h', 'dt-bindings/zmk/mouse.h',
+    'zmk/hid.h', 'dt-bindings/zmk/mouse.h', 'dt-bindings/zmk/bt.h',
 ]
 for relative in HEADERS:
     p = STUBS / relative
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
-for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
+for name in ['ctrl', 'sensor', 'pointer', 'contact_probe', 'probe_runtime', 'bus_probe', 'bus_runtime', 'tap', 'tap_click', 'tap_output', 'hog_snapshot', 'sdk_usb', 'tap_pipeline', 'tap_driver', 'combo', 'combo_symmetric', 'aa_scroll_gesture_key', 'keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm', 'trackpad_led', 'trackpad_low_pwm', 'trackpad_light_memory', 'menu_diag', 'menu_endpoints', 'menu_matrix', 'diag_hog', 'microtap', 'shoulder', 'micro_runtime', 'shoulder_runtime', 'micro_driver', 'micro_cross_source']:
     exe = BUILD / ('test_' + name)
     extra = ['-DTEST_TWO_LEDS=1'] if name in ['keyboard_led', 'keyboard_light_memory', 'keyboard_low_pwm'] else []
     special = {'tap_output': 'tap_output_mocks', 'hog_snapshot': 'hog_snapshot_mocks', 'sdk_usb': 'sdk_snapshot_mocks', 'menu_matrix': 'menu_diag_mocks', 'diag_hog': 'hog_snapshot_mocks', 'menu_diag': 'menu_endpoints_mocks', 'menu_endpoints': 'menu_endpoints_mocks'}
@@ -76,17 +76,31 @@ for relative in paths:
     before['upper_layer'][0] = '&aa_scroll_shoulder SCRL_UP'
     before['upper_layer'][1] = '&aa_scroll_shoulder SCRL_DOWN'
     before['default_layer'][0] = '&microtap_shoulder'
+    assert before['default_layer'][1] == '&mkp RCLK'
+    before['default_layer'][1] = '&microtap_shoulder'
+    assert before['upper_layer'][3] == '&bt BT_SEL 1'
+    assert before['upper_layer'][5] == '&bt BT_SEL 2'
+    before['upper_layer'][3] = '&aa_scroll_gesture_key'
+    before['upper_layer'][5] = '&aa_scroll_gesture_key'
     assert before['upper_layer'][7] == '&none'
     before['upper_layer'][7] = '&out OUT_BLE'
-    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 9: 0, 11: 12, 12: 13,
-               14: 7, 18: 2, 19: 15, 20: 3, 23: 6, 24: 16, 25: 5, 29: 1, 34: 4, 39: 14}
+    old_gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 9: 0, 11: 12, 12: 13,
+                   14: 7, 18: 2, 19: 15, 20: 3, 23: 6, 24: 16, 25: 5, 29: 1, 34: 4, 39: 14}
+    for position, action in old_gamepad.items():
+        assert before['media_layer'][position] == f'&gamepad {action}'
+        before['media_layer'][position] = '&none'
+    assert before['media_layer'][35] == '&to DEFAULT'
+    before['media_layer'][35] = '&none'
+    assert before['media_layer'][40] == before['media_layer'][41] == '&to DEFAULT'
+    gamepad = {0: 8, 1: 9, 2: 10, 3: 17, 4: 14, 6: 11, 9: 0, 11: 12, 12: 13,
+               15: 7, 17: 2, 19: 15, 20: 3, 24: 6, 25: 16, 26: 5, 29: 1, 35: 4, 39: 14}
     for position, action in gamepad.items():
         assert before['media_layer'][position] == '&none'
         before['media_layer'][position] = f'&gamepad {action}'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; 19 MEDIA positions; E/X/S/F Dpad, D/K=L3/R3, P4/Space=Guide, IY/JX/LB/MA; three exits and all other bindings unchanged')
+print('PASS Keymaps: both 42-key layers synchronized; MEDIA D-pad left=A, L3=D/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LB/RB and Call/End LT/RT; only SYM/aA exit; UPPER P3/P5 gestures wrap BT safely')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

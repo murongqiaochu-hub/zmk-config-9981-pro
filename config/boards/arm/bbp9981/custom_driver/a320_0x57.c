@@ -60,6 +60,8 @@ LOG_MODULE_REGISTER(a320, CONFIG_A320_LOG_LEVEL);
 static struct tp_key_state scroll_keys;
 /* Coherent mode + transition epoch, also safe for future cross-thread readers. */
 static atomic_t scroll_mode_snapshot;
+/* Mouse orientation is a volatile mouse-only flag; other layers ignore it. */
+static atomic_t mouse_orientation_snapshot;
 /* Shoulder modifiers are owned only by the conditional UPPER-layer behavior. */
 static atomic_t scroll_shoulder_modifier_snapshot;
 
@@ -81,6 +83,7 @@ static int16_t shoulder_scroll_remainder_x, shoulder_scroll_remainder_y;
 static uint8_t last_scroll_rotation;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
+static bool last_mouse_orientation_reversed;
 
 /* Halve discrete wheel reports without discarding every odd notch. */
 static int16_t scroll_half_with_remainder(int16_t value, int16_t *remainder) {
@@ -226,11 +229,13 @@ static int ctrl_listener_cb(const zmk_event_t *eh) {
     if (was_latched != scroll_keys.latched) {
         /* Each lock session starts unrotated; a held aA override does not reset it. */
         tp_scroll_rotation_reset();
+        tp_scroll_gesture_cancel();
         LOG_INF("Scroll lock %s (aA double tap)", scroll_keys.latched ? "ON" : "OFF");
     }
-    if (ev->state && ev->position != TP_LEFT_SHOULDER_POSITION &&
-        ev->position != TP_RIGHT_SHOULDER_POSITION) {
-        tp_scroll_shoulder_tap_cancel();
+    if ((ev->state && ev->position != TP_BLACKBERRY_POSITION &&
+         ev->position != TP_BACK_POSITION) || ev->position == TP_AA_POSITION) {
+        /* Other keys and either aA edge invalidate a partial gesture/shortcut. */
+        tp_scroll_gesture_cancel();
     }
     if (ev->position == TP_SYM_POSITION) { sym_physically_pressed = ev->state; }
     if (ev->position == TP_AA_POSITION || ev->position == TP_SYM_POSITION) {
@@ -255,13 +260,14 @@ ZMK_SUBSCRIPTION(a320_ctrl_listener, zmk_position_state_changed);
  * ========================= */
 
 #ifdef CONFIG_A320_MICROTAP
-struct micro_cursor_context { const struct device *dev; bool slow; };
+struct micro_cursor_context { const struct device *dev; bool slow; bool invert_y; };
 static void micro_emit_cursor(void *opaque, int16_t dx, int16_t dy, uint32_t at_ms) {
     const struct micro_cursor_context *ctx = opaque;
     int16_t x, y;
     /* Only committed raw frames reach the ORIGINAL fractional pointer state.
      * A discarded gesture has never spent a fraction or moved the host cursor. */
     tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy, ctx->slow, at_ms, &x, &y);
+    if (ctx->invert_y) { y = tp_scroll_negate_saturated(y); }
     a320_report_rel(ctx->dev, INPUT_REL_X, x, false, K_FOREVER);
     a320_report_rel(ctx->dev, INPUT_REL_Y, y, true, K_FOREVER);
 }
@@ -280,6 +286,15 @@ static void a320_poll_work_handler(struct k_work *work) {
     uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     bool scroll_mode = (snapshot & TP_MODE_FLAGS) != 0;
     bool scroll_locked = (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
+    bool mouse_reversed = tp_mouse_orientation_reversed();
+    if (mouse_reversed != last_mouse_orientation_reversed) {
+        /* Reset only mouse pointer fractions; leave scroll accumulation untouched. */
+        tp_pointer_reset(&cursor_motion);
+        last_mouse_orientation_reversed = mouse_reversed;
+#ifdef CONFIG_A320_MICROTAP
+        tp_microtap_runtime_interrupt();
+#endif
+    }
     bool shoulder_slow = scroll_locked &&
                           (uint32_t)atomic_get(&scroll_shoulder_modifier_snapshot) != 0U;
     uint8_t scroll_rotation = tp_scroll_rotation_quadrants();
@@ -379,6 +394,7 @@ static void a320_poll_work_handler(struct k_work *work) {
                 int16_t cursor_x, cursor_y;
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
                                   slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
+                if (mouse_reversed) { cursor_y = tp_scroll_negate_saturated(cursor_y); }
                 a320_report_rel(dev, INPUT_REL_X, cursor_x, false, K_FOREVER);
                 a320_report_rel(dev, INPUT_REL_Y, cursor_y, true, K_FOREVER);
 #endif
@@ -488,7 +504,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     probe_poll(&probe_cfg->i2c, pin_state);
 #endif
 #ifdef CONFIG_A320_MICROTAP
-    struct micro_cursor_context cursor_ctx = {.dev = dev, .slow = slow_pointer};
+    struct micro_cursor_context cursor_ctx = {
+        .dev = dev, .slow = slow_pointer, .invert_y = mouse_reversed,
+    };
     tp_microtap_runtime_poll(k_uptime_get_32(), (int16_t)tap_dx, (int16_t)tap_dy,
                             !tap_motion_fault, scroll_mode, snapshot, speed,
                             micro_emit_cursor, &cursor_ctx);
@@ -543,10 +561,21 @@ bool tp_is_touched(void) { return atomic_get(&touched) != 0; }
 bool tp_scroll_mode_active(void) {
     return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_FLAGS) != 0;
 }
+bool tp_scroll_lock_is_latched(void) {
+    return ((uint32_t)atomic_get(&scroll_mode_snapshot) & TP_MODE_LATCHED) != 0U;
+}
+bool tp_scroll_aa_is_pressed(void) { return tp_aa_is_pressed(); }
 bool tp_scroll_is_locked(void) {
-    uint32_t snapshot = (uint32_t)atomic_get(&scroll_mode_snapshot);
     /* A held aA temporarily restores the original scroll mode over a latched lock. */
-    return (snapshot & TP_MODE_LATCHED) != 0U && (snapshot & TP_MODE_PRESSED) == 0U;
+    return tp_scroll_lock_is_latched() && !tp_scroll_aa_is_pressed();
+}
+bool tp_mouse_orientation_reversed(void) {
+    return atomic_get(&mouse_orientation_snapshot) != 0;
+}
+bool tp_mouse_orientation_toggle(void) {
+    int32_t next = tp_mouse_orientation_reversed() ? 0 : 1;
+    atomic_set(&mouse_orientation_snapshot, next);
+    return next != 0;
 }
 static uint32_t scroll_shoulder_bit(uint32_t position) {
     if (position == TP_LEFT_SHOULDER_POSITION) { return TP_SCROLL_SHOULDER_LEFT_BIT; }

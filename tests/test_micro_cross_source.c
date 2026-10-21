@@ -7,6 +7,9 @@
 #undef main
 #define DEVICE_DT_NAME(node) "mkp"
 #define LCLK 1U
+#define RCLK 2U
+static bool fake_mouse_reversed;
+bool tp_mouse_orientation_reversed(void) { return fake_mouse_reversed; }
 struct k_mutex { bool locked; };
 #define K_MUTEX_DEFINE(name) static struct k_mutex name
 static int k_mutex_lock(struct k_mutex *m,int timeout) {
@@ -31,9 +34,10 @@ int zmk_behavior_invoke_binding(const struct zmk_behavior_binding *binding,
 #undef initialized
 static void fixture(void) {
     runtime_fixture(true);memset(&shoulder,0,sizeof(shoulder));
-    memset(&timeout_work,0,sizeof(timeout_work));memset(&origin,0,sizeof(origin));
-    shoulder_initialized=false;forwarded_down=release_pending=false;
-    release_attempts=observed_epoch=0;lifecycle_epoch=0;
+    memset(&timeout_work,0,sizeof(timeout_work));memset(&origin,0,sizeof(origin));memset(&right_origin,0,sizeof(right_origin));
+    shoulder_initialized=false;forwarded_down=release_pending=right_forwarded_down=right_release_pending=false;
+    release_attempts=right_release_attempts=0;left_role_mask=right_role_mask=0;
+    fake_mouse_reversed=false;observed_epoch=0;lifecycle_epoch=0;
     native_count=0;native_down=false;memset(native_edges,0,sizeof(native_edges));
     memset(native_times,0,sizeof(native_times));memset(native_walls,0,sizeof(native_walls));
 }

@@ -12,6 +12,9 @@
 #define CONFIG_ZMK_BLE 0
 #define DEVICE_DT_NAME(node) "mkp"
 #define LCLK 1U
+#define RCLK 2U
+static bool fake_mouse_reversed;
+bool tp_mouse_orientation_reversed(void) { return fake_mouse_reversed; }
 
 #ifndef MICRO_RUNTIME_C
 #error "Compile through test_micro_source_contrast.py with absolute source paths"

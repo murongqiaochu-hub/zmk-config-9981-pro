@@ -6,7 +6,7 @@ int tp_sym_ctrl_release(int64_t t) { (void)t;sym_release_count++;return 0; }
 int tp_sym_ctrl_update(bool aa,bool sym,int64_t t) { (void)sym;return aa?0:tp_sym_ctrl_release(t); }
 void tp_scroll_rotation_reset(void) { rotation_reset_count++;fake_scroll_rotation=0; }
 uint8_t tp_scroll_rotation_quadrants(void) { return fake_scroll_rotation; }
-void tp_scroll_shoulder_tap_cancel(void) { tap_cancel_count++; }
+void tp_scroll_gesture_cancel(void) { tap_cancel_count++; }
 uint8_t indicator_tp_get_last_valid_brightness(void) { return 40; }
 #include "../config/boards/arm/bbp9981/custom_driver/a320_0x57.c"
 

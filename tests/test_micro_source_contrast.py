@@ -7,8 +7,8 @@ listed public firmware sources, byte-for-byte, into TemporaryDirectory. The
 same C input driver compiles twice; HAS_NATIVE_GUARD only connects the new
 position listener (which the old runtime genuinely does not have).
 
-Real code: variant runtime + matching runtime header/gesture core, unchanged
-shoulder behavior + shoulder core. Mock code: event fan-out, stock native input
+Real code: variant runtime + matching runtime header/gesture core, current
+mode-aware shoulder behavior + shoulder core. Mock code: event fan-out, stock native input
 and tap-output bridge acceptance/12ms hold. These are NOT hardware, CGEvent,
 real HOG/USB notifications, transport delivery, or host ACK measurements.
 """
@@ -36,8 +36,7 @@ OLD_FILES = (
     "trackpad_shoulder.h",
 )
 FROZEN_FILES = (
-    "behavior_microtap_shoulder.c", "trackpad_shoulder.h",
-    "trackpad_tap_output.h", "menu_click_diag.h",
+    "trackpad_shoulder.h", "trackpad_tap_output.h", "menu_click_diag.h",
 )
 STUB_HEADERS = (
     "zephyr/device.h", "zephyr/kernel.h", "zephyr/irq.h",

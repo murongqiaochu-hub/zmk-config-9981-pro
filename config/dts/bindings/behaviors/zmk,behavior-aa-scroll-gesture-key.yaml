@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+description: UPPER-layer BlackBerry/Back triple-tap scroll rotation and aA-held inverted-mouse shortcut
+compatible: "zmk,behavior-aa-scroll-gesture-key"
+include: zero_param.yaml

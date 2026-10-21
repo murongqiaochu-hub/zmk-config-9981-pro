@@ -1,16 +1,19 @@
 #include "test_env.h"
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_scroll_lock.h"
 #define DEVICE_DT_NAME(node) "mkp"
 #define LCLK 1U
+#define RCLK 2U
 struct k_mutex { bool locked; };
 #define K_MUTEX_DEFINE(name) static struct k_mutex name
 static int k_mutex_lock(struct k_mutex *m,int timeout) { (void)timeout;assert(!m->locked);m->locked=true;return 0; }
 static int k_mutex_unlock(struct k_mutex *m) { assert(m->locked);m->locked=false;return 0; }
 static int32_t atomic_inc(atomic_t *p) { int32_t old=*p;(*p)++;return old; }
 static int fail_down, fail_up;
-static bool micro_on, micro_blocked, mouse_down;
-static unsigned int toggles, interrupts, replay_count, busy_true, busy_false;
-static bool replay_edges[64];
-static uint32_t replay_times[64];
+static bool micro_on, micro_blocked, mouse_down, right_mouse_down, fake_mouse_reversed;
+static unsigned int toggles, interrupts, replay_count, right_replay_count, busy_true, busy_false;
+static bool replay_edges[64], right_replay_edges[64];
+static uint32_t replay_times[64], replay_positions[64], right_replay_times[64], right_replay_positions[64];
+bool tp_mouse_orientation_reversed(void) { return fake_mouse_reversed; }
 void tp_microtap_runtime_toggle(void) { micro_on=!micro_on;toggles++; }
 void tp_microtap_runtime_interrupt(void) { interrupts++; }
 void tp_microtap_runtime_shoulder_busy(bool busy) {
@@ -18,30 +21,74 @@ void tp_microtap_runtime_shoulder_busy(bool busy) {
 }
 int zmk_behavior_invoke_binding(const struct zmk_behavior_binding *binding,
                                 struct zmk_behavior_binding_event event,bool pressed) {
-    assert(strcmp(binding->behavior_dev,"mkp")==0&&binding->param1==LCLK);
+    assert(strcmp(binding->behavior_dev,"mkp")==0);
+    assert(event.position==TP_LEFT_SHOULDER_POSITION || event.position==TP_RIGHT_SHOULDER_POSITION);
     if(pressed&&fail_down>0) { fail_down--;return -ENODEV; }
     if(!pressed&&fail_up>0) { fail_up--;return -ENODEV; }
-    assert(event.position==0&&pressed!=mouse_down);
-    mouse_down=pressed;replay_edges[replay_count]=pressed;
-    replay_times[replay_count++]=(uint32_t)event.timestamp;return 0;
+    if(binding->param1==LCLK) {
+        assert(pressed!=mouse_down);mouse_down=pressed;
+        replay_edges[replay_count]=pressed;replay_times[replay_count]=(uint32_t)event.timestamp;
+        replay_positions[replay_count++]=event.position;
+    } else {
+        assert(binding->param1==RCLK&&pressed!=right_mouse_down);right_mouse_down=pressed;
+        right_replay_edges[right_replay_count]=pressed;
+        right_replay_times[right_replay_count]=(uint32_t)event.timestamp;
+        right_replay_positions[right_replay_count++]=event.position;
+    }
+    return 0;
 }
 #include "../config/boards/arm/bbp9981/custom_driver/behavior_microtap_shoulder.c"
 static void fixture(void) {
     memset(&shoulder,0,sizeof(shoulder));memset(&timeout_work,0,sizeof(timeout_work));
-    initialized=false;micro_on=micro_blocked=mouse_down=false;
-    forwarded_down=release_pending=false;release_attempts=0;observed_epoch=0;lifecycle_epoch=0;
-    fail_down=fail_up=0;
-    toggles=interrupts=replay_count=busy_true=busy_false=0;
-    memset(replay_edges,0,sizeof(replay_edges));memset(replay_times,0,sizeof(replay_times));
+    initialized=false;micro_on=micro_blocked=mouse_down=right_mouse_down=fake_mouse_reversed=false;
+    forwarded_down=release_pending=right_forwarded_down=right_release_pending=false;
+    release_attempts=right_release_attempts=0;observed_epoch=0;lifecycle_epoch=0;
+    left_role_mask=right_role_mask=0;fail_down=fail_up=0;
+    toggles=interrupts=replay_count=right_replay_count=busy_true=busy_false=0;
+    memset(replay_edges,0,sizeof(replay_edges));memset(right_replay_edges,0,sizeof(right_replay_edges));
+    memset(replay_times,0,sizeof(replay_times));memset(replay_positions,0,sizeof(replay_positions));
+    memset(right_replay_times,0,sizeof(right_replay_times));memset(right_replay_positions,0,sizeof(right_replay_positions));
     fake_now=0;
 }
-static void edge(uint32_t t,bool down) {
+static void edge_at(uint32_t position,uint32_t t,bool down) {
     fake_now=t;
     struct zmk_behavior_binding binding={0};
-    struct zmk_behavior_binding_event event={.position=0,.timestamp=t,.layer=0};
+    struct zmk_behavior_binding_event event={.position=position,.timestamp=t,.layer=0};
     assert((down?pressed(&binding,event):released(&binding,event))==0);
 }
+static void edge(uint32_t t,bool down) { edge_at(TP_LEFT_SHOULDER_POSITION,t,down); }
 static void timer(uint32_t t) { fake_now=t;tick(&timeout_work.work); }
+static void inverted_mouse_swaps_shoulder_button_roles(void) {
+    fixture(); fake_mouse_reversed=true;
+    edge_at(TP_RIGHT_SHOULDER_POSITION,0,true);
+    edge_at(TP_RIGHT_SHOULDER_POSITION,40,false);
+    timer(270);
+    assert(replay_count==2&&!mouse_down&&!right_mouse_down);
+    assert(replay_positions[0]==TP_RIGHT_SHOULDER_POSITION&&replay_positions[1]==TP_RIGHT_SHOULDER_POSITION);
+
+    edge_at(TP_LEFT_SHOULDER_POSITION,300,true);
+    assert(right_mouse_down&&right_replay_count==1&&right_replay_edges[0]);
+    edge_at(TP_LEFT_SHOULDER_POSITION,340,false);
+    assert(!right_mouse_down&&right_replay_count==2&&!right_replay_edges[1]);
+    assert(right_replay_positions[0]==TP_LEFT_SHOULDER_POSITION&&
+           right_replay_positions[1]==TP_LEFT_SHOULDER_POSITION);
+
+    fixture(); fake_mouse_reversed=true;
+    edge_at(TP_RIGHT_SHOULDER_POSITION,0,true);edge_at(TP_RIGHT_SHOULDER_POSITION,40,false);
+    edge_at(TP_RIGHT_SHOULDER_POSITION,100,true);edge_at(TP_RIGHT_SHOULDER_POSITION,140,false);
+    edge_at(TP_RIGHT_SHOULDER_POSITION,200,true);edge_at(TP_RIGHT_SHOULDER_POSITION,240,false);
+    assert(toggles==1&&replay_count==0&&right_replay_count==0);
+
+    /* A held click keeps its press-time owner if orientation changes before release. */
+    fixture();
+    edge_at(TP_LEFT_SHOULDER_POSITION,0,true);timer(181);
+    assert(mouse_down&&replay_count==1);
+    fake_mouse_reversed=true;assert(shoulder_lifecycle(NULL)==0);timer(200);
+    assert(!mouse_down&&replay_count==2&&!right_mouse_down);
+    edge_at(TP_LEFT_SHOULDER_POSITION,250,false);
+    assert(replay_count==2&&right_replay_count==0);
+}
+
 int main(void) {
     fixture();edge(0,true);edge(50,false);timer(269);assert(replay_count==0&&micro_blocked);
     timer(270);assert(replay_count==2&&replay_edges[0]&&!replay_edges[1]&&!micro_blocked);
@@ -106,6 +153,7 @@ int main(void) {
         assert(released(&binding,e)==0);
     }
     assert(toggles==0&&replay_count==6&&!mouse_down); /* original event time beats delayed dispatch */
-    puts("PASS Actual shoulder behavior: stock mkp dispatch, single/double/triple, held drag, no stale host clicks, event timestamps, failed-DOWN no orphan UP, failed-UP retry, mutex serialization");
+    inverted_mouse_swaps_shoulder_button_roles();
+    puts("PASS Actual shoulder behavior: stock LCLK/RCLK ownership, inverted role swap, press-time releases, single/double/triple, drag, retry and lifecycle cleanup");
     return 0;
 }

@@ -1,0 +1,166 @@
+#include "test_env.h"
+#include <dt-bindings/zmk/bt.h>
+#include "../config/boards/arm/bbp9981/custom_driver/trackpad_scroll_lock.h"
+
+#define DEVICE_DT_NAME(node) "native_bt"
+#define BT_SEL 7U
+
+static bool fake_latched, fake_locked, fake_aa_pressed, fake_mouse_reversed;
+static uint8_t fake_rotation;
+static unsigned rotation_steps, mouse_toggles, invoke_count;
+struct invocation {
+    uint32_t param1, param2, position;
+    int64_t timestamp;
+    bool pressed;
+};
+static struct invocation invokes[32];
+
+bool tp_scroll_lock_is_latched(void) { return fake_latched; }
+bool tp_scroll_is_locked(void) { return fake_locked; }
+bool tp_scroll_aa_is_pressed(void) { return fake_aa_pressed; }
+void tp_scroll_rotation_step(uint8_t step) {
+    fake_rotation = (uint8_t)((fake_rotation + step) & TP_SCROLL_ROTATION_MASK);
+    rotation_steps++;
+}
+bool tp_mouse_orientation_toggle(void) {
+    fake_mouse_reversed = !fake_mouse_reversed;
+    mouse_toggles++;
+    return fake_mouse_reversed;
+}
+
+int zmk_behavior_invoke_binding(const struct zmk_behavior_binding *binding,
+                                struct zmk_behavior_binding_event event, bool pressed) {
+    assert(invoke_count < sizeof(invokes) / sizeof(invokes[0]));
+    assert(strcmp(binding->behavior_dev, "native_bt") == 0);
+    invokes[invoke_count++] = (struct invocation){
+        .param1 = binding->param1, .param2 = binding->param2,
+        .position = event.position, .timestamp = event.timestamp, .pressed = pressed,
+    };
+    return 0;
+}
+
+#include "../config/boards/arm/bbp9981/custom_driver/behavior_aa_scroll_gesture_key.c"
+
+static const struct zmk_behavior_binding wrapper = {.behavior_dev = "aa_scroll_gesture_key"};
+static void reset(void) {
+    fake_latched = fake_locked = fake_aa_pressed = fake_mouse_reversed = false;
+    fake_rotation = 0U; rotation_steps = mouse_toggles = invoke_count = 0U;
+    memset(invokes, 0, sizeof(invokes));
+    gesture = (struct gesture_state){.sequence_position = UINT32_MAX};
+    bt_forwarded_mask = 0U;
+}
+static void edge(uint32_t position, bool down, int64_t timestamp) {
+    struct zmk_behavior_binding_event event = {
+        .layer = 2, .position = position, .timestamp = timestamp,
+    };
+    assert((down ? api.binding_pressed((struct zmk_behavior_binding *)&wrapper, event) :
+                   api.binding_released((struct zmk_behavior_binding *)&wrapper, event)) ==
+           ZMK_BEHAVIOR_OPAQUE);
+}
+static void tap(uint32_t position, int64_t at, int64_t duration) {
+    edge(position, true, at);
+    edge(position, false, at + duration);
+}
+static void triple(uint32_t position, int64_t at) {
+    tap(position, at, 30);
+    tap(position, at + 100, 30);
+    tap(position, at + 200, 30);
+}
+
+static void test_unlocked_bt_selectors_remain_available(void) {
+    reset();
+    tap(TP_BLACKBERRY_POSITION, 10, 30);
+    tap(TP_BACK_POSITION, 100, 30);
+    assert(invoke_count == 4U);
+    assert(invokes[0].param1 == BT_SEL && invokes[0].param2 == 1U && invokes[0].pressed);
+    assert(invokes[1].param1 == BT_SEL && invokes[1].param2 == 1U && !invokes[1].pressed);
+    assert(invokes[2].param1 == BT_SEL && invokes[2].param2 == 2U && invokes[2].pressed);
+    assert(invokes[3].param1 == BT_SEL && invokes[3].param2 == 2U && !invokes[3].pressed);
+}
+
+static void test_locked_blackberry_triple_rotates_left_to_up(void) {
+    reset(); fake_latched = fake_locked = true;
+    tap(TP_BLACKBERRY_POSITION, 0, 30);
+    tap(TP_BLACKBERRY_POSITION, 100, 30);
+    assert(fake_rotation == 0U && invoke_count == 0U);
+    tap(TP_BLACKBERRY_POSITION, 200, 30);
+    assert(fake_rotation == TP_SCROLL_ROTATION_LEFT_TO_UP_STEP && rotation_steps == 1U);
+    assert(invoke_count == 0U);
+    triple(TP_BLACKBERRY_POSITION, 500);
+    assert(fake_rotation == 2U && rotation_steps == 2U && invoke_count == 0U);
+}
+
+static void test_locked_back_triple_rotates_right_to_up_only(void) {
+    reset(); fake_latched = fake_locked = true;
+    tap(TP_BACK_POSITION, 0, 30);
+    tap(TP_BACK_POSITION, 100, 30);
+    assert(fake_rotation == 0U && invoke_count == 0U);
+    tap(TP_BACK_POSITION, 200, 30);
+    assert(fake_rotation == TP_SCROLL_ROTATION_RIGHT_TO_UP_STEP && rotation_steps == 1U);
+    assert(invoke_count == 0U);
+}
+
+static void test_aA_held_back_double_toggles_mouse_and_suppresses_bt(void) {
+    reset(); fake_aa_pressed = true;
+    tap(TP_BACK_POSITION, 10, 30);
+    assert(!fake_mouse_reversed && mouse_toggles == 0U && invoke_count == 0U);
+    tap(TP_BACK_POSITION, 100, 30);
+    assert(fake_mouse_reversed && mouse_toggles == 1U && invoke_count == 0U);
+    tap(TP_BACK_POSITION, 300, 30);
+    tap(TP_BACK_POSITION, 400, 30);
+    assert(!fake_mouse_reversed && mouse_toggles == 2U && invoke_count == 0U);
+}
+
+static void test_latched_aA_override_never_selects_slot_one(void) {
+    reset(); fake_latched = true; fake_aa_pressed = true;
+    triple(TP_BLACKBERRY_POSITION, 0);
+    assert(invoke_count == 0U && rotation_steps == 0U);
+    tap(TP_BACK_POSITION, 500, 30);
+    tap(TP_BACK_POSITION, 600, 30);
+    assert(invoke_count == 0U && mouse_toggles == 1U && fake_mouse_reversed);
+}
+
+static void test_timing_and_explicit_cancellation(void) {
+    reset(); fake_latched = fake_locked = true;
+    tap(TP_BLACKBERRY_POSITION, 0, 30);
+    tap(TP_BLACKBERRY_POSITION, 100, 30);
+    tap(TP_BLACKBERRY_POSITION, 351, 30); /* 221ms gap restarts the sequence. */
+    assert(rotation_steps == 0U);
+    tap(TP_BLACKBERRY_POSITION, 451, 30);
+    tap(TP_BLACKBERRY_POSITION, 551, 30);
+    assert(rotation_steps == 1U);
+
+    reset(); fake_latched = fake_locked = true;
+    edge(TP_BLACKBERRY_POSITION, true, 0);
+    tp_scroll_gesture_cancel();
+    edge(TP_BLACKBERRY_POSITION, false, 30);
+    tap(TP_BLACKBERRY_POSITION, 100, 30);
+    tap(TP_BLACKBERRY_POSITION, 200, 30);
+    assert(rotation_steps == 0U && invoke_count == 0U);
+
+    edge(TP_BLACKBERRY_POSITION, true, 400);
+    edge(TP_BLACKBERRY_POSITION, false, 581); /* 181ms hold is not a tap. */
+    tap(TP_BLACKBERRY_POSITION, 700, 30);
+    tap(TP_BLACKBERRY_POSITION, 800, 30);
+    assert(rotation_steps == 0U);
+}
+
+static void test_press_ownership_survives_context_change(void) {
+    reset();
+    edge(TP_BACK_POSITION, true, 10); /* BT slot 2 forwarded before lock changes. */
+    fake_latched = fake_locked = true;
+    edge(TP_BACK_POSITION, false, 30);
+    assert(invoke_count == 2U && invokes[1].param2 == 2U && !invokes[1].pressed);
+}
+
+int main(void) {
+    test_unlocked_bt_selectors_remain_available();
+    test_locked_blackberry_triple_rotates_left_to_up();
+    test_locked_back_triple_rotates_right_to_up_only();
+    test_aA_held_back_double_toggles_mouse_and_suppresses_bt();
+    test_latched_aA_override_never_selects_slot_one();
+    test_timing_and_explicit_cancellation();
+    test_press_ownership_survives_context_change();
+    puts("PASS UPPER BlackBerry/Back wrapper: locked triple-only rotation, BT suppression, aA+Back mouse toggle, timing, cancellation and press ownership");
+    return 0;
+}
