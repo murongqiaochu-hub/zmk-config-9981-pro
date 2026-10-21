@@ -55,12 +55,19 @@ def source_hashes():
     return {p: sha((ROOT / p).read_bytes()) for p in source_paths()}
 
 
-def label(binding):
+def label(binding, layer=None, position=None):
     parts = binding.split()
     b, a = parts[0], parts[1:]
     if b == '&kp': return [NAMES.get(a[0], a[0])]
     if b == '&mkp': return ['左键' if a[0] == 'LCLK' else '右键']
-    if b == '&microtap_shoulder': return ['左键', '三击轻拍开关']
+    if b == '&microtap_shoulder':
+        if layer == 'default' and position == 0: return ['左键↔右键', '三击轻拍开关']
+        if layer == 'default' and position == 1: return ['右键↔左键']
+        return ['鼠标肩键角色互换']
+    if b == '&aa_scroll_gesture_key':
+        if layer == 'upper' and position == 3: return ['槽1 / 锁轮三击左→上']
+        if layer == 'upper' and position == 5: return ['槽2 / 锁轮三击右→上', 'aA双击翻鼠标']
+        return ['aA层手势']
     if b == '&gamepad':
         return [['↑'], ['↓'], ['←'], ['→'], ['A'], ['B'], ['X'], ['Y'], ['LB'], ['RB'],
                 ['LT'], ['RT'], ['View'], ['Menu'], ['Guide'], ['L3'], ['R3'],
@@ -72,7 +79,7 @@ def label(binding):
     if b == '&tdc_to_MEDIA': return ['静音', '双击 MEDIA']
     if b == '&msc': return ['滚↑' if a[0] == 'SCRL_UP' else '滚↓']
     if b == '&aa_scroll_shoulder':
-        return ['滚↑', '半速/三击右→上'] if a[0] == 'SCRL_UP' else ['滚↓', '半速/三击左→上']
+        return ['滚↑', '锁定半速'] if a[0] == 'SCRL_UP' else ['滚↓', '锁定半速']
     if b == '&bt': return ['蓝牙槽 ' + a[-1]]
     if b == '&out': return ['BLE 偏好']
     if b == '&td0': return ['左键', '双击清当前槽']
@@ -91,7 +98,7 @@ def diagram(layer, items, geometry):
     out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7 -7 1014 458" role="img" aria-label="' + layer + ' complete keymap">']
     for i, ((w, h, x, y), binding) in enumerate(zip(geometry, items)):
         yy, hh = y * .74, h * .74
-        lines = label(binding)
+        lines = label(binding, layer, i)
         danger = layer == 'upper' and i in (4, 10, 11, 35)
         tint = i in (37, 40, 41) or layer == 'upper' and i == 7 or binding.startswith('&gamepad ')
         fill, stroke, ink = ('#fff0f1', '#dc8491', '#a32839') if danger else (('#e7f6f5', '#95cccb', '#087d7e') if tint else ('#f8fafc', '#cbd6e2', '#20364d'))

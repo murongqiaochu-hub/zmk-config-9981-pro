@@ -43,6 +43,13 @@
 
 - 本次 NAS 工作树的 `origin` 是旧本地工作树，不是 GitHub；本次使用已核实的仓库 HTTPS 地址和单命令凭证 helper 发布，未改全局 Git / 代理。后续须先核对 remote，不把本机路径推断成云端。
 
+## v2.2.6 MEDIA remap / scroll gesture / mouse-flip candidate (2026-10-21)
+
+- 用户确认 v2.2.6 MEDIA 映射：P0/P1 肩键=LB/RB；P2 Call=LT；P6 Endcall=RT；D-pad 左从 S/P18 移到 A/P17；O/P15=Y、K/P24=X、Backspace/P26=B、$/P35=A；D/P19=L3、L/P25=R3；仅 SYM/P40 与右 aA/P41 退出 MEDIA。其他层不随重映射改变。
+- 锁轮手势按用户原话实现：锁定时黑莓 P3 三击令左向变上向，顶部物理返回 P5 三击令右向变上向；短按/未完成序列消费，不产生蓝牙槽副作用；锁定期间 P3 永不选槽1，P5 非三击不选槽2。按住物理右 aA 并双击 P5 切换鼠标模式，双击不发 BT_SEL 2。
+- 鼠标翻转是独立 volatile DEFAULT-mouse 功能：反转普通指针 Y，并交换默认层两肩的 LCLK/RCLK 角色；不改 X、滚轮、手柄轴或 SYM/UPPER/MEDIA 肩键，不持久化，重启关闭。
+- 当前本地候选分支为 `codex/xbox-layout-v2.2.6-20261021`，功能源码提交 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；完整 `python3 -B tests/run_host_tests.py` exit 0（68 份配置、四层42键图 / 手册同步、strict UBSan host regressions），范围闸 45 份旧配置逐字节相同、8 个集成 +14 个新增配置。回归基线已改为实际父提交 `51c5efd`。本节/手册的 Actions ARM 及 UF2 哈希待当前候选推送构建后核实；v2.2.4 仍是最后已发布 / 归档件。当前未推送/构建，未刷写、未清配对、未擦设置、未做主机更改；host / cloud build 均不等于实机验收。
+
 ## 更新和导出的最短流程
 
 ```bash

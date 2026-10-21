@@ -1,4 +1,15 @@
-> **2026-10-21 v2.2.5 未发布候选已完成 ARM 构建。** 功能源码 `3c5235b21f8452630850053620635d4aea7cb47d`；构建提交 `dcfabda69c9ed81a7fb92aaf0df29e74566be763`，分支 `codex/xbox-layout-v2.2.5-20261021`；[GitHub Actions Run 39520450915](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39520450915>) 的主机回归与 `bbp9981` ARM 构建 PASS，候选分支的归档 job 按策略跳过。UF2 已下载并本地校验：SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`，608256 bytes、1188 blocks、family `0xada52840`、地址 `[0x1000, 0x4b400)`。Actions Run 的 `firmware` artifact 可从上方记录获取；本地 UF2、SHA 与校验 JSON 在本次交付目录。源码只推到新候选分支，未归档到已发布分支；未刷写、未清配对、未擦设置或实机验收。v2.2.4 仍是最后已发布版本，滚轮方向旧于本候选。
+> **2026-10-21 v2.2.6 未发布候选，ARM 构建待执行。** 功能源码 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；候选分支 `codex/xbox-layout-v2.2.6-20261021` 当前仅在本地，完整 `python3 -B tests/run_host_tests.py` exit 0（68 配置文件、四层42键图/说明书同步与完整 host regressions），但分支尚未推送、Actions/ARM 与 UF2 校验尚未运行。完成后应在此记录精确构建提交、Run ID、UF2 SHA/字节/块数/地址边界。本轮未刷写、未清配对、未擦设置或实机验收；v2.2.4 仍是最后已发布 / 归档版本。
+
+# Xbox 布局标准 HID：v2.2.6 候选状态
+
+## v2.2.6 实现范围
+
+- MEDIA：P0/P1=LB/RB，P2/P6=LT/RT，A/P17=D-pad 左，O/K/Backspace/$=Y/X/B/A，D/L=L3/R3；只留 SYM/P40 与右 aA/P41 两个出口。
+- 锁轮：锁定且未按 aA 时，P3 三击左→上、P5 三击右→上；锁定期间 P3 永不选槽1，P5 非三击吞掉。按住右 aA 时 P5 双击切换 volatile 鼠标模式，不发槽2。
+- 鼠标模式：普通指针 Y 反向；DEFAULT 肩键 LCLK/RCLK 角色互换；X、滚轮、手柄及 SYM/UPPER/MEDIA 键位/肩键功能不变，重启关闭。
+- v2.2.6 完整 host regression 与 scope gate 已 PASS，见本地日志；云端构建与 UF2 本地边界校验待完成。状态、构建哈希与文件路径待后续更新。
+
+> **历史候选 v2.2.5（未发布 / 未归档）。** 功能源码 `3c5235b21f8452630850053620635d4aea7cb47d`；构建提交 `dcfabda69c9ed81a7fb92aaf0df29e74566be763`，分支 `codex/xbox-layout-v2.2.5-20261021`；[GitHub Actions Run 39520450915](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39520450915>) 的 host regressions 与 `bbp9981` ARM 构建 PASS，候选归档 job 跳过。UF2 SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`，608256 bytes / 1188 blocks / family `0xada52840` / 地址 `[0x1000, 0x4b400)`；未刷写，v2.2.4 仍为最后已发布 / 归档版本。
 
 # Xbox 布局标准 HID：v2.2.4 最后已发布 / 归档交付记录
 
