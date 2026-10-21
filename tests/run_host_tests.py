@@ -60,6 +60,11 @@ subprocess.run([cc, '-DTEST_TWO_LEDS=1', '-std=c11', '-Wall', '-Wextra', '-Werro
                 str(ROOT / 'tests/test_trackpad_low_pwm.c'), '-o', str(exe)], check=True)
 subprocess.run([str(exe)], check=True)
 
+# ZMK extracts params by their literal param1/param2 DT cell names. Do not
+# override one_param.yaml with a descriptive but incompatible operation cell.
+owner_schema = (ROOT / 'config/dts/bindings/behaviors/zmk,behavior-aa-layer.yaml').read_text()
+assert 'include: one_param.yaml' in owner_schema
+assert not re.search(r'^binding-cells:', owner_schema, re.M)
 # Ensure both stock keymaps preserve every other key and all other layers.
 BASE = '51c5efd51d826ae46fdacc549208e2900fc75576'
 paths = ['config/bbp9981.keymap', 'config/boards/arm/bbp9981/bbp9981.keymap']
