@@ -189,8 +189,8 @@
         upper_layer {
             /* Double-tap right aA locks scrolling unrotated and pins UPPER; SYM exits.
              * Locked shoulders halve trackpad wheel and suppress native shoulder scroll.
-             * Triple BlackBerry maps left->up; triple top Back maps right->up. While locked,
-             * these keys rotate only with aA released. Holding aA restores BT slots 1/2.
+             * Triple BlackBerry selects fixed left->up/right->down/up->right/down->left;
+             * triple Back selects the inverse preset, never accumulates. aA held restores BT1/2.
              * Hold right aA and double-tap F to toggle volatile inverted-mouse mode. */
             bindings = <
                  &aa_scroll_shoulder SCRL_UP                                                                               &aa_scroll_shoulder SCRL_DOWN
@@ -206,11 +206,11 @@
             /* Xbox-layout standard HID, not XInput. W/Z/A/D=Dpad up/down/left/right;
              * S=L3, L=R3; O/K/Backspace/$=Y/X/B/A. Trackpad click P4 and Space P39=Guide14;
              * BB P3 selects the right stick while held. P0/P1=LT/RT, Call/End=LB/RB;
-             * T/Y=View/Menu. Only SYM and right aA exit MEDIA. */
+             * R/U=View/Menu; T/Y are unused. Only SYM and right aA exit MEDIA. */
             bindings = <
                  &gamepad 10                                                                             &gamepad 11
     &gamepad 8             &gamepad 17                         &gamepad 14                    &none                            &gamepad 9
-    &none        &gamepad 0 &none     &none       &gamepad 12  &gamepad 13   &none           &none           &gamepad 7      &none
+    &none        &gamepad 0 &none     &gamepad 12 &none        &none         &gamepad 13     &none           &gamepad 7      &none
     &gamepad 2   &gamepad 15 &gamepad 3 &none     &none        &none         &none           &gamepad 6      &gamepad 16     &gamepad 5
     &none        &gamepad 1 &none     &none       &none        &none         &none           &none           &gamepad 4      &none
     &none                  &none                               &gamepad 14                   &to DEFAULT                      &to DEFAULT

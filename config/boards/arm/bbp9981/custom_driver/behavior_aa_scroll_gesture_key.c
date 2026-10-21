@@ -89,10 +89,10 @@ static enum gesture_mode current_mode(uint32_t position) {
 static void apply_gesture(void) {
     switch (gesture.mode) {
     case GESTURE_LEFT_TO_UP:
-        tp_scroll_rotation_step(TP_SCROLL_ROTATION_LEFT_TO_UP_STEP);
+        tp_scroll_rotation_select(TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED);
         break;
     case GESTURE_RIGHT_TO_UP:
-        tp_scroll_rotation_step(TP_SCROLL_ROTATION_RIGHT_TO_UP_STEP);
+        tp_scroll_rotation_select(TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED);
         break;
     case GESTURE_MOUSE_TOGGLE:
         (void)tp_mouse_orientation_toggle();

@@ -107,7 +107,7 @@ for relative in paths:
     assert before['media_layer'][35] == '&to DEFAULT'
     before['media_layer'][35] = '&none'
     assert before['media_layer'][40] == before['media_layer'][41] == '&to DEFAULT'
-    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 8: 0, 11: 12, 12: 13,
+    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 14, 6: 9, 8: 0, 10: 12, 13: 13,
                15: 7, 17: 2, 18: 15, 19: 3, 24: 6, 25: 16, 26: 5, 28: 1, 35: 4, 39: 14}
     for position, action in gamepad.items():
         assert before['media_layer'][position] == '&none'
@@ -115,7 +115,16 @@ for relative in paths:
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, F toggles mouse; owned aA sticky/fixed layer')
+# v2.2.8 changes only four MEDIA slots relative to the accepted v2.2.7 map.
+for relative, after in zip(paths, updated):
+    previous = layers(subprocess.check_output(['git', 'show', 'fa1863a9741f9ea8ac495eb86307be0543846c8f:' + relative], cwd=ROOT, text=True))
+    assert previous['media_layer'][10] == previous['media_layer'][13] == '&none'
+    assert previous['media_layer'][11] == '&gamepad 12'
+    assert previous['media_layer'][12] == '&gamepad 13'
+    for position, binding in {10: '&gamepad 12', 13: '&gamepad 13', 11: '&none', 12: '&none'}.items():
+        previous['media_layer'][position] = binding
+    assert previous == after, relative
+print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB, View=R/Menu=U with T/Y unused; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, F toggles mouse; owned aA sticky/fixed layer')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

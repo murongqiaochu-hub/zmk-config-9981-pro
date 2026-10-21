@@ -106,31 +106,45 @@ static void test_native_release_failure_is_retried_before_new_press(void) {
     assert(api.binding_released(&wrapper_up, left) == ZMK_BEHAVIOR_OPAQUE);
     assert(atomic_get(&native_scroll_mask) == 0);
 }
-static void test_rotation_step_api_and_direction_math(void) {
+static void test_fixed_orientation_api_and_direction_math(void) {
     reset();
     assert(TP_RIGHT_SHOULDER_POSITION == 1U); /* P1 is the physical right shoulder, not Endcall P6. */
-    tp_scroll_rotation_step(TP_SCROLL_ROTATION_LEFT_TO_UP_STEP);
-    assert(tp_scroll_rotation_quadrants() == 1U);
-    tp_scroll_rotation_step(TP_SCROLL_ROTATION_RIGHT_TO_UP_STEP);
-    assert(tp_scroll_rotation_quadrants() == 0U);
-
+    const uint8_t targets[] = {TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED,
+                               TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED};
+    /* HID vectors ordered left/up/right/down. Each preset selects an absolute
+     * mapping from every prior orientation and remains unchanged on repeats. */
     const int16_t input[4][2] = {{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
-    const int16_t expected[4][2] = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-    for (unsigned int i = 0; i < 4U; ++i) {
-        int16_t x = input[i][0], y = input[i][1];
-        tp_scroll_apply_rotation(1U, &x, &y);
-        assert(x == expected[i][0] && y == expected[i][1]);
+    const int16_t expected[2][4][2] = {
+        {{0, 1}, {1, 0}, {0, -1}, {-1, 0}},
+        {{0, -1}, {-1, 0}, {0, 1}, {1, 0}},
+    };
+    for (unsigned preset = 0; preset < 2U; ++preset) {
+        for (unsigned previous = 0; previous < 4U; ++previous) {
+            tp_scroll_rotation_select((uint8_t)previous);
+            for (unsigned repeat = 0; repeat < 16U; ++repeat) {
+                tp_scroll_rotation_select(targets[preset]);
+                assert(tp_scroll_rotation_quadrants() == targets[preset]);
+                for (unsigned i = 0; i < 4U; ++i) {
+                    int16_t x = input[i][0], y = input[i][1];
+                    tp_scroll_apply_rotation(tp_scroll_rotation_quadrants(), &x, &y);
+                    assert(x == expected[preset][i][0] && y == expected[preset][i][1]);
+                }
+            }
+        }
     }
     int16_t x = INT16_MIN, y = 0;
     tp_scroll_apply_rotation(1U, &x, &y);
     assert(x == 0 && y == INT16_MAX);
+    x = 0; y = INT16_MIN;
+    tp_scroll_apply_rotation(3U, &x, &y);
+    assert(x == INT16_MAX && y == 0);
 }
 int main(void) {
     test_locked_shoulders_are_modifier_owners();
     test_temporary_scroll_forwards_native_behavior();
     test_failed_native_press_never_creates_orphan_release();
     test_native_release_failure_is_retried_before_new_press();
-    test_rotation_step_api_and_direction_math();
-    puts("PASS UPPER shoulder wrapper: P0/P1 native/locked ownership and independent scroll-rotation API");
+    test_fixed_orientation_api_and_direction_math();
+    puts("PASS UPPER shoulder wrapper: P0/P1 native/locked ownership and fixed-orientation API (all four directions, all prior presets and repeated selection)");
     return 0;
 }

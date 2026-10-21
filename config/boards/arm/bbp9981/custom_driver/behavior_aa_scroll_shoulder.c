@@ -44,10 +44,9 @@ uint8_t tp_scroll_rotation_quadrants(void) {
     return (uint8_t)atomic_get(&scroll_rotation_snapshot) & TP_SCROLL_ROTATION_MASK;
 }
 
-void tp_scroll_rotation_step(uint8_t step) {
-    uint8_t current = tp_scroll_rotation_quadrants();
-    current = (current + step) & TP_SCROLL_ROTATION_MASK;
-    atomic_set(&scroll_rotation_snapshot, (int32_t)current);
+void tp_scroll_rotation_select(uint8_t orientation) {
+    /* Absolute selection: repeating a gesture must never accumulate turns. */
+    atomic_set(&scroll_rotation_snapshot, (int32_t)(orientation & TP_SCROLL_ROTATION_MASK));
 }
 
 static const struct zmk_behavior_binding *native_binding(

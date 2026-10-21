@@ -229,10 +229,48 @@ static void run_pipeline_cases(void) {
     assert(tp_mouse_orientation_reversed() && pipeline_layer_active(2) && tp_scroll_is_locked());
     assert(!bt_down[1] && !bt_down[2]);
 }
+static void fixed_presets_all_directions(void) {
+    const uint32_t positions[2] = {TP_BLACKBERRY_POSITION, TP_BACK_POSITION};
+    const uint8_t targets[2] = {TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED,
+                                TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED};
+    /* Actual sensor vectors: left/right/up/down. Keep the original unequal
+     * horizontal/vertical wheel gains; only direction mapping is selected. */
+    const int8_t raw[4][2] = {{-10,0},{10,0},{0,-10},{0,10}};
+    const int16_t expected[2][4][2] = {
+        {{0,1},{0,-1},{3,0},{-3,0}},
+        {{0,-1},{0,1},{-3,0},{3,0}},
+    };
+    for (unsigned preset = 0; preset < 2U; ++preset) {
+        for (unsigned previous = 0; previous < 4U; ++previous) {
+            fixture(); lock_then_expire_old_sticky();
+            tp_scroll_rotation_select((uint8_t)previous);
+            for (unsigned repeat = 0; repeat < 3U; ++repeat) {
+                triple(positions[preset], 3400 + repeat * 500);
+                assert(tp_scroll_rotation_quadrants() == targets[preset]);
+            }
+            for (unsigned i = 0; i < 4U; ++i) {
+                scroll_window(raw[i][0], raw[i][1], 4700 + i * 40,
+                              expected[preset][i][0], expected[preset][i][1]);
+            }
+            triple(positions[1U-preset], 5000);
+            assert(tp_scroll_rotation_quadrants() == targets[1U-preset]);
+            triple(positions[1U-preset], 5400);
+            assert(tp_scroll_rotation_quadrants() == targets[1U-preset]);
+            triple(positions[preset], 5800);
+            assert(tp_scroll_rotation_quadrants() == targets[preset]);
+            key(41, true, 6200);
+            scroll_window(0, -10, 6300, 0, 3); /* Held aA temporarily uses original direction. */
+            key(41, false, 6500);
+            assert(tp_scroll_rotation_quadrants() == targets[preset]);
+            scroll_window(0, -10, 6600, expected[preset][2][0], expected[preset][2][1]);
+            assert(!bt_down[1] && !bt_down[2] && !tp_mouse_orientation_reversed());
+        }
+    }
+}
 int main(void) {
     for (unsigned order = 0; order < 2; ++order) {
-        listener_first = order != 0; run_pipeline_cases();
+        listener_first = order != 0; run_pipeline_cases(); fixed_presets_all_directions();
     }
-    puts("PASS scroll pipeline: real A320/AA-owner/gesture/rotation, both position-listener orders, delayed sticky UP beyond 3s, P3/P5 -> actual wheel, shoulder half-speed, immediate BT with both release orders, aA+F mouse; keymap/hold-tap and kernel are host models, not device acceptance");
+    puts("PASS scroll pipeline: real A320/AA-owner/gesture/rotation, both position-listener orders, delayed sticky UP beyond 3s, P3/P5 fixed presets -> all four actual wheel directions, repeated/switch selection without accumulation, held-aA override/restore, shoulder half-speed, immediate BT with both release orders, aA+F mouse; keymap/hold-tap and kernel are host models, not device acceptance");
     return 0;
 }

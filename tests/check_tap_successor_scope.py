@@ -51,7 +51,7 @@ current = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.i
 assert current - set(paths) == NEW, sorted(current - set(paths))
 assert len(protected) >= 45  # One additional, mode-aware default-shoulder source is now in scope.
 
-# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4-v2.2.7
+# Not a blanket exemption: remove exactly GP gates plus the documented v2.2.4-v2.2.8
 # scroll-lock, gesture, and mouse-orientation additions, then compare every remaining old source byte. Only
 # A320's historical full-CRLF line endings normalize to LF; no other whitespace is ignored.
 a320 = (ROOT / (PREFIX + 'a320_0x57.c')).read_text()
@@ -145,4 +145,4 @@ assert workflow.count(f'refs/heads/{branch}') == 1 and workflow.count(f'HEAD:{br
 conf = (ROOT / 'config/bbp9981.conf').read_text()
 assert conf == old('config/bbp9981.conf').decode().replace('\r\n', '\n').replace('CONFIG_ZMK_BLE=y\n',
     'CONFIG_ZMK_BLE=y\n\n# Keep the stock keyboard/mouse HID_0; expose the gamepad on its own USB HID_1.\nCONFIG_BBP9981_GAMEPAD=y\nCONFIG_USB_HID_DEVICE_COUNT=2\nCONFIG_USB_HID_REPORTS=4\n')
-print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4-v2.2.7 scroll/mouse additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 16 new gamepad/scroll config files only')
+print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge source restored exactly after GP gates and explicit v2.2.4-v2.2.8 scroll/mouse additions; pointer/tap policy, bridge I/O/UP, native baseline, GPIO/matrix/DT and lights preserved; eight integration + 16 new gamepad/scroll config files only')

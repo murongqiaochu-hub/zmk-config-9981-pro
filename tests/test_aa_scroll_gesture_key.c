@@ -7,7 +7,7 @@
 
 static bool fake_latched, fake_locked, fake_aa_pressed, fake_mouse_reversed;
 static uint8_t fake_rotation;
-static unsigned rotation_steps, mouse_toggles, invoke_count;
+static unsigned orientation_selections, mouse_toggles, invoke_count;
 struct invocation {
     uint32_t param1, param2, position;
     int64_t timestamp;
@@ -18,9 +18,9 @@ static struct invocation invokes[32];
 bool tp_scroll_lock_is_latched(void) { return fake_latched; }
 bool tp_scroll_is_locked(void) { return fake_locked; }
 bool tp_scroll_aa_is_pressed(void) { return fake_aa_pressed; }
-void tp_scroll_rotation_step(uint8_t step) {
-    fake_rotation = (uint8_t)((fake_rotation + step) & TP_SCROLL_ROTATION_MASK);
-    rotation_steps++;
+void tp_scroll_rotation_select(uint8_t orientation) {
+    fake_rotation = (uint8_t)(orientation & TP_SCROLL_ROTATION_MASK);
+    orientation_selections++;
 }
 bool tp_mouse_orientation_toggle(void) {
     fake_mouse_reversed = !fake_mouse_reversed;
@@ -44,7 +44,7 @@ int zmk_behavior_invoke_binding(const struct zmk_behavior_binding *binding,
 static const struct zmk_behavior_binding wrapper = {.behavior_dev = "aa_scroll_gesture_key"};
 static void reset(void) {
     fake_latched = fake_locked = fake_aa_pressed = fake_mouse_reversed = false;
-    fake_rotation = 0U; rotation_steps = mouse_toggles = invoke_count = 0U;
+    fake_rotation = 0U; orientation_selections = mouse_toggles = invoke_count = 0U;
     memset(invokes, 0, sizeof(invokes));
     gesture = (struct gesture_state){.sequence_position = UINT32_MAX};
     bt_forwarded_mask = 0U;
@@ -84,10 +84,10 @@ static void test_locked_blackberry_triple_rotates_left_to_up(void) {
     tap(TP_BLACKBERRY_POSITION, 100, 30);
     assert(fake_rotation == 0U && invoke_count == 0U);
     tap(TP_BLACKBERRY_POSITION, 200, 30);
-    assert(fake_rotation == TP_SCROLL_ROTATION_LEFT_TO_UP_STEP && rotation_steps == 1U);
+    assert(fake_rotation == TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED && orientation_selections == 1U);
     assert(invoke_count == 0U);
     triple(TP_BLACKBERRY_POSITION, 500);
-    assert(fake_rotation == 2U && rotation_steps == 2U && invoke_count == 0U);
+    assert(fake_rotation == 1U && orientation_selections == 2U && invoke_count == 0U);
 }
 
 static void test_locked_back_triple_rotates_right_to_up_only(void) {
@@ -96,8 +96,27 @@ static void test_locked_back_triple_rotates_right_to_up_only(void) {
     tap(TP_BACK_POSITION, 100, 30);
     assert(fake_rotation == 0U && invoke_count == 0U);
     tap(TP_BACK_POSITION, 200, 30);
-    assert(fake_rotation == TP_SCROLL_ROTATION_RIGHT_TO_UP_STEP && rotation_steps == 1U);
+    assert(fake_rotation == TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED && orientation_selections == 1U);
     assert(invoke_count == 0U);
+}
+
+static void test_fixed_presets_ignore_previous_angle_and_repeats(void) {
+    const uint32_t positions[2] = {TP_BLACKBERRY_POSITION, TP_BACK_POSITION};
+    const uint8_t target[2] = {TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED,
+                               TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED};
+    for (unsigned preset = 0; preset < 2U; ++preset) {
+        for (unsigned previous = 0; previous < 4U; ++previous) {
+            reset(); fake_latched = fake_locked = true; fake_rotation = (uint8_t)previous;
+            for (unsigned repeat = 0; repeat < 3U; ++repeat) {
+                triple(positions[preset], repeat * 400);
+                assert(fake_rotation == target[preset] && invoke_count == 0U);
+            }
+            triple(positions[1U-preset], 1300);
+            assert(fake_rotation == target[1U-preset] && invoke_count == 0U);
+            triple(positions[preset], 1700);
+            assert(fake_rotation == target[preset] && invoke_count == 0U);
+        }
+    }
 }
 
 static void test_aA_held_F_double_toggles_mouse_and_suppresses_bt(void) {
@@ -123,7 +142,7 @@ static void test_aA_held_always_restores_immediate_bt_slots(void) {
         tp_scroll_gesture_cancel();
         edge(TP_BACK_POSITION, false, 620);
         assert(invoke_count == 4U && !invokes[3].pressed && invokes[3].param2 == 2U);
-        assert(rotation_steps == 0U && mouse_toggles == 0U);
+        assert(orientation_selections == 0U && mouse_toggles == 0U);
     }
 }
 
@@ -137,12 +156,12 @@ static void test_F_without_aA_and_context_cancellation(void) {
     zmk_event_t ev = {.endpoint_valid = true};
     assert(gesture_context_listener(&ev) == ZMK_EV_EVENT_BUBBLE);
     tap(TP_BLACKBERRY_POSITION, 600, 30);
-    assert(rotation_steps == 0U);
+    assert(orientation_selections == 0U);
     ev = (zmk_event_t){.layer_valid = true, .layer_data = {.layer = 2, .state = false}};
     assert(gesture_context_listener(&ev) == ZMK_EV_EVENT_BUBBLE);
     tap(TP_BLACKBERRY_POSITION, 700, 30);
     tap(TP_BLACKBERRY_POSITION, 800, 30);
-    assert(rotation_steps == 0U);
+    assert(orientation_selections == 0U);
 }
 
 static void test_bt_same_slot_breaks_mouse_double_without_endpoint_event(void) {
@@ -161,10 +180,10 @@ static void test_timing_and_explicit_cancellation(void) {
     tap(TP_BLACKBERRY_POSITION, 0, 30);
     tap(TP_BLACKBERRY_POSITION, 100, 30);
     tap(TP_BLACKBERRY_POSITION, 351, 30); /* 221ms gap restarts the sequence. */
-    assert(rotation_steps == 0U);
+    assert(orientation_selections == 0U);
     tap(TP_BLACKBERRY_POSITION, 451, 30);
     tap(TP_BLACKBERRY_POSITION, 551, 30);
-    assert(rotation_steps == 1U);
+    assert(orientation_selections == 1U);
 
     reset(); fake_latched = fake_locked = true;
     edge(TP_BLACKBERRY_POSITION, true, 0);
@@ -172,13 +191,13 @@ static void test_timing_and_explicit_cancellation(void) {
     edge(TP_BLACKBERRY_POSITION, false, 30);
     tap(TP_BLACKBERRY_POSITION, 100, 30);
     tap(TP_BLACKBERRY_POSITION, 200, 30);
-    assert(rotation_steps == 0U && invoke_count == 0U);
+    assert(orientation_selections == 0U && invoke_count == 0U);
 
     edge(TP_BLACKBERRY_POSITION, true, 400);
     edge(TP_BLACKBERRY_POSITION, false, 581); /* 181ms hold is not a tap. */
     tap(TP_BLACKBERRY_POSITION, 700, 30);
     tap(TP_BLACKBERRY_POSITION, 800, 30);
-    assert(rotation_steps == 0U);
+    assert(orientation_selections == 0U);
 }
 
 static void test_press_ownership_survives_context_change(void) {
@@ -193,12 +212,13 @@ int main(void) {
     test_unlocked_bt_selectors_remain_available();
     test_locked_blackberry_triple_rotates_left_to_up();
     test_locked_back_triple_rotates_right_to_up_only();
+    test_fixed_presets_ignore_previous_angle_and_repeats();
     test_aA_held_F_double_toggles_mouse_and_suppresses_bt();
     test_aA_held_always_restores_immediate_bt_slots();
     test_F_without_aA_and_context_cancellation();
     test_bt_same_slot_breaks_mouse_double_without_endpoint_event();
     test_timing_and_explicit_cancellation();
     test_press_ownership_survives_context_change();
-    puts("PASS UPPER gestures: hands-free locked BlackBerry/Back triples, held-aA immediate BT slots 1/2, aA+F mouse toggle, timing, context cancellation and press ownership");
+    puts("PASS UPPER gestures: hands-free locked BlackBerry/Back fixed presets (all prior angles/repeats/switches), held-aA immediate BT slots 1/2, aA+F mouse toggle, timing, context cancellation and press ownership");
     return 0;
 }

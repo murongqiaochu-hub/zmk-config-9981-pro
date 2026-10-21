@@ -65,8 +65,8 @@ def label(binding, layer=None, position=None):
         if layer == 'default' and position == 1: return ['右键↔左键']
         return ['鼠标肩键角色互换']
     if b == '&aa_scroll_gesture_key':
-        if layer == 'upper' and position == 3: return ['aA按住:槽1', '松开:锁轮三击左→上']
-        if layer == 'upper' and position == 5: return ['aA按住:槽2', '松开:锁轮三击右→上']
+        if layer == 'upper' and position == 3: return ['aA按住:槽1', '锁轮三击:固定左→上']
+        if layer == 'upper' and position == 5: return ['aA按住:槽2', '锁轮三击:固定右→上']
         if layer == 'upper' and position == 20: return ['aA按住双击', '翻转鼠标']
         return ['aA层手势']
     if b == '&gamepad':

@@ -1,4 +1,4 @@
 # SPDX-License-Identifier: MIT
-description: UPPER BlackBerry/Back BT slots when aA-held or triple rotation when locked; aA-held F double-tap toggles inverted mouse
+description: UPPER BlackBerry/Back BT slots when aA-held or triple-tap fixed direction presets when locked; aA-held F double-tap toggles inverted mouse
 compatible: "zmk,behavior-aa-scroll-gesture-key"
 include: zero_param.yaml

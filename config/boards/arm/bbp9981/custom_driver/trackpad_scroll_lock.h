@@ -21,8 +21,8 @@
 #define TP_SCROLL_GESTURE_TAP_MS 180
 #define TP_SCROLL_GESTURE_GAP_MS 220
 #define TP_SCROLL_ROTATION_MASK 3u
-#define TP_SCROLL_ROTATION_LEFT_TO_UP_STEP 1u
-#define TP_SCROLL_ROTATION_RIGHT_TO_UP_STEP 3u
+#define TP_SCROLL_ROTATION_LEFT_TO_UP_FIXED 1u
+#define TP_SCROLL_ROTATION_RIGHT_TO_UP_FIXED 3u
 
 /** Effective lock: latched scrolling, temporarily overridden while aA is held. */
 bool tp_scroll_is_locked(void);
@@ -39,10 +39,10 @@ void tp_scroll_shoulder_modifier_update(uint32_t position, bool pressed);
 
 /** Reset the orientation when the scroll lock is unlocked/relocked. */
 void tp_scroll_rotation_reset(void);
-/** Current locked-scroll orientation step (0..3); step 1 maps left->up and up->right. */
+/** Current locked-scroll orientation (0..3); 1/3 are fixed BlackBerry/Back presets. */
 uint8_t tp_scroll_rotation_quadrants(void);
-/** Add a normalized quarter-turn to the current locked-scroll orientation. */
-void tp_scroll_rotation_step(uint8_t step);
+/** Select an absolute orientation. Repeated selection is idempotent, never additive. */
+void tp_scroll_rotation_select(uint8_t orientation);
 /** Cancel an incomplete BlackBerry/Back/F multi-tap sequence. */
 void tp_scroll_gesture_cancel(void);
 
@@ -54,7 +54,7 @@ static inline int16_t tp_scroll_negate_saturated(int16_t value) {
     return value == INT16_MIN ? INT16_MAX : (int16_t)-value;
 }
 
-/** Rotate HID (horizontal, vertical) wheel deltas. Step 1 maps left->up/up->right. */
+/** Apply the selected fixed HID wheel mapping. Preset 1 maps left->up/up->right. */
 static inline void tp_scroll_apply_rotation(uint8_t quadrants, int16_t *hwheel,
                                             int16_t *wheel) {
     if (hwheel == NULL || wheel == NULL) { return; }
