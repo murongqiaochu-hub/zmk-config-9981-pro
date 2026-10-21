@@ -1,4 +1,9 @@
-# Xbox 布局标准 HID：v2.2.8 固定方向档 / R/U 菜单候选（2026-10-21）
+# Xbox 布局标准 HID：v2.2.9 UPPER 快捷键候选（2026-10-21）
+
+- 当前候选分支：`codex/xbox-layout-v2.2.9-20261021`；功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`。五项灯控向左移一物理键：X/P29键盘RGB_BRD、C/P30触板BL_DEC、V/P31键盘RGB_TOG、B/P32触板BL_INC、N/P33键盘RGB_BRI；M/P34在右aA按住时双击切鼠标翻转，F/P20在UPPER无输出。无其他行为变化。
+- v2.2.9完整host exit0、四层42键图/manifest同步、27页A5 PDF / DOCX布局与文本校验均PASS；Actions ARM/UF2待完成；未刷写、未实机验收。不得把v2.2.8历史构建证据套用到本版。
+
+## 历史候选：v2.2.8 固定方向档 / R/U 菜单（2026-10-21）
 
 - 功能源码：`88edf7f323b643465fa1470fdc2e090dd3ee0ffa`；构建提交：`ffc41698f6972f3a26cc4ce459956a06fe8c3a46`；候选分支 `codex/xbox-layout-v2.2.8-20261021`。完整host exit0、70配置/四层42键图/manifest同步PASS；[Actions Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>) 的regression、bbp9981 ARM和合并artifact均成功，deliver job按候选条件跳过。未发布/归档，未刷写/实机验收。
 - 新UF2本地边界验证PASS：SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`，613376 B/1198块/family `0xada52840`/连续应用区`[0x1000,0x4be00)`。[候选UF2](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/bbp9981-zmk.uf2>)、[校验记录](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/validation.json>)、[SHA256SUMS](</vol1/1000/agent/output/1021/143516_9981Pro固定方向_v2.2.8/09_云端构建产物/SHA256SUMS>)；device_tested=false。

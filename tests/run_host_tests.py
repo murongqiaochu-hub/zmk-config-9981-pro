@@ -89,8 +89,13 @@ for relative in paths:
         assert before[layer][41] == '&sl_mo 2 2'
         before[layer][41] = '&aa_mo 0 1'
     before['upper_layer'][41] = '&aa_layer 2'
+    # v2.2.9 frees F/P20, shifts all five light controls left, and assigns M/P34.
     assert before['upper_layer'][20] == '&none'
-    before['upper_layer'][20] = '&aa_scroll_gesture_key'
+    before['upper_layer'][20] = '&none'
+    assert before['upper_layer'][29:35] == ['&none', '&rgb_ug RGB_BRD', '&bl BL_DEC',
+                                            '&rgb_ug RGB_TOG', '&bl BL_INC', '&rgb_ug RGB_BRI']
+    before['upper_layer'][29:35] = ['&rgb_ug RGB_BRD', '&bl BL_DEC', '&rgb_ug RGB_TOG',
+                                    '&bl BL_INC', '&rgb_ug RGB_BRI', '&aa_scroll_gesture_key']
     assert before['default_layer'][0] == '&microtap_shoulder'
     assert before['default_layer'][1] == '&mkp RCLK'
     before['default_layer'][1] = '&microtap_shoulder'
@@ -123,8 +128,15 @@ for relative, after in zip(paths, updated):
     assert previous['media_layer'][12] == '&gamepad 13'
     for position, binding in {10: '&gamepad 12', 13: '&gamepad 13', 11: '&none', 12: '&none'}.items():
         previous['media_layer'][position] = binding
+    # v2.2.9 UPPER-only: move five lights left, free F/P20, use M/P34 for the gesture.
+    assert previous['upper_layer'][20] == '&aa_scroll_gesture_key'
+    previous['upper_layer'][20] = '&none'
+    assert previous['upper_layer'][29:35] == ['&none', '&rgb_ug RGB_BRD', '&bl BL_DEC',
+                                               '&rgb_ug RGB_TOG', '&bl BL_INC', '&rgb_ug RGB_BRI']
+    previous['upper_layer'][29:35] = ['&rgb_ug RGB_BRD', '&bl BL_DEC', '&rgb_ug RGB_TOG',
+                                      '&bl BL_INC', '&rgb_ug RGB_BRI', '&aa_scroll_gesture_key']
     assert previous == after, relative
-print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB, View=R/Menu=U with T/Y unused; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, F toggles mouse; owned aA sticky/fixed layer')
+print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB, View=R/Menu=U with T/Y unused; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, M toggles mouse with aA, five light controls shifted left; owned aA sticky/fixed layer')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)

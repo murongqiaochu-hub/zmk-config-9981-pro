@@ -107,7 +107,7 @@ static void dispatch(uint32_t position, bool down, int64_t at) {
             } else {
                 press_binding[position] = B_AA_PENDING; pending_hold = true; pending_down = at;
             }
-        } else if (pipeline_layer_active(2) && (position == 3 || position == 5 || position == 20)) {
+        } else if (pipeline_layer_active(2) && (position == 3 || position == 5 || position == 34)) {
             press_binding[position] = B_GESTURE;
         } else if (pipeline_layer_active(2) && position < 2) {
             press_binding[position] = B_SHOULDER;
@@ -220,12 +220,12 @@ static void run_pipeline_cases(void) {
     pipeline_layer_to(0); /* Explicit SYM/to exits layer, not the independent latch. */
     assert(!pipeline_layer_active(2) && tp_scroll_lock_is_latched());
 
-    fixture(); key(41, true, 10); tap(20, 20); tap(20, 120);
+    fixture(); key(41, true, 10); tap(34, 20); tap(34, 120);
     assert(tp_mouse_orientation_reversed() && !bt_down[1] && !bt_down[2]);
     key(41, false, 200);
     assert(!pipeline_layer_active(2));
     fixture(); lock_then_expire_old_sticky();
-    key(41, true, 3400); tap(20, 3500); tap(20, 3600); key(41, false, 3700);
+    key(41, true, 3400); tap(34, 3500); tap(34, 3600); key(41, false, 3700);
     assert(tp_mouse_orientation_reversed() && pipeline_layer_active(2) && tp_scroll_is_locked());
     assert(!bt_down[1] && !bt_down[2]);
 }
@@ -271,6 +271,6 @@ int main(void) {
     for (unsigned order = 0; order < 2; ++order) {
         listener_first = order != 0; run_pipeline_cases(); fixed_presets_all_directions();
     }
-    puts("PASS scroll pipeline: real A320/AA-owner/gesture/rotation, both position-listener orders, delayed sticky UP beyond 3s, P3/P5 fixed presets -> all four actual wheel directions, repeated/switch selection without accumulation, held-aA override/restore, shoulder half-speed, immediate BT with both release orders, aA+F mouse; keymap/hold-tap and kernel are host models, not device acceptance");
+    puts("PASS scroll pipeline: real A320/AA-owner/gesture/rotation, both position-listener orders, delayed sticky UP beyond 3s, P3/P5 fixed presets -> all four actual wheel directions, repeated/switch selection without accumulation, held-aA override/restore, shoulder half-speed, immediate BT with both release orders, aA+M mouse; keymap/hold-tap and kernel are host models, not device acceptance");
     return 0;
 }

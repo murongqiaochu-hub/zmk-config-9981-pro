@@ -119,7 +119,7 @@ static void test_fixed_presets_ignore_previous_angle_and_repeats(void) {
     }
 }
 
-static void test_aA_held_F_double_toggles_mouse_and_suppresses_bt(void) {
+static void test_aA_held_M_double_toggles_mouse_and_suppresses_bt(void) {
     reset(); fake_aa_pressed = true;
     tap(TP_MOUSE_TOGGLE_POSITION, 10, 30);
     assert(!fake_mouse_reversed && mouse_toggles == 0U && invoke_count == 0U);
@@ -213,12 +213,12 @@ int main(void) {
     test_locked_blackberry_triple_rotates_left_to_up();
     test_locked_back_triple_rotates_right_to_up_only();
     test_fixed_presets_ignore_previous_angle_and_repeats();
-    test_aA_held_F_double_toggles_mouse_and_suppresses_bt();
+    test_aA_held_M_double_toggles_mouse_and_suppresses_bt();
     test_aA_held_always_restores_immediate_bt_slots();
     test_F_without_aA_and_context_cancellation();
     test_bt_same_slot_breaks_mouse_double_without_endpoint_event();
     test_timing_and_explicit_cancellation();
     test_press_ownership_survives_context_change();
-    puts("PASS UPPER gestures: hands-free locked BlackBerry/Back fixed presets (all prior angles/repeats/switches), held-aA immediate BT slots 1/2, aA+F mouse toggle, timing, context cancellation and press ownership");
+    puts("PASS UPPER gestures: hands-free locked BlackBerry/Back fixed presets (all prior angles/repeats/switches), held-aA immediate BT slots 1/2, aA+M mouse toggle, timing, context cancellation and press ownership");
     return 0;
 }

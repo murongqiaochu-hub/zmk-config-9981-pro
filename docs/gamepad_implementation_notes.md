@@ -1,8 +1,12 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-21，与[使用说明书 v2.2.8](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。当前为 v2.2.8 固定方向档 / R/U 菜单候选，功能源码 SHA `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`，候选分支 `codex/xbox-layout-v2.2.8-20261021`；完整host exit0及70配置/四层42键图/manifest同步PASS；[Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>) 的regression/ARM成功，构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`；UF2本地边界/SHA验证PASS（613376B/1198块/`[0x1000,0x4be00)`，SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`），仍未刷写/实机验收，不能冒用 v2.2.7 成功。用户于2026-10-21 14:33确认 v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用；固定方向语义和R/U菜单仍待新版，不是全场景硬件验收，不改旧校验记录的 `device_tested=false`。v2.2.7 功能源码 `88e744f51e386db853ae25c4438b33cb23557af5`、构建 `045a7a3a0da9ba372d99ea747e27a15ababb8694`、[Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>) 和 UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6` 均为历史，详情保留在[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+2026-10-21，与[使用说明书 v2.2.9](<9981Pro_使用说明书.md>)同步。当前候选功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`，候选分支 `codex/xbox-layout-v2.2.9-20261021`；v2.2.9仅将UPPER五项灯控左移一物理键（C/V/B/N/M→X/C/V/B/N），并将鼠标翻转组合从F/P20迁至M/P34；F/P20单独无输出，其他行为不变。完整host与文档导出PASS；Actions ARM、UF2待完成，未实机验收。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。v2.2.8固定方向档/R-U菜单完整构建证据保留为历史（未刷写/未实机验收）：源码 `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、[Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>)、构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`、UF2 SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`。v2.2.7 用户于2026-10-21 14:33确认蓝牙按钮已恢复、触板三击已生效、手柄基本可用；不代表全场景硬件验收。更早v2.2.7源码 `88e744f51e386db853ae25c4438b33cb23557af5`、构建 `045a7a3a0da9ba372d99ea747e27a15ababb8694`、[Run39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>)及UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`均为历史，详见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
+
+## v2.2.9 UPPER 快捷键调整
+
+五项灯控各左移一个物理键：原C/P30键盘RGB_BRD→X/P29；原V/P31触板BL_DEC→C/P30；原B/P32键盘RGB_TOG→V/P31；原N/P33触板BL_INC→B/P32；原M/P34键盘RGB_BRI→N/P33。M/P34改为按住右aA时双击鼠标翻转快捷键；F/P20在UPPER无输出。除此之外没有行为变化。版本日期2026-10-21；完整host与文档导出PASS；Actions ARM/UF2待完成，不代表硬件验收。
 
 ## 范围与映射
 
@@ -10,7 +14,7 @@
 
 锁轮默认0°、解锁/重锁回正及肩键半速/自身 wheel 屏蔽均保留；按住 aA 临时恢复原方向和原生肩轮，松开恢复所选固定档。v2.2.8 将累加步进改为**固定档选择**：只在 aA 松开且锁轮生效时，P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左** 档；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右** 档。第三次松开直接写入该目标，同键重复幂等，无论原档位都直接选目标；换另一键不是在原档继续转90°。其他点按吞掉，完整三击仍为按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列。**物理右 aA 按住时 P3/P5 立即 BT_SEL 1/2，即便 scroll latch 已锁定**，不参与固定档选择。
 
-鼠标翻转沿用 v2.2.7 的 **aA 按住+F/P20 双击**（180/220ms），再做切回，不改为其他入口；UPPER F 不满足组合时仍无输出。同槽 BT 键也会取消未完成 F 双击候选，不依赖 endpoint change；v2.2.7 曾定向验证 F→P5→F 不翻转。模式 volatile：普通指针Y反向、DEFAULT 两肩 LCLK/RCLK 角色互换；X、滚轮、手柄与 SYM/UPPER/MEDIA 其他绑定不变，重启关闭。
+鼠标翻转组合由 v2.2.9 从 **aA 按住+F/P20 双击**迁至 **aA 按住+M/P34 双击**（180/220ms），再做切回；F/P20在UPPER无输出。同槽BT键也取消未完成双击候选，不依赖endpoint change。模式volatile：普通指针Y反向、DEFAULT两肩LCLK/RCLK角色互换；X、滚轮、手柄及其他层行为不变，重启关闭。
 
 为避免第一次 aA tap 的旧 sticky 3秒计时撤销已固定 UPPER，v2.2.7 新增、v2.2.8 保留 `aa_layer` 仲裁 momentary/sticky/fixed owner；`aa_sl` 复用 SDK sticky 的 quick-release/3000ms，但 child 为 `aa_layer` 而非直接 `mo`；`aa_mo` 为450ms hold-preferred，children 为 `aa_layer / aa_sl`。DEFAULT/SYM 的 P41 为 `&aa_mo 0 1`，UPPER P41 为 `&aa_layer 2`；迟到 sticky UP 只释放自己的 owner，不撤 fixed。aA 双击仍每拍<450ms、释放间隔≤350ms；SYM 退出 UPPER 但不清 scroll latch。AA 参数行为须继承 `one_param.yaml` 的 `param1` cell，避免仲裁参数全读0，已有契约assert。pinned SDK sticky/mo/to 三份 Git blob 身份、owner 旧bug/新修复模型对照及 Run39551522029 的完整host/ARM PASS 均是 v2.2.7 历史证据；v2.2.8 完整主机回归现已exit0，真实RTOS/设备验收仍未完成。
 
