@@ -3,7 +3,7 @@ This page contains zmk firmware config for 9981 keyboard with trackpad(pro versi
 
 ## 当前使用说明书与维护约定
 
-- **当前v2.3.1是长期稳定性加固候选**，源码 `7d6ab94e57653deb8e20d142665eee351736f297`，分支 `codex/firmware-stability-v2.3.1-20261021`。只修USB轻拍快照的异步栈源寿命、等待期间切BOOT协议两处已复现缺陷；79/80配置逐字节相同，键位/参数/灯效/存储均不变。旧失败/新通过ASan与连续模拟专项PASS，完整host/ARM/UF2见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)；非实机长测认证。原生HID_0全局DMA/信号量限制未全修，具体范围见[稳定性说明](<docs/firmware_stability.md>)、[待执行实机清单](<docs/long_term_acceptance.md>)。下方v2.3.0为历史重构记录，不是本版构建结果。
+- **当前v2.3.1是长期稳定性加固候选**，源码 `7d6ab94e57653deb8e20d142665eee351736f297`，分支 `codex/firmware-stability-v2.3.1-20261021`。只修USB轻拍快照的异步栈源寿命、等待期间切BOOT协议两处已复现缺陷；79/80配置逐字节相同，键位/参数/灯效/存储均不变。旧失败/新通过ASan、连续模拟、完整host、Run39614649971 ARM/CI32配置9负例及UF2校验PASS，见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)；非实机长测认证。原生HID_0全局DMA/信号量限制未全修，具体范围见[稳定性说明](<docs/firmware_stability.md>)、[待执行实机清单](<docs/long_term_acceptance.md>)。下方v2.3.0为历史重构记录，不是本版构建结果。
 
 - **历史 v2.3.0 是行为保持型全局重构候选**，基线 v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`。键位、手势时序、灯效/存储、协议/SDK门与保护限制不变；拆分模式服务、滚轮纯核、共享PWM后端、手柄runtime/adapter和板级构建职责。架构、验证与回退见[架构说明](<docs/firmware_architecture.md>)；专项、68万事件旧新差分与独立TU链接已PASS，当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM、云端32配置CMake及9负例、UF2校验均PASS；最终云DTS全文和1166项Kconfig与v2.2.9一致。未刷写/未验收，不推稳定分支或发布/归档。下方标注v2.2.9及更早的构建结果均为历史，不能冒作重构版结果。
 

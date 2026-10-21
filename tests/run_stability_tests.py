@@ -61,7 +61,8 @@ def main():
         assert result.returncode!=0 and 'Assertion' in result.stderr, 'Old BOOT wait-window must fail at runtime, not compile time'
         print('PASS old/new protocol negative: identical public-API test builds, old runtime fails while fixed runtime passes',flush=True)
         env=os.environ.copy()
-        # Non-PIE avoids intermittent host ASan shadow/startup mapping failures.
+        # Stable non-PIE test layout: even a firmware-free PIE control on our
+        # host intermittently dies before main; exact runtime cause is unproven.
         env['ASAN_OPTIONS']='detect_stack_use_after_return=1:abort_on_error=0:exitcode=91:disable_coredump=1'
         asan_flags=['-fsanitize-address-use-after-scope','-no-pie']
         old=compile_case('test_sdk_usb.c',temp/'old-ram',[ROOT/'tests/sdk_snapshot_mocks'],

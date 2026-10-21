@@ -4,7 +4,7 @@
 
 - 用户要求向稳定/长期使用推进；冻结产品用法，只修有证据的缺陷。基线v2.3.0 `2b2c7dc3cacfc64e5ec4a2b64c306f1caf2a1d6e`；源码 `7d6ab94e57653deb8e20d142665eee351736f297`，候选分支 `codex/firmware-stability-v2.3.1-20261021`。
 - 唯一生产变化是[USB轻拍快照](<config/boards/arm/bbp9981/custom_driver/trackpad_usb_snapshot.h>)：修复异步栈源寿命和等待中REPORT→BOOT窗口。79/80配置逐字节不变；SDK fixture与原行为oracle保留。原重构BASE仍f7412ec，新增[稳定范围闸](<tests/check_stability_scope.py>)作为精确单文件例外，不放宽全局保护。
-- 专项strict UBSan、旧失败/新通过ASan、两种BOOT各50000次USB连续周期及手柄/输入/轻拍/两灯连续模拟均PASS；完整host/ARM/UF2状态以[交付记录](<firmware-delivery/XBOX_CURRENT.md>)为准。没有设备长测/刷写，不将模拟天数、poll数或SDK接受当真实续航/host ACK。
+- 专项strict UBSan、旧失败/新通过ASan、两种BOOT各50000次USB连续周期及手柄/输入/轻拍/两灯连续模拟均PASS；完整host exit0，Run39614649971 regression/ARM、CI32配置9负例及UF2校验PASS，构建 `d607df8b55ab676aa8910e787fb0a18e9e221389`。云DTS全文/1166项Kconfig和v2.3.0相同，FLASH306768B/RAM88878B（+288B/+16B）；完整SHA和边界见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)。没有设备长测/刷写，不将模拟天数、poll数或SDK接受当真实续航/host ACK。
 - 未全局修复stock HID_0 ignored-timeout/mutable DMA；abort丢ready可能缺许可，RAM退休不能补共享sem。详情与待用户执行的实机清单见[加固说明](<docs/firmware_stability.md>)、[实机验收](<docs/long_term_acceptance.md>)。
 - 沿用下方“以后都直接构建”授权，仅必要的精确仓库、新版本候选推送、既有Actions和UF2校验；不推稳定分支、不发布/归档、刷写、清配对/settings或改主机。
 

@@ -1,7 +1,9 @@
 # Xbox 布局标准 HID：v2.3.1 长期稳定性加固候选（2026-10-21）
 
 - 源码 `7d6ab94e57653deb8e20d142665eee351736f297`，候选分支 `codex/firmware-stability-v2.3.1-20261021`；基线v2.3.0 `2b2c7dc3cacfc64e5ec4a2b64c306f1caf2a1d6e`。79/80配置原字节不变，仅USB轻拍snapshot的异步RAM寿命与等待后BOOT复验；不改键/参数/灯效/存储格式/手柄实现。
-- strict UBSan/ASan专项与同公共API旧失败新通过对照PASS；两种BOOT各50000次USB连续周期、30000手柄/24000输入/20000轻拍周期、两灯各200万poll的加速模拟均PASS。本轮完整host exit0、80配置/四层图/manifest、原机械证明/68万事件差分及新稳定性runner均PASS；本地无CMake如实SKIP，CI须执行32组合/9负例。ARM/UF2待执行，不借历史Run代替。
+- strict UBSan/ASan专项与同公共API旧失败新通过对照PASS；两种BOOT各50000次USB连续周期、30000手柄/24000输入/20000轻拍周期、两灯各200万poll的加速模拟均PASS。本轮完整host exit0、80配置/四层图/manifest、原机械证明/68万事件差分及新稳定性runner均PASS。[Actions Run 39614649971](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39614649971>) regression、bbp9981 ARM及artifact合并成功，deliver/failure_context按候选条件跳过；构建提交 `d607df8b55ab676aa8910e787fb0a18e9e221389`。CI实际32组合CMake/9负例、新ASan/稳定性runner全部PASS；本地无CMake仍如实SKIP。
+- [UF2](</vol1/1000/agent/output/1021/213336_9981Pro长期稳定加固_v2.3.1/09_云端构建产物/bbp9981-zmk.uf2>)已下载并独立校验：SHA `ab9c0c10cb46e5c957ae4f55ecd71dac0817e345353e7f7777776a2abf66f50a`，613888B（599.5KiB）/1199块，family `0xada52840`，`[0x1000,0x4bf00)`，无bootloader/NVS块。见[校验JSON](</vol1/1000/agent/output/1021/213336_9981Pro长期稳定加固_v2.3.1/09_云端构建产物/validation.json>)、[运行记录](</vol1/1000/agent/output/1021/213336_9981Pro长期稳定加固_v2.3.1/10_Actions运行记录.json>)、[完整云日志](</vol1/1000/agent/output/1021/213336_9981Pro长期稳定加固_v2.3.1/11_Actions完整日志.zip>)。
+- 最终云DTS全文与1166项赋值Kconfig和v2.3.0完全一致；[一致性核验](</vol1/1000/agent/output/1021/213336_9981Pro长期稳定加固_v2.3.1/14_云端基线一致性核验.json>)。FLASH306768B、RAM88878B，比v2.3.0分别多288B/16B；UF2增加512B是256B应用块装入512B容器，不是新增512B RAM。27页A5 PDF与4图可编辑DOCX/离线HTML同批更新，Word只做结构/文本验收，未独立Office渲染。
 - **未刷写、未设备长时间验收，device_tested=false；未发布/归档，不推稳定分支。** stock HID_0全局timeout/mutable DMA、abort丢ready缺许可限制未全修；RAM安全不是host ACK。详见[稳定性说明](<../docs/firmware_stability.md>)、[实机验收清单](<../docs/long_term_acceptance.md>)。
 
 ## 历史候选：v2.3.0 行为保持型全局重构（2026-10-21）

@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.1",
   "manual_date": "2026-10-21",
-  "updated": "2026-10-21T22:11:16+08:00",
+  "updated": "2026-10-21T23:49:32+08:00",
   "source_commit": "7d6ab94e57653deb8e20d142665eee351736f297",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.1单文件USB RAM/BOOT安全修复，79/80配置原字节，操作/参数不变。完整host exit0、原差分机械证据、新ASan/故障与连续模拟PASS；本地CMake SKIP，ARM/UF2待构建，未刷写/未实机长测。",
+  "review_note": "v2.3.1完整host exit0、新旧ASan与连续模拟PASS；Run39614649971 regression/ARM、CI32配置9负例、UF2 ab9c0c10cb46...校验PASS。云DTS/1166项Kconfig与v2.3.0相同，FLASH306768B/RAM88878B；未刷写/未实机长测。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "d6010415378b82ee6971b2bcbada1b3fdf8d01a45ae64d58061a8048d5f475c5",
+  "manual_sha256": "74d34e9378b15813ca9fc798d74bee027809a1d55ffcc943db66a918e9b75bf2",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "66557d5f72fd488657a042e76adb89ff6d7f17cba2223646714865baf3cd7c96",
