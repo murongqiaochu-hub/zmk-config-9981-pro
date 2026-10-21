@@ -20,7 +20,7 @@ ZMK commit：`edf5c0814fd3ea202e43aad2d68fd32e882a518c`（v0.3.0）。SDK fixtur
 | [momentary-layer](<sdk_v0_3_0_momentary_layer.c>) | [原始 momentary-layer](https://raw.githubusercontent.com/zmkfirmware/zmk/edf5c0814fd3ea202e43aad2d68fd32e882a518c/app/src/behaviors/behavior_momentary_layer.c) | 1901 | `78bf7a3b28dc3576a3f400ef69c1f094c3e8ac57` |
 | [to-layer](<sdk_v0_3_0_to_layer.c>) | [原始 to-layer](https://raw.githubusercontent.com/zmkfirmware/zmk/edf5c0814fd3ea202e43aad2d68fd32e882a518c/app/src/behaviors/behavior_to_layer.c) | 1989 | `dae19ebccc5b5acbb450552d2f8eb278b3c1d3fe` |
 
-上述大小与 Git blob 身份来自固定 commit 的 GitHub Contents API。本次写入环境没有 exec；本地字节身份与编译/执行须由集成者运行核验，不应在未执行时标 PASS。
+上述大小与 Git blob 身份来自固定 commit 的 GitHub Contents API。集成时已执行下方身份核验，三份原始字节全部一致；实际 AA owner 与三份 fixture 在 `-Wall/-Wextra/-Werror` + UBSan 下编译并运行 12 个测试通过。完整主机 runner 也固定校验这三份 blob；这些结果仍只是上述 host mock 边界内的软件证据。
 
 ## 从仓库根目录核验、编译及执行
 

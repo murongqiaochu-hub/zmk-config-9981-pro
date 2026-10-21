@@ -1,8 +1,16 @@
-> **2026-10-21 v2.2.6 未发布候选已完成 Actions ARM 构建与 UF2 本地校验。** 功能源码 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；构建提交 `b05dee65dc929855c809036c539b14488cd7d4b0`，分支 `codex/xbox-layout-v2.2.6-20261021`；[Actions Run 39540020475](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39540020475>) 的 host regression 与 `bbp9981` ARM 构建 PASS，候选归档 job 跳过。UF2 SHA-256 `9f4daf7b22ab833c01ed5322115b1a8977cbd4aff8701c04e29ddd73b76d155a`，611328 bytes / 1194 blocks / family `0xada52840` / 地址 `[0x1000, 0x4ba00)`；[本地 UF2](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/bbp9981-zmk.uf2>) 与[校验记录](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/validation.json>)。只推新候选分支，未归档至发布分支；未刷写、未清配对、未擦设置或实机验收。v2.2.4 仍为最后已发布 / 归档版本。
+# Xbox 布局标准 HID：v2.2.7 本地修正候选（2026-10-21）
 
-# Xbox 布局标准 HID：v2.2.6 候选状态
+- 功能源码：`88e744f51e386db853ae25c4438b33cb23557af5`；新候选分支 `codex/xbox-layout-v2.2.7-20261021`。完整主机回归exit0（含70配置/四层42键图与手册同步）。**Actions ARM、新UF2/SHA与边界校验待完成；尚无v2.2.7可刷交付，未刷写/未实机验收。** 用户授权本轮及今后同范围修正直接完成必要候选分支推送/Actions/UF2校验；不推稳定分支、不发布/归档、不刷写/清设置。
+- 最终MEDIA：W/P8↑、D/P19→、Z/P28↓、A/P17←；S/P18=L3、L/P25=R3；肩P0/P1=LT/RT，Call/End P2/P6=LB/RB。O/K/BSPC/$=Y/X/B/A，P4/Space=Guide，T/Y=View/Menu不变；E/X/F新空，19绑定/2出口/21None，仅P40/P41退出。
+- 恢复蓝牙槽：按住右aA时P3/P5立即选槽1/2，即使scroll latch已锁定；松aA且锁轮时P3/P5三击分别左→上/右→上，其他点按吞掉。鼠标翻转改到右aA按住+F/P20双击（180/220ms），再次切回；普通Y/DEFAULT肩键互换，其余与volatile限制不变。aA双击450/350ms、三击180/220ms保留。
+- aA层由momentary/sticky/fixed owner仲裁；旧sticky的3秒超时/迟到UP不撤销fixed，SYM退层不解scroll latch。pinned sticky/mo/to三份Git blob身份、owner12case旧bug/新修复、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate PASS（45旧配置/8集成+16新增）；不替代完整回归或硬件验收。
+- 用户已确认刷入 **v2.2.6**、未在Studio保存，反馈映射、手势与第三蓝牙槽入口异常。该旧版实际默认图不是本次最终图；不能将其host/ARM PASS或历史`device_tested=false`改写成v2.2.7硬件通过。
 
-## v2.2.6 实现范围
+## 历史构建：v2.2.6（不含本次修正）
+
+> **2026-10-21 v2.2.6 未发布候选曾完成 Actions ARM 构建与 UF2 本地校验。** 功能源码 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；构建提交 `b05dee65dc929855c809036c539b14488cd7d4b0`，分支 `codex/xbox-layout-v2.2.6-20261021`；[Actions Run 39540020475](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39540020475>) 的 host regression 与 `bbp9981` ARM 构建 PASS，候选归档 job 跳过。UF2 SHA-256 `9f4daf7b22ab833c01ed5322115b1a8977cbd4aff8701c04e29ddd73b76d155a`，611328 bytes / 1194 blocks / family `0xada52840` / 地址 `[0x1000, 0x4ba00)`；[本地 UF2](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/bbp9981-zmk.uf2>) 与[校验记录](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/validation.json>)。当时只推新候选分支、未归档至发布分支；交付记录的`device_tested=false`是当时状态。用户后续确认已刷v2.2.6、未Studio保存并反馈失败，不将该反馈改为验收通过；无代理刷写、清配对或擦设置。v2.2.4仍为最后已发布/归档版本。
+
+### v2.2.6 历史实现范围（非 v2.2.7 目标）
 
 - MEDIA：P0/P1=LB/RB，P2/P6=LT/RT，A/P17=D-pad 左，O/K/Backspace/$=Y/X/B/A，D/L=L3/R3；只留 SYM/P40 与右 aA/P41 两个出口。
 - 锁轮：锁定且未按 aA 时，P3 三击左→上、P5 三击右→上；锁定期间 P3 永不选槽1，P5 非三击吞掉。按住右 aA 时 P5 双击切换 volatile 鼠标模式，不发槽2。

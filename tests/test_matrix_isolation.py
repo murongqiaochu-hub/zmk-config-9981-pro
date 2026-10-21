@@ -228,10 +228,13 @@ class GraphTests(unittest.TestCase):
                     self.assertEqual(by_rc[SHOULDER], "&microtap_shoulder")
                     self.assertEqual(by_rc[MECHANICAL], "&mkp LCLK")
                     self.assertEqual(by_rc[CTRL], "&sk_kp LCTRL LCTRL")
-                    self.assertEqual(by_rc[AA], "&sl_mo 2 2")
+                    self.assertEqual(by_rc[AA], "&aa_mo 0 1")
                     self.assertEqual(by_rc[SYM], "&sl_mo 1 1")
+                if layer == "sym_layer":
+                    self.assertEqual(dict(zip(MAPPING, bindings))[AA], "&aa_mo 0 1")
                 if layer == "upper_layer":
                     self.assertEqual(dict(zip(MAPPING, bindings))[SYM], "&aa_sym_ctrl")
+                    self.assertEqual(dict(zip(MAPPING, bindings))[AA], "&aa_layer 2")
 
     def test_all_42_single_keys_both_modes_all_hypotheses(self):
         count = 0
