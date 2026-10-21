@@ -13,8 +13,8 @@
 #define TP_TRACKPAD_POSITION 4u
 #define TP_BACK_POSITION 5u
 #define TP_ENDCALL_POSITION 6u
-/* Physical F is unused in UPPER; the mouse shortcut must not occupy a BT key. */
-#define TP_MOUSE_TOGGLE_POSITION 20u
+/* Physical M is freed by shifting the five UPPER light controls one key left. */
+#define TP_MOUSE_TOGGLE_POSITION 34u
 
 #define TP_SCROLL_SHOULDER_LEFT_BIT 1u
 #define TP_SCROLL_SHOULDER_RIGHT_BIT 2u
