@@ -1,4 +1,4 @@
-> **2026-10-21 v2.2.6 未发布候选，ARM 构建待执行。** 功能源码 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；候选分支 `codex/xbox-layout-v2.2.6-20261021` 当前仅在本地，完整 `python3 -B tests/run_host_tests.py` exit 0（68 配置文件、四层42键图/说明书同步与完整 host regressions），但分支尚未推送、Actions/ARM 与 UF2 校验尚未运行。完成后应在此记录精确构建提交、Run ID、UF2 SHA/字节/块数/地址边界。本轮未刷写、未清配对、未擦设置或实机验收；v2.2.4 仍是最后已发布 / 归档版本。
+> **2026-10-21 v2.2.6 未发布候选已完成 Actions ARM 构建与 UF2 本地校验。** 功能源码 `7a956e9b1a7fb2dc465bfdb9212cdf7f27977e2b`；构建提交 `b05dee65dc929855c809036c539b14488cd7d4b0`，分支 `codex/xbox-layout-v2.2.6-20261021`；[Actions Run 39540020475](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39540020475>) 的 host regression 与 `bbp9981` ARM 构建 PASS，候选归档 job 跳过。UF2 SHA-256 `9f4daf7b22ab833c01ed5322115b1a8977cbd4aff8701c04e29ddd73b76d155a`，611328 bytes / 1194 blocks / family `0xada52840` / 地址 `[0x1000, 0x4ba00)`；[本地 UF2](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/bbp9981-zmk.uf2>) 与[校验记录](</vol1/1000/agent/output/1021/105843_9981ProXbox固件_v2.2.6/09_云端构建产物/validation.json>)。只推新候选分支，未归档至发布分支；未刷写、未清配对、未擦设置或实机验收。v2.2.4 仍为最后已发布 / 归档版本。
 
 # Xbox 布局标准 HID：v2.2.6 候选状态
 
@@ -7,7 +7,7 @@
 - MEDIA：P0/P1=LB/RB，P2/P6=LT/RT，A/P17=D-pad 左，O/K/Backspace/$=Y/X/B/A，D/L=L3/R3；只留 SYM/P40 与右 aA/P41 两个出口。
 - 锁轮：锁定且未按 aA 时，P3 三击左→上、P5 三击右→上；锁定期间 P3 永不选槽1，P5 非三击吞掉。按住右 aA 时 P5 双击切换 volatile 鼠标模式，不发槽2。
 - 鼠标模式：普通指针 Y 反向；DEFAULT 肩键 LCLK/RCLK 角色互换；X、滚轮、手柄及 SYM/UPPER/MEDIA 键位/肩键功能不变，重启关闭。
-- v2.2.6 完整 host regression 与 scope gate 已 PASS，见本地日志；云端构建与 UF2 本地边界校验待完成。状态、构建哈希与文件路径待后续更新。
+- 完整 `python3 -B tests/run_host_tests.py` exit 0；scope gate 保持 45 份旧配置逐字节相同。Actions Run 39540020475 的 `regression` 与 `bbp9981` ARM build PASS；候选分支 `deliver` job 按分支条件跳过，UF2 只在本次输出目录下载并本地校验，未归档。
 
 > **历史候选 v2.2.5（未发布 / 未归档）。** 功能源码 `3c5235b21f8452630850053620635d4aea7cb47d`；构建提交 `dcfabda69c9ed81a7fb92aaf0df29e74566be763`，分支 `codex/xbox-layout-v2.2.5-20261021`；[GitHub Actions Run 39520450915](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39520450915>) 的 host regressions 与 `bbp9981` ARM 构建 PASS，候选归档 job 跳过。UF2 SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`，608256 bytes / 1188 blocks / family `0xada52840` / 地址 `[0x1000, 0x4b400)`；未刷写，v2.2.4 仍为最后已发布 / 归档版本。
 

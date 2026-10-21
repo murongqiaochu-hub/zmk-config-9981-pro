@@ -8,7 +8,7 @@ This page contains zmk firmware config for 9981 keyboard with trackpad(pro versi
 - 独立鼠标翻转：UPPER 按住物理右 aA + 双击顶部返回 P5 切换；普通鼠标指针 Y 反向、DEFAULT 肩键左右角色互换，滚轮、手柄轴及 SYM/UPPER/MEDIA 键位与肩键绑定不变，重启复位。
 - 触板滑动默认控制左杆 X/Y；按住物理黑莓才控制右杆 Z/Rz，松开不锁定，切换先清旧轴且只用新样本。机械按压按 Guide/Xbox 键处理，**不作 L3/R3**；空格也发 Guide。velocity 虚拟杆不累计位置；停住手指不能保持倾斜，120ms 无有效位移只保证本地归零策略，不是主机收包时限。D/L 分别独立发 L3/R3；触板也不能独立控制两杆，详见手册第 26 章。
 - 游戏层 driver 独占触板并有晚发送 gate，不同时发鼠标、滚轮或轻拍；退出恢复原鼠标。轻拍原参数、开机 OFF、普通层三击开关不调优，游戏层仅临时阻断和取消旧候选，不自动改开关值。USB 独立 HID_1：ID4 + 9-byte body = 10 bytes；BLE HOG 发 9-byte body、无 ID。
-- **最后已发布版本仍是 v2.2.4**；v2.2.5/v2.2.6 仅候选、不归档。v2.2.6 本地候选分支 `codex/xbox-layout-v2.2.6-20261021` 的完整主机回归已 exit 0；推送、Actions/ARM 与 UF2 校验尚待完成，结果见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)。Xbox HID 兼容边界、LT/RT 仅 0/255、无振动 / Share、Guide 可能被系统截获及矩阵多键风险仍同前版。实现与验证见[说明](<docs/gamepad_implementation_notes.md>)。
+- **最后已发布版本仍是 v2.2.4**；v2.2.5/v2.2.6 仅候选、不归档。v2.2.6 候选分支 `codex/xbox-layout-v2.2.6-20261021` 的完整主机回归、Actions ARM 构建及 UF2 本地边界校验均通过（Run `39540020475`）；仍未刷写或归档，交付记录见[这里](<firmware-delivery/XBOX_CURRENT.md>)。Xbox HID 兼容边界、LT/RT 仅 0/255、无振动 / Share、Guide 可能被系统截获及矩阵多键风险仍同前版。实现与验证见[说明](<docs/gamepad_implementation_notes.md>)。
 - 用户新增规则：**以后每次更新功能或默认键位，必须在同批次同步说明书、四层键图及版本/验证状态。** 维护流程见[维护规则](<AGENTS.md>)；[说明书同步检查](<tests/check_manual_sync.py>)已纳入主机回归，但本轮最终结果以实际日志为准，不用同步哈希代替语义或实机核对。
 - 下文仅保留上游仓库历史构建引导，不能作为当前版本或后续任务的授权依据；本项目构建授权与范围按[维护规则](<AGENTS.md>)执行。例如旧 Caps Lock 滚动示例不适用于本版（普通键鼠层用右 aA 按住或双击锁轮）。
 

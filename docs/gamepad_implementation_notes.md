@@ -59,14 +59,14 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 已执行与未执行
 
-以下区分已发布 v2.2.4、未发布 v2.2.5 历史候选与当前未发布 v2.2.6 候选的主机 / ARM / UF2 验证；均不代替真实设备验收：
+以下区分已发布 v2.2.4、未发布 v2.2.5 历史候选与当前未发布 v2.2.6 候选的主机 / ARM / UF2 验证；v2.2.6 主机与 Actions ARM / UF2 本地边界校验已通过，均不代替真实设备验收：
 
 - [专项 runner](<../tests/run_gamepad_tests.py>)纯核以 strict Wall/Wextra/Werror + UBSan 通过 **13 buttons 的 8192 × 16 方向全组合**、250000 owner 随机边沿、32768 motion 压力；覆盖动作捕获、四轴 / 数字 trigger、虚拟杆过滤与本地归零纯核。不能把纯核 quiet 测试等同于 RTOS 定时发送已验收。
 - 新报告 ABI 在 **5 个真实 HOG 配置**及 **USB BOOT0/1 × 10 模式**均已通过。覆盖 BLE 9-byte offsets、USB ID4 共 10 bytes、trigger-only 旧 context 拒发；USB 延迟 DMA 测试消费完整 10 bytes，EP0 snapshot 与中断 TX 隔离，不用 12-byte staging 容量作发送长度。
 - USB 既有专项覆盖旧 ready、SUBMITTING 间隙、early completion、reset/abort、非 0x81 端点、原 HID_0 隔离、最终 IRQ 提交前协议 / context 失效、raw CONFIGURED(0) 与复位协议恢复；固定 HOG/USB/USB_HID/HID fixtures 与对应上游 raw 核对证据沿用同批记录。
 - v2.2.3 的 runtime、A320/micro 所有权、异步 bridge 与完整主机回归此前以 strict UBSan 通过；v2.2.5 的肩键三击状态机、旋转向量、180/220ms 时序、aA 临时覆盖及默认方向专项 strict UBSan 通过。当前 v2.2.6 的 `python3 -B tests/run_host_tests.py` 在手册同步后 exit 0；包含完整 host suite、68 份配置文件/四层42键图同步、MEDIA 键位契约、UPPER P3/P5 手势和范围闸。以上均为主机软件模型验证，不是 ARM、真实 IRQ/RTOS 或设备验收。
 - [范围闸](<../tests/check_tap_successor_scope.py>)实际通过：45 份旧配置字节不动；精确剥离 GP 门与 v2.2.4–v2.2.6 scroll/mouse blocks 后，A320 / microtap / bridge 剩余源码恢复基线；8 个集成文件、14 个新增 gamepad/scroll 配置文件。原 gesture 参数、桥接 I/O / 必要 UP、灯光、GPIO / 矩阵保留。矩阵三键鬼键风险未消除，移动 + modifier + 开火仍需实机测试。
-- v2.2.4 E/X/S/F、D/K、P4 Guide、旧锁轮默认方向与肩键逻辑的专项、完整 `run_host_tests.py`、GitHub Actions ARM 构建及 UF2 边界验证均 PASS；它仍是最后已发布 / 归档的 Xbox UF2，但不含 v2.2.5 方向步进。v2.2.5 候选分支 Run 39520450915 的完整主机回归与 `bbp9981` ARM 构建 PASS；本地校验 UF2 为 608256 bytes、1188 blocks、SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`。它未归档至发布分支、未刷写，且 v2.2.4 也未 USB / BT 实机枚举、刷写或 App 实玩。旧 Run 39361865259 仅对应 S=↓、Z/K 空的映射，勿用。v2.2.6 新候选分支为 `codex/xbox-layout-v2.2.6-20261021`，Actions ARM 构建和 UF2 本地校验待完成。没有清配对或擦设置。
+- v2.2.4 E/X/S/F、D/K、P4 Guide、旧锁轮默认方向与肩键逻辑的专项、完整 `run_host_tests.py`、GitHub Actions ARM 构建及 UF2 边界验证均 PASS；它仍是最后已发布 / 归档的 Xbox UF2，但不含 v2.2.5 方向步进。v2.2.5 候选分支 Run 39520450915 的完整主机回归与 `bbp9981` ARM 构建 PASS；本地校验 UF2 为 608256 bytes、1188 blocks、SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`。它未归档至发布分支、未刷写，且 v2.2.4 也未 USB / BT 实机枚举、刷写或 App 实玩。旧 Run 39361865259 仅对应 S=↓、Z/K 空的映射，勿用。v2.2.6 候选分支 `codex/xbox-layout-v2.2.6-20261021` 已推送；构建提交 `b05dee65dc929855c809036c539b14488cd7d4b0` 的 [Run 39540020475](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39540020475>) host regression / `bbp9981` ARM PASS。UF2 本地校验 PASS：611328 bytes / 1194 blocks / `[0x1000,0x4ba00)` / SHA-256 `9f4daf7b22ab833c01ed5322115b1a8977cbd4aff8701c04e29ddd73b76d155a`；候选归档 job 跳过，未归档、未刷写，无清配对或擦设置。
 
 ## 明确不承诺
 
