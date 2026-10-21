@@ -4,7 +4,7 @@
 
 - 用户明确要求全局重构且现有功能完全一致；行为基线是已确认的v2.2.9源码 `f7412ec90c925487617a1e8d40dd886c310142a6`，不是更早键图。候选分支 `codex/firmware-refactor-v2.3.0-20261021`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`；基线源归档与完整host日志在当日重构交付目录保留。
 - 已拆分模式发布服务/滚轮纯核、手柄runtime与薄behavior、USB实现归位、共享PWM后端与板级CMake职责；两套不同语义的亮度保存器、协议/SDK前缀、轻拍核、所有键位/阈值/GPIO原样保留。详见[全局架构](<docs/firmware_architecture.md>)。本版只改内部结构，不顺手修正旧限制/bug，不新增功能。
-- 基线完整host、当前专项、68万事件旧新差分、524288组PWM对照与6组合独立TU链接已PASS；当前完整host exit0、80配置/四层图同步PASS；ARM/UF2与导出待完成。CMake实际32组合本地因无工具明确SKIP，CI必须执行，不把token对照当真实CMake运行。不把软件结果冒作实机验收。
+- 基线完整host、当前专项、68万事件旧新差分、524288组PWM对照与6组合独立TU链接已PASS；当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM及27页PDF/DOCX导出PASS；构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`，UF2 SHA `81bbd3bb45bac84733ccecc84d35cad423463efe1d6cd968212d919f8d992a45`。CMake32组合和9负例已在CI实际执行通过；本地无CMake仍明确SKIP。最终云DTS全文与1166项Kconfig跟v2.2.9完全一致，FLASH306480B/RAM88862B。不把软件结果冒作实机验收。
 - `tests/check_tap_successor_scope.py` 历史字节恢复闸未放宽，在冻结参考树执行；当前精确变更范围/机械证明/差分由 `tests/run_refactor_tests.py` 管。BASE固定f7412ec，不能为了过测试随意改基线。
 - 沿用用户直接构建授权：仅精确原仓库的版本专属新候选推送、既有Actions、下载/校验UF2；不刷写、不清配对/settings、不发布/归档、不推稳定分支。下方v2.2.x均为对应版本历史，不能当当前验证证据。
 

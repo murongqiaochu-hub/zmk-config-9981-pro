@@ -1,7 +1,9 @@
 # Xbox 布局标准 HID：v2.3.0 行为保持型重构候选（2026-10-21）
 
 - 候选分支 `codex/firmware-refactor-v2.3.0-20261021`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`；行为基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，基线源归档与完整host日志已保留。
-- 当前专项/机械证明、68万事件旧新差分、524288组PWM对照和6组合独立TU链接已PASS；当前完整host exit0、80配置/四层图同步PASS；Actions ARM、UF2与导出待完成。CMake实际矩阵本地缺工具，CI强制执行；不把旧v2.2.9 ARM/UF2冒作重构结果。
+- 当前专项/机械证明、68万事件旧新差分（含灯光日志与负例）、524288组PWM对照、6组合独立TU链接、完整host exit0和80配置/四层图同步均PASS。[Actions Run 39569977363](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39569977363>) regression/ARM成功，deliver按候选条件跳过；构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`。CI实际32配置CMake及9个拒绝负例PASS；本地缺CMake的SKIP不冒作本地运行成功。
+- UF2边界/身份校验PASS：SHA `81bbd3bb45bac84733ccecc84d35cad423463efe1d6cd968212d919f8d992a45`，613376B/1198块、family `0xada52840`、`[0x1000,0x4be00)`。[候选UF2](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/09_云端构建产物/bbp9981-zmk.uf2>)、[校验JSON](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/09_云端构建产物/validation.json>)、[运行记录](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/10_Actions运行记录.json>)、[完整云端日志](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/11_Actions完整日志.zip>)。
+- 最终云DTS全文（去日志时间）与v2.2.9逐字节相同，四层168绑定/所有behavior和硬件属性不变；1166项赋值Kconfig亦完全相同。[一致性核验JSON](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/14_云端基线一致性核验.json>)。实际mode/runtime/USB对象编译，FLASH306480B、RAM88862B。27页A5 PDF/DOCX/HTML导出通过；device_tested=false，未刷写/未全面实机验收。
 - [全局架构](<../docs/firmware_architecture.md>)列出模块职责、保留的细节、验证口径与回退。四层键图、时序、保存格式、协议、GPIO/矩阵、SDK门与原限制均保持；不自动刷写/清配对/settings，不发布/归档或推稳定分支。
 
 ## 历史候选：v2.2.9 UPPER 快捷键（2026-10-21）

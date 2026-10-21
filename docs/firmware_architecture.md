@@ -61,7 +61,13 @@ A320主文件653→465行，模式服务133行、滚轮纯核86行。重构是�
 7. [独立TU链接测试](<../tests/test_refactor_link.py>)：USB-only/BLE-only/双传输×tap OFF/ON，真实adapter与runtime分别编译再链接，单一init/listener和订阅/API边界通过；不是实际USB/BLE栈链接。
 8. 原[历史范围闸](<../tests/check_tap_successor_scope.py>)未删除、未放宽；在隔离的固定v2.2.9参考树中照常执行，再叠加当前精确范围和差分闸。不能把历史只允许增量功能的源码字节断言直接套在重构后或简单删除。
 
-**当前完整 `tests/run_host_tests.py` 已exit0，80配置/四层42键图/manifest同步PASS；ARM、UF2与说明书导出待完成，见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。** 本机未发现CMake，未安装或冒称32配置真实执行通过；[CMake合同](<../tests/test_refactor_cmake.py>)本地明确SKIP、CI强制实际执行GP/tap/USB/BLE/micro 32组合及5个版本/dirty、4个SHA负例。精确展开后的CMake token对照已本地通过。
+**当前完整主机回归exit0，80配置/四层42键图/manifest同步PASS；[Actions Run 39569977363](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39569977363>) 的regression、bbp9981 ARM和artifact合并全部成功，deliver按候选条件跳过。** 构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`；实际日志确认新增mode/runtime与独立USB对象编译。FLASH306480B、RAM88862B，RAM与基线相同；不以此宣称实际性能提升。
+
+[CMake合同](<../tests/test_refactor_cmake.py>)已在CI实际通过GP/tap/USB/BLE/micro **32组合**及5个版本/dirty、4个SHA负例。本地缺CMake仍明确SKIP，不能把本地token对照冒作CMake执行；云端日志已补齐实证。独立审阅未发现实现回归；发现并补齐了灯光日志oracle缺口，差分现记录日志正文/级别/顺序，新增“将ERROR错改DEBUG必须破坏轨迹”的负例通过。
+
+最终云端 **整个设备树正文逐字节相同**（仅剥离日志时间前缀），四层各42绑定和全部behavior/硬件属性未变；**1166项赋值Kconfig完全相同**。对照基线构建Run 39563315080，详见[云端一致性JSON](</vol1/1000/agent/output/1021/155910_9981Pro全局重构_v2.3.0/14_云端基线一致性核验.json>)。
+
+UF2本地边界/身份校验PASS：613376B、1198块、family `0xada52840`、`[0x1000,0x4be00)`，SHA `81bbd3bb45bac84733ccecc84d35cad423463efe1d6cd968212d919f8d992a45`。27页A5 PDF与带四图DOCX结构/文本检查通过；Word未作独立Office视觉渲染验收。**未刷写、未USB/BT/App实机验收，未发布/归档。** 详细产物与历史件见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 ## 5. 后续维护和回退
 

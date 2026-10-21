@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.0",
   "manual_date": "2026-10-21",
-  "updated": "2026-10-21T16:31:41+08:00",
+  "updated": "2026-10-21T16:52:44+08:00",
   "source_commit": "5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "完整host exit0、80配置/四层图同步与68万事件差分通过；更新v2.3.0架构及准确验收边界，ARM/UF2待完成。",
+  "review_note": "v2.3.0 Run39569977363 regression/ARM、CI32配置9负例、UF2 81bbd3bb...通过；云DTS全文和1166项Kconfig与v2.2.9一致，未刷写/未实机验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "fd960cb4dfc3ee04d06eb146ba2c444cef28e0e4fbcb24d32f8ada7d7b44975f",
+  "manual_sha256": "17a594a915b1de4c65e1e4565e77334a62868a30f10985fe517741115e9a3119",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "66557d5f72fd488657a042e76adb89ff6d7f17cba2223646714865baf3cd7c96",

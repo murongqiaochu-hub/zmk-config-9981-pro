@@ -2,7 +2,7 @@
 
 ## 当前 v2.3.0 行为保持型重构
 
-2026-10-21。基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`，分支 `codex/firmware-refactor-v2.3.0-20261021`。只将behavior参数适配与运行时分离、独立USB实现由头文件归位到C文件，另分离触板模式/滚轮核、共享灯光PWM及CMake职责；所有映射、原FSM、协议、队列/取消/引用和SDK前缀顺序不改。27个runtime函数、12个USB函数及整文件允许变换的机械证明PASS，原gamepad专项与基本类型API边界/非零opaque、6组合独立TU链接PASS，旧新68万事件输出/调度/引用对照一致。当前完整host exit0、80配置/四层图同步PASS，ARM/UF2待完成；未刷写/实机验收。架构与其余范围见[全局架构](<firmware_architecture.md>)、[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+2026-10-21。基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`，分支 `codex/firmware-refactor-v2.3.0-20261021`。只将behavior参数适配与运行时分离、独立USB实现由头文件归位到C文件，另分离触板模式/滚轮核、共享灯光PWM及CMake职责；所有映射、原FSM、协议、队列/取消/引用和SDK前缀顺序不改。27个runtime函数、12个USB函数及整文件允许变换的机械证明PASS，原gamepad专项与基本类型API边界/非零opaque、6组合独立TU链接PASS，旧新68万事件输出/调度/引用对照一致。当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM、CI实际32配置CMake及9负例、UF2校验与27页说明书导出均PASS；最终云DTS全文及1166项Kconfig与v2.2.9完全一致，FLASH306480B/RAM88862B。构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`，UF2 SHA `81bbd3bb45bac84733ccecc84d35cad423463efe1d6cd968212d919f8d992a45`；未刷写/实机验收。架构与其余范围见[全局架构](<firmware_architecture.md>)、[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 ## 历史说明：v2.2.9及更早
 

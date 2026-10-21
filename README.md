@@ -3,9 +3,9 @@ This page contains zmk firmware config for 9981 keyboard with trackpad(pro versi
 
 ## 当前使用说明书与维护约定
 
-- **当前 v2.3.0 是行为保持型全局重构候选**，基线 v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`。键位、手势时序、灯效/存储、协议/SDK门与保护限制不变；拆分模式服务、滚轮纯核、共享PWM后端、手柄runtime/adapter和板级构建职责。架构、验证与回退见[架构说明](<docs/firmware_architecture.md>)；专项、68万事件旧新差分与独立TU链接已PASS，当前完整host exit0、80配置/四层图同步PASS，Actions ARM/UF2待完成。未刷写/未验收，不推稳定分支或发布/归档。以下v2.2.9及更早的构建结果保留为历史，不能冒作重构版结果。
+- **当前 v2.3.0 是行为保持型全局重构候选**，基线 v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`。键位、手势时序、灯效/存储、协议/SDK门与保护限制不变；拆分模式服务、滚轮纯核、共享PWM后端、手柄runtime/adapter和板级构建职责。架构、验证与回退见[架构说明](<docs/firmware_architecture.md>)；专项、68万事件旧新差分与独立TU链接已PASS，当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM、云端32配置CMake及9负例、UF2校验均PASS；最终云DTS全文和1166项Kconfig与v2.2.9一致。未刷写/未验收，不推稳定分支或发布/归档。下方标注v2.2.9及更早的构建结果均为历史，不能冒作重构版结果。
 
-- 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（v2.2.9，2026-10-21，**MEDIA / Xbox 布局标准 HID**，非原生 XInput；完整host、Actions ARM、UF2校验与27页说明书导出PASS，未实机验收）。aA 双击锁轮默认0°，解锁/重锁回正；按住 aA 临时恢复原方向/原生肩轮，松开恢复所选固定档。沿用 v2.2.7 的临时/一次性/固定层 owner 仲裁，旧 sticky 的3秒超时/迟到UP不撤固定 UPPER；SYM退层不解 scroll latch，锁轮肩键半速/屏蔽自身Wheel不变。
+- 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（v2.3.0，2026-10-21，**MEDIA / Xbox 布局标准 HID**，非原生 XInput；完整host、Actions ARM、UF2校验与27页说明书导出PASS，未实机验收）。aA 双击锁轮默认0°，解锁/重锁回正；按住 aA 临时恢复原方向/原生肩轮，松开恢复所选固定档。沿用 v2.2.7 的临时/一次性/固定层 owner 仲裁，旧 sticky 的3秒超时/迟到UP不撤固定 UPPER；SYM退层不解 scroll latch，锁轮肩键半速/屏蔽自身Wheel不变。
 - 仅 MEDIA：View 从 T/P11 移到 **R/P10（action12）**，Menu 从 Y/P12 移到 **U/P13（action13）**，原 T/Y 留空；其余保持 v2.2.7：W/P8↑、D/P19→、Z/P28↓、A/P17←，S/P18=L3、L/P25=R3（**非左杆**），肩P0/P1=数字LT/RT，Call/End P2/P6=LB/RB，O/K/Backspace/$=Y/X/B/A，P4/Space=Guide。19绑定/2出口/21None，仅SYM/右aA退出，$在本层是A。
 - **固定档，不累加：** 松开aA且锁轮时，P3黑莓完整三击直接选左→上、右→下、上→右、下→左档；P5顶部返回完整三击直接选右→上、左→下、上→左、下→右档。同键重复幂等，换键直接选另一目标，不在原档继续转90°；其他点按吞掉，三击180/220ms、aA锁轮双击450/350ms不变。**按住物理右aA时P3/P5立即选槽1/2，即使已锁轮**；右aA按住+F/P20双击鼠标翻转为v2.2.8时的旧键位，现已迁至M/P34：普通指针Y反向、DEFAULT肩键角色互换，其余不变，volatile、重启复位。
 - 触板滑动默认左杆 X/Y，按住黑莓临时右杆 Z/Rz，松开不锁定，切换清旧轴且只用新样本。机械点击/空格固定Guide，S/L独立L3/R3。velocity不累计位置，停住手指不能保持倾斜；120ms无有效位移仅本地归零，非host ACK；单触板不能同时独立控两杆，见手册第26章。
