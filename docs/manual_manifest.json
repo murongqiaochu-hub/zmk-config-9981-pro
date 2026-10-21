@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.9",
   "manual_date": "2026-10-21",
-  "updated": "2026-10-21T15:36:27+08:00",
+  "updated": "2026-10-21T15:46:44+08:00",
   "source_commit": "ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.2.9 host回归与27页PDF/DOCX导出均PASS；更新状态，候选构建与实机验收仍待完成。",
+  "review_note": "v2.2.9构建、UF2校验及导出通过；补充说明设备与App尚未实机验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "8560378a4923c7fa35f43e871c3c27bfdfbe51eb33c44b56f6c16dc665510202",
+  "manual_sha256": "de00508e066c70f0d8afad5cdc5333669a381964524e5065410fbf238b1f7646",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "66557d5f72fd488657a042e76adb89ff6d7f17cba2223646714865baf3cd7c96",

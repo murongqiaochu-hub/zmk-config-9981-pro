@@ -1,7 +1,7 @@
 # Xbox 布局标准 HID：v2.2.9 UPPER 快捷键候选（2026-10-21）
 
-- 当前候选分支：`codex/xbox-layout-v2.2.9-20261021`；功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`。五项灯控向左移一物理键：X/P29键盘RGB_BRD、C/P30触板BL_DEC、V/P31键盘RGB_TOG、B/P32触板BL_INC、N/P33键盘RGB_BRI；M/P34在右aA按住时双击切鼠标翻转，F/P20在UPPER无输出。无其他行为变化。
-- v2.2.9完整host exit0、四层42键图/manifest同步、27页A5 PDF / DOCX布局与文本校验均PASS；Actions ARM/UF2待完成；未刷写、未实机验收。不得把v2.2.8历史构建证据套用到本版。
+- 当前候选分支：`codex/xbox-layout-v2.2.9-20261021`；功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`，构建提交 `bd66b98890f56efaec2bcd7a0361236afd4688aa`。五项灯控向左移一物理键：X/P29键盘RGB_BRD、C/P30触板BL_DEC、V/P31键盘RGB_TOG、B/P32触板BL_INC、N/P33键盘RGB_BRI；M/P34在右aA按住时双击切鼠标翻转，F/P20在UPPER无输出。无其他行为变化。
+- v2.2.9完整host exit0、四层42键图/manifest同步、Actions Run 39563315080 regression/ARM和27页A5 PDF/DOCX均PASS；UF2边界/身份校验PASS，SHA `8a3506d9ad47b0ca033fea07f7e2bf8724d1e4ac434b2a789a2826ff859e907e`（613376B/1198块，family `0xada52840`，`[0x1000,0x4be00)`）。[UF2](</vol1/1000/projects/output/1021/152518_9981Pro灯控键位_v2.2.9/09_云端构建产物/bbp9981-zmk.uf2>)、[校验JSON](</vol1/1000/projects/output/1021/152518_9981Pro灯控键位_v2.2.9/09_云端构建产物/validation.json>)；未刷写、未实机验收、未发布/归档。不得把v2.2.8历史构建证据套用到本版。
 
 ## 历史候选：v2.2.8 固定方向档 / R/U 菜单（2026-10-21）
 

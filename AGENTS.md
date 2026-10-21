@@ -73,8 +73,8 @@
 ## v2.2.9 UPPER 快捷键调整（2026-10-21）
 
 - 当前候选分支由父任务创建：`codex/xbox-layout-v2.2.9-20261021`；功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`。五项灯控全部左移一个物理键：C/P30键盘 RGB_BRD→X/P29；V/P31触板 BL_DEC→C/P30；B/P32键盘 RGB_TOG→V/P31；N/P33触板 BL_INC→B/P32；M/P34键盘 RGB_BRI→N/P33。M/P34接管右aA按住时的鼠标翻转双击；F/P20在UPPER无输出。其余行为不变。
-- v2.2.8固定方向档/R-U菜单合同与其完整构建、Actions Run `39557844223`、UF2 SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593` 等历史证据完整保留在下方历史正文及交付档案；v2.2.8未刷写/未实机验收。v2.2.9完整host与文档导出已PASS；Actions ARM、UF2待完成；不得宣称新版本硬件验收。
-- 保留用户“以后都直接构建”既有授权范围：版本专属候选分支和必要Actions/UF2流程；不刷写、清配对、擦设置、发布/归档或推稳定分支。完整host与文档导出已PASS；Actions ARM和UF2校验按既有授权继续执行。
+- v2.2.8固定方向档/R-U菜单合同与其完整构建、Actions Run `39557844223`、UF2 SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593` 等历史证据完整保留在下方历史正文及交付档案；v2.2.8未刷写/未实机验收。v2.2.9完整host、Actions Run `39563315080` regression/ARM、UF2边界校验及27页A5 PDF/DOCX导出均PASS；未刷写/未实机验收。UF2 SHA `8a3506d9ad47b0ca033fea07f7e2bf8724d1e4ac434b2a789a2826ff859e907e`，构建提交 `bd66b98890f56efaec2bcd7a0361236afd4688aa`。
+- 保留用户“以后都直接构建”既有授权范围：版本专属候选分支和必要Actions/UF2流程；不刷写、清配对、擦设置、发布/归档或推稳定分支。候选Actions构建与本地UF2验证均完成；仍不发布、归档或实机刷写。
 
 ## 更新和导出的最短流程
 
