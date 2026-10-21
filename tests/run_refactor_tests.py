@@ -132,6 +132,18 @@ def trace_checks(snapshot, temp):
             outputs.append(output)
         assert outputs[0] == outputs[1], f'{name}: baseline/refactor ordered trace mismatch'
         print(f'PASS differential {name}: {len(outputs[0].splitlines())} identical cumulative checkpoints')
+        if name == 'kb_settings1':
+            # Prove the error-log oracle is live, not swallowed by host LOG macros.
+            negative = temp/'negative-keyboard.c'
+            original = text(DRIVER+'keyboard_backlight.c')
+            marker = 'LOG_ERR("Keyboard PWM[%d] failed: %d", channel, error)'
+            assert original.count(marker)==1
+            negative.write_text(original.replace(marker,marker.replace('LOG_ERR','LOG_DBG')))
+            mutated_defs=dict(defs, FW_LIGHT_SOURCE='"'+str(negative)+'"')
+            changed=compile_trace(ROOT/'tests'/source,temp/'negative-keyboard',mutated_defs,
+                                  [*include_dirs,ROOT/DRIVER])
+            assert changed != outputs[1], 'log-level mutation escaped differential oracle'
+            print('PASS negative log oracle: changing PWM error level breaks the old/new ordered trace')
 
 
 def main():

@@ -1,5 +1,13 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
+## 当前 v2.3.0 行为保持型重构
+
+2026-10-21。基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`，分支 `codex/firmware-refactor-v2.3.0-20261021`。只将behavior参数适配与运行时分离、独立USB实现由头文件归位到C文件，另分离触板模式/滚轮核、共享灯光PWM及CMake职责；所有映射、原FSM、协议、队列/取消/引用和SDK前缀顺序不改。27个runtime函数、12个USB函数及整文件允许变换的机械证明PASS，原gamepad专项与基本类型API边界/非零opaque、6组合独立TU链接PASS，旧新68万事件输出/调度/引用对照一致。当前完整host exit0、80配置/四层图同步PASS，ARM/UF2待完成；未刷写/实机验收。架构与其余范围见[全局架构](<firmware_architecture.md>)、[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
+
+## 历史说明：v2.2.9及更早
+
+以下源码/Run/资源数字与DTS核对仅属于所标历史版本，不是v2.3.0 ARM或实机证据；行为合同除版本记录外继续保留。
+
 2026-10-21，与[使用说明书 v2.2.9](<9981Pro_使用说明书.md>)同步。当前候选功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`，候选分支 `codex/xbox-layout-v2.2.9-20261021`；v2.2.9仅将UPPER五项灯控左移一物理键（C/V/B/N/M→X/C/V/B/N），并将鼠标翻转组合从F/P20迁至M/P34；F/P20单独无输出，其他行为不变。完整host、Actions ARM、UF2及说明书PDF/DOCX导出均PASS，未实机验收。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。v2.2.8固定方向档/R-U菜单完整构建证据保留为历史（未刷写/未实机验收）：源码 `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、[Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>)、构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`、UF2 SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`。v2.2.7 用户于2026-10-21 14:33确认蓝牙按钮已恢复、触板三击已生效、手柄基本可用；不代表全场景硬件验收。更早v2.2.7源码 `88e744f51e386db853ae25c4438b33cb23557af5`、构建 `045a7a3a0da9ba372d99ea747e27a15ababb8694`、[Run39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>)及UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`均为历史，详见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。

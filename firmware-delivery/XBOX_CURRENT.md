@@ -1,4 +1,10 @@
-# Xbox 布局标准 HID：v2.2.9 UPPER 快捷键候选（2026-10-21）
+# Xbox 布局标准 HID：v2.3.0 行为保持型重构候选（2026-10-21）
+
+- 候选分支 `codex/firmware-refactor-v2.3.0-20261021`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`；行为基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，基线源归档与完整host日志已保留。
+- 当前专项/机械证明、68万事件旧新差分、524288组PWM对照和6组合独立TU链接已PASS；当前完整host exit0、80配置/四层图同步PASS；Actions ARM、UF2与导出待完成。CMake实际矩阵本地缺工具，CI强制执行；不把旧v2.2.9 ARM/UF2冒作重构结果。
+- [全局架构](<../docs/firmware_architecture.md>)列出模块职责、保留的细节、验证口径与回退。四层键图、时序、保存格式、协议、GPIO/矩阵、SDK门与原限制均保持；不自动刷写/清配对/settings，不发布/归档或推稳定分支。
+
+## 历史候选：v2.2.9 UPPER 快捷键（2026-10-21）
 
 - 当前候选分支：`codex/xbox-layout-v2.2.9-20261021`；功能源码提交 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`，构建提交 `bd66b98890f56efaec2bcd7a0361236afd4688aa`。五项灯控向左移一物理键：X/P29键盘RGB_BRD、C/P30触板BL_DEC、V/P31键盘RGB_TOG、B/P32触板BL_INC、N/P33键盘RGB_BRI；M/P34在右aA按住时双击切鼠标翻转，F/P20在UPPER无输出。无其他行为变化。
 - v2.2.9完整host exit0、四层42键图/manifest同步、Actions Run 39563315080 regression/ARM和27页A5 PDF/DOCX均PASS；UF2边界/身份校验PASS，SHA `8a3506d9ad47b0ca033fea07f7e2bf8724d1e4ac434b2a789a2826ff859e907e`（613376B/1198块，family `0xada52840`，`[0x1000,0x4be00)`）。[UF2](</vol1/1000/projects/output/1021/152518_9981Pro灯控键位_v2.2.9/09_云端构建产物/bbp9981-zmk.uf2>)、[校验JSON](</vol1/1000/projects/output/1021/152518_9981Pro灯控键位_v2.2.9/09_云端构建产物/validation.json>)；未刷写、未实机验收、未发布/归档。不得把v2.2.8历史构建证据套用到本版。

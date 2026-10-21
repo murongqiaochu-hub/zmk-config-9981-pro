@@ -4,6 +4,7 @@
 #endif
 #define TEST_NATIVE_BACKLIGHT 1
 #include "test_env.h"
+#include <stdarg.h>
 static uint64_t digest=UINT64_C(1469598103934665603);
 static uint32_t rng=0x99810011U;
 static void fold(uint32_t v) { digest^=v; digest*=UINT64_C(1099511628211); }
@@ -32,6 +33,20 @@ static int trace_save(const char *name,const void *data,size_t size) {
     fold((uint32_t)size);for(size_t i=0;i<size;i++) { fold(((const uint8_t*)data)[i]); }
     int result=settings_save_one(name,data,size);fold((uint32_t)result);return result;
 }
+/* Preserve observable log level/body/order; internal __func__/line metadata is
+ * intentionally not part of the user-visible behavior contract. */
+static void trace_log(unsigned level,const char *format,...) {
+    char body[1024];va_list arguments;va_start(arguments,format);
+    int size=vsnprintf(body,sizeof(body),format,arguments);va_end(arguments);
+    assert(size>=0&&(size_t)size<sizeof(body));fold(6);fold(level);
+    for(int i=0;i<size;i++) { fold((unsigned char)body[i]); }
+}
+#undef LOG_ERR
+#undef LOG_DBG
+#undef LOG_INF
+#define LOG_ERR(...) trace_log(1,__VA_ARGS__)
+#define LOG_DBG(...) trace_log(2,__VA_ARGS__)
+#define LOG_INF(...) trace_log(3,__VA_ARGS__)
 #define pwm_is_ready_dt trace_ready
 #define pwm_set_dt trace_write
 #define k_work_reschedule trace_reschedule
