@@ -1,6 +1,6 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-20，与[使用说明书 v2.2.5](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。键图：E/X/S/F=↑/↓/←/→，D/K=L3/R3，触板点击=Guide。v2.2.5 本地功能提交 `3c5235b21f8452630850053620635d4aea7cb47d`：双击 aA 锁轮并固定 UPPER，默认不旋转；锁定时右肩完整三击使左→上、上→右，左肩完整三击使右→上、上→左；每组三击只推进90°一步，重复三击累积，解锁 / 重锁归零。按住 aA 仅临时恢复原方向与原生肩键滚轮，不清除本锁定方向；肩键半速和屏蔽自身 wheel 保留。轻点按压≤180ms、松开至下一按下≤220ms。此版本目前仅本地源码 / 主机测试，未推送、未 ARM 构建，无新版 UF2；最新实际已发布 / 构建仍是 v2.2.4，见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。无刷写、USB/BT 实机枚举或 App 实玩。
+2026-10-21，与[使用说明书 v2.2.5](<9981Pro_使用说明书.md>)同步。用户已确认 Xbox 布局标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。键图：E/X/S/F=↑/↓/←/→，D/K=L3/R3，触板点击=Guide。v2.2.5 功能提交 `3c5235b21f8452630850053620635d4aea7cb47d`：双击 aA 锁轮并固定 UPPER，默认不旋转；锁定时右肩完整三击使左→上、上→右，左肩完整三击使右→上、上→左；每组三击只推进90°一步，重复三击累积，解锁 / 重锁归零。按住 aA 仅临时恢复原方向与原生肩键滚轮，不清除本锁定方向；肩键半速和屏蔽自身 wheel 保留。轻点按压≤180ms、松开至下一按下≤220ms。源码已推至新候选分支 `codex/xbox-layout-v2.2.5-20261021`；构建提交 `dcfabda69c9ed81a7fb92aaf0df29e74566be763` 的 [Actions Run 39520450915](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39520450915>) 主机回归与 `bbp9981` ARM 构建通过，UF2 本地边界校验通过；尚未发布 / 归档或刷写，见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。无 USB/BT 实机枚举或 App 实玩。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
@@ -59,14 +59,14 @@ USB 私有对齐持久 staging 为 **12 bytes**，但发送长度严格为 **10 
 
 ## 已执行与未执行
 
-以下区分已发布 v2.2.4 的历史主机 / ARM 验证与本地 v2.2.5 候选的当前验证，均不代替真实设备验收：
+以下区分已发布 v2.2.4 的历史验证与未发布 v2.2.5 候选分支的当前主机 / ARM / UF2 验证；均不代替真实设备验收：
 
 - [专项 runner](<../tests/run_gamepad_tests.py>)纯核以 strict Wall/Wextra/Werror + UBSan 通过 **13 buttons 的 8192 × 16 方向全组合**、250000 owner 随机边沿、32768 motion 压力；覆盖动作捕获、四轴 / 数字 trigger、虚拟杆过滤与本地归零纯核。不能把纯核 quiet 测试等同于 RTOS 定时发送已验收。
 - 新报告 ABI 在 **5 个真实 HOG 配置**及 **USB BOOT0/1 × 10 模式**均已通过。覆盖 BLE 9-byte offsets、USB ID4 共 10 bytes、trigger-only 旧 context 拒发；USB 延迟 DMA 测试消费完整 10 bytes，EP0 snapshot 与中断 TX 隔离，不用 12-byte staging 容量作发送长度。
 - USB 既有专项覆盖旧 ready、SUBMITTING 间隙、early completion、reset/abort、非 0x81 端点、原 HID_0 隔离、最终 IRQ 提交前协议 / context 失效、raw CONFIGURED(0) 与复位协议恢复；固定 HOG/USB/USB_HID/HID fixtures 与对应上游 raw 核对证据沿用同批记录。
 - v2.2.3 的 runtime、A320/micro 所有权、异步 bridge 与完整主机回归此前以 strict UBSan 通过；本地 v2.2.5 的肩键三击状态机、旋转向量、180/220ms 时序、aA 临时覆盖及默认方向专项 strict UBSan 通过。`python3 -B tests/run_host_tests.py` 在 v2.2.5 手册同步后 exit 0；包含完整 host suite、66份配置文件/四层键图清单同步及范围闸。以上均为主机软件模型验证，不是 ARM、真实 IRQ/RTOS 或设备验收。
 - [范围闸](<../tests/check_tap_successor_scope.py>)实际通过：46 份旧配置字节不动；精确剥离 GP 门与 v2.2.4/v2.2.5 scroll block 后，A320 / microtap / bridge 剩余源码恢复基线；8 个集成文件、12 个新增 gamepad/scroll 配置文件。原 gesture 参数、桥接 I/O / 必要 UP、灯光、GPIO / 矩阵保留。矩阵三键鬼键风险未消除，移动 + modifier + 开火仍需实机测试。
-- v2.2.4 E/X/S/F、D/K、P4 Guide、旧锁轮默认方向与肩键逻辑的专项、完整 `run_host_tests.py`、GitHub Actions ARM 构建及 UF2 边界验证均 PASS；该版本仍是唯一已发布 / 构建的 Xbox UF2，SHA 见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)，但不含 v2.2.5 的默认回正与三击方向步进。旧 Run 39361865259 仅对应 S=↓、Z/K 空的映射，勿用。v2.2.5 目前未推送、未 ARM 构建、无 UF2；v2.2.4 也未 USB / BT 实机枚举、刷写或 App 实玩。没有清配对或擦设置。
+- v2.2.4 E/X/S/F、D/K、P4 Guide、旧锁轮默认方向与肩键逻辑的专项、完整 `run_host_tests.py`、GitHub Actions ARM 构建及 UF2 边界验证均 PASS；它仍是最后已发布 / 归档的 Xbox UF2，但不含 v2.2.5 方向步进。v2.2.5 候选分支 Run 39520450915 的完整主机回归与 `bbp9981` ARM 构建 PASS；本地校验 UF2 为 608256 bytes、1188 blocks、SHA-256 `6b562773e714d564da1b4351db185e63adeefbf3ad6f2139be9311249fde5b5f`。它未归档至发布分支、未刷写，且 v2.2.4 也未 USB / BT 实机枚举、刷写或 App 实玩。旧 Run 39361865259 仅对应 S=↓、Z/K 空的映射，勿用。没有清配对或擦设置。
 
 ## 明确不承诺
 
