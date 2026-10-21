@@ -1,4 +1,6 @@
-# 9981 Pro v2.3.0：行为保持型全局重构
+# 9981 Pro：v2.3.0重构架构与v2.3.1窄范围加固
+
+**当前v2.3.1例外：** 相对v2.3.0 `2b2c7dc`只改USB轻拍snapshot头，修异步报文栈寿命、等待后BOOT重验；不改变下述模块结构/键位/参数。原v2.2.9重构BASE与差分闸保持，79/80配置逐字节相同、仅对该文件叠加精确[稳定范围闸](<../tests/check_stability_scope.py>)。源码 `7d6ab94e57653deb8e20d142665eee351736f297`。私有RAM的SUBMITTING/INFLIGHT不等于共享semaphore所有权，退休不补许可；未全局修stock HID_0。新测试/边界见[加固记录](<firmware_stability.md>)，实机验收见[清单](<long_term_acceptance.md>)，当前构建状态见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。下面v2.3.0资源/Run/“协议前缀原字节”均是历史重构证据，不冒作v2.3.1证据。
 
 2026-10-21。行为基线 **v2.2.9 / `f7412ec90c925487617a1e8d40dd886c310142a6`**；重构源码 **`5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`**；候选分支 `codex/firmware-refactor-v2.3.0-20261021`。
 

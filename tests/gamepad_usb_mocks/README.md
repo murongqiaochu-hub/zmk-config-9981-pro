@@ -52,7 +52,7 @@ done
 
 这是针对固定 nRF52840/Zephyr/nrfx 的**线程上下文 RAM 可复用证明**，不是 host ACK、status-drain 证明或已进入 SDK 的发送可撤销证明。旧 callback 遇到新 endpoint transfer `busy=true` 必须被忽略；`busy=false` 允许回收 RAM，即使旧完成事件尚未排空。
 
-本适配器不修复既有 HID_0 的 ignored-semaphore-timeout、mutable report DMA 或旧 snapshot stack source 问题；它保持原键鼠路径不变，并通过独立 HID_1 避免将新增手柄的 gate/恢复策略施加给键鼠。不得在手册中把新手柄的 RAM lifetime 保证写成全键鼠路径都已修复。
+本独立HID_1适配器不修复既有HID_0的ignored-semaphore-timeout或mutable report DMA；原callback和stock发送保持。**v2.3.1现已另行修复扩展USB轻拍snapshot的栈source寿命与等待后BOOT复验**，见[加固记录](<../../docs/firmware_stability.md>)及[公共API回归](<../test_stability_usb_snapshot.c>)；不能继续把该已修问题列为当前未修，也不能扩大成全部键鼠路径已修。abort无ready的stock缺许可仍保留，RAM退休不能给共享sem补许可。
 
 ## 固定公开源码证据
 

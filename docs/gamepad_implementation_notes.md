@@ -1,6 +1,10 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-## 当前 v2.3.0 行为保持型重构
+## 当前 v2.3.1 稳定性加固
+
+2026-10-21，源码 `7d6ab94e57653deb8e20d142665eee351736f297`，候选 `codex/firmware-stability-v2.3.1-20261021`。手柄runtime/USB/BLE与描述符均未变；唯一生产变更是USB键鼠扩展的轻拍snapshot，修异步栈源寿命与等待期间BOOT切换。它与独立HID_1仍隔离，不能宣称整个HID_0全修；共享sem丢ready限制保留。两种BOOT各50000次USB周期、30000次gamepad路由/故障恢复及其他输入/保存连续模拟PASS，旧失败/新通过ASan保留；完整回归与本版ARM/UF2见[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。详情见[加固记录](<firmware_stability.md>)、[待执行实机清单](<long_term_acceptance.md>)。下列所有旧版本Run、资源和设备状态只属其历史版本。
+
+## 历史 v2.3.0 行为保持型重构
 
 2026-10-21。基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`，分支 `codex/firmware-refactor-v2.3.0-20261021`。只将behavior参数适配与运行时分离、独立USB实现由头文件归位到C文件，另分离触板模式/滚轮核、共享灯光PWM及CMake职责；所有映射、原FSM、协议、队列/取消/引用和SDK前缀顺序不改。27个runtime函数、12个USB函数及整文件允许变换的机械证明PASS，原gamepad专项与基本类型API边界/非零opaque、6组合独立TU链接PASS，旧新68万事件输出/调度/引用对照一致。当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM、CI实际32配置CMake及9负例、UF2校验与27页说明书导出均PASS；最终云DTS全文及1166项Kconfig与v2.2.9完全一致，FLASH306480B/RAM88862B。构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`，UF2 SHA `81bbd3bb45bac84733ccecc84d35cad423463efe1d6cd968212d919f8d992a45`；未刷写/实机验收。架构与其余范围见[全局架构](<firmware_architecture.md>)、[交付记录](<../firmware-delivery/XBOX_CURRENT.md>)。
 

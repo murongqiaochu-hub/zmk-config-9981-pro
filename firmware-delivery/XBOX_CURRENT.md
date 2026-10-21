@@ -1,4 +1,10 @@
-# Xbox 布局标准 HID：v2.3.0 行为保持型重构候选（2026-10-21）
+# Xbox 布局标准 HID：v2.3.1 长期稳定性加固候选（2026-10-21）
+
+- 源码 `7d6ab94e57653deb8e20d142665eee351736f297`，候选分支 `codex/firmware-stability-v2.3.1-20261021`；基线v2.3.0 `2b2c7dc3cacfc64e5ec4a2b64c306f1caf2a1d6e`。79/80配置原字节不变，仅USB轻拍snapshot的异步RAM寿命与等待后BOOT复验；不改键/参数/灯效/存储格式/手柄实现。
+- strict UBSan/ASan专项与同公共API旧失败新通过对照PASS；两种BOOT各50000次USB连续周期、30000手柄/24000输入/20000轻拍周期、两灯各200万poll的加速模拟均PASS。本轮完整host exit0、80配置/四层图/manifest、原机械证明/68万事件差分及新稳定性runner均PASS；本地无CMake如实SKIP，CI须执行32组合/9负例。ARM/UF2待执行，不借历史Run代替。
+- **未刷写、未设备长时间验收，device_tested=false；未发布/归档，不推稳定分支。** stock HID_0全局timeout/mutable DMA、abort丢ready缺许可限制未全修；RAM安全不是host ACK。详见[稳定性说明](<../docs/firmware_stability.md>)、[实机验收清单](<../docs/long_term_acceptance.md>)。
+
+## 历史候选：v2.3.0 行为保持型全局重构（2026-10-21）
 
 - 候选分支 `codex/firmware-refactor-v2.3.0-20261021`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`；行为基线v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，基线源归档与完整host日志已保留。
 - 当前专项/机械证明、68万事件旧新差分（含灯光日志与负例）、524288组PWM对照、6组合独立TU链接、完整host exit0和80配置/四层图同步均PASS。[Actions Run 39569977363](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39569977363>) regression/ARM成功，deliver按候选条件跳过；构建提交 `0526e2fea016fe48ab2a1f8cecd1e1db543397f3`。CI实际32配置CMake及9个拒绝负例PASS；本地缺CMake的SKIP不冒作本地运行成功。
