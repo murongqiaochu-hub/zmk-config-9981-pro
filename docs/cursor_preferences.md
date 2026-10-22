@@ -1,6 +1,6 @@
 # v2.3.3：五档指针记忆与 MEDIA 键盘慢呼吸
 
-2026-10-22；9981 Pro / P9981 / bbp9981，非 Air。功能源 `V233_FUNCTIONAL_COMMIT`，候选分支 `codex/cursor-presets-v2.3.3-20261022`。仅候选，不发布/自动归档、不刷写、不清配对/settings、不改主机。构建/交付不是设备验收。
+2026-10-22；9981 Pro / P9981 / bbp9981，非 Air。功能源 `1a1e15fc1b89d0bd31da449cab1f3e13661c35a9`，候选分支 `codex/cursor-presets-v2.3.3-20261022`。仅候选，不发布/自动归档、不刷写、不清配对/settings、不改主机。构建/交付不是设备验收。
 
 ## 用户已确认的操作
 
@@ -60,10 +60,10 @@ v2.3.2 防抖/旧削峰/BLE积压合并原样保留；滚轮/游戏杆继续走�
 | service/behavior 四组合 strict UBSan | 父侧已执行 PASS（含 frame latch） |
 | MEDIA ON 与三种旧 OFF oracle strict UBSan | 父侧已执行 PASS |
 | 历史重构机械证明/差分 | 父侧已执行 PASS；本地无 CMake 明确 SKIP |
-| 五档全 XY/actual A320/ASan/完整 host | 本轮执行中，完成后填实际结果 |
-| 独立只读审查 | 已核 pinned SDK/settings/workqueue/release；发现并修正帧内 fresh-gain 窗口，待新集成测试 |
+| 五档全 XY/actual A320/ASan/完整 host | 父侧已执行 PASS；包含I2C中途1/5cycle与live-gain负例 |
+| 独立只读审查 | 已核 pinned SDK/settings/workqueue/release；帧内窗口已修且正/负集成验证通过，无未解P1/P2 |
 | Actions ARM/UF2/DTS/Kconfig/资源 | 待本轮构建，不拿旧结果替代 |
-| 同批 PDF/Word/HTML/四图 QA | 待本轮导出；Word 不冒称独立 Office 渲染 |
+| 同批 PDF/Word/HTML/四图 QA | 27页A5/DOM≥9px、四图42键、PDF正文/Word原生文本+4图通过；Word未独立Office渲染 |
 | 设备刷写/断电保存/视觉/手感 | 未执行，device_tested=false |
 
 ## 精确回退
