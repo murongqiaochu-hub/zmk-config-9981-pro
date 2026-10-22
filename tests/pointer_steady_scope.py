@@ -76,7 +76,7 @@ def verified_legacy_view():
     paths = subprocess.check_output(['git','ls-tree','-r','--name-only',SEALED,'config'],
                                     cwd=ROOT,text=True).splitlines()
     # The newly authorized v2.3.3 is checked independently before this older
-    # proof sees its exact v2.3.2 feature-OFF view. No historical BASE changes.
+    # proof sees its exact v2.3.2 historical projection. No BASE changes.
     from user_preferences_scope import verified_v232_view
     current = verified_v232_view()
     actual = set(current)

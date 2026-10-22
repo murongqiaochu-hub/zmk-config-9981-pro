@@ -1,6 +1,6 @@
 # v2.3.3：五档指针记忆与 MEDIA 键盘慢呼吸
 
-2026-10-22；9981 Pro / P9981 / bbp9981，非 Air。功能源 `1a1e15fc1b89d0bd31da449cab1f3e13661c35a9`，候选分支 `codex/cursor-presets-v2.3.3-20261022`。仅候选，不发布/自动归档、不刷写、不清配对/settings、不改主机。构建/交付不是设备验收。
+2026-10-22；9981 Pro / P9981 / bbp9981，非 Air。功能源 `048201f8caeedeb729df3ca22aa2186c50aea476`，候选分支 `codex/cursor-presets-v2.3.3-20261022`。仅候选，不发布/自动归档、不刷写、不清配对/settings、不改主机。构建/交付不是设备验收。
 
 ## 用户已确认的操作
 
@@ -48,15 +48,19 @@ v2.3.2 防抖/旧削峰/BLE积压合并原样保留；滚轮/游戏杆继续走�
 
 基线是 v2.3.2 文档源 `11218ad83292f5ccf9105e41010c1062073e474d`。当前 85 个 config 文件：73/81 个既有文件原字节未动、8 个既有文件仅显式追加、4 个新速度/behavior 文件。
 
-[新范围闸](<../tests/user_preferences_scope.py>)精确剥离两 feature，还原全部 81 份 v2.3.2，再进入[原 v2.3.2 范围闸](<../tests/pointer_steady_scope.py>)还原 80 份 v2.3.1；所有更早 BASE/C oracle/SDK fixture 保留。历史功能证明只看经过新 gate 验证的 OFF 视图；新的 actual ON 由[专项 runner](<../tests/run_user_preferences_tests.py>)真实编译生产源码验证，不用换旧 oracle 令其接受新行为。
+[新范围闸](<../tests/user_preferences_scope.py>)明确移除授权新增内容/恢复Z，精确还原全部81份v2.3.2历史配置，再进入[原v2.3.2范围闸](<../tests/pointer_steady_scope.py>)还原80份v2.3.1；所有更早BASE/C oracle/SDK fixture保留。历史投影视图字节精确，**不冒称实际关闭Kconfig后的DTS/固件字节相同**。实际ON由[专项runner](<../tests/run_user_preferences_tests.py>)真实编译生产代码，OFF由不带service的独立目标验证输入等效none。
 
-两个键图都 gate behavior 节点与整行 Z 分支，OFF 保留原 `&none`；不借别名少算一个键。说明书/矩阵解析显式选择唯一宏分支，并以真正 C preprocessor 对照 ON/OFF。
+**Zephyr先生成DTS，再解析Kconfig。** 初次Run39740546545虽ARM成功，两开关y，但键图用CONFIG宏gate导致node与Z实际消失；云DTS全文与v2.3.2相同，最终闸已拒交并隔离。手工-D的CPP测试只证明模拟分支，不证明真实构建，此前该项证据已撤回。
+
+修正后两个键图的node与Z均为正常无条件DTS，导出/矩阵直接数42绑定，不用别名。CMake始终编译adapter；CONFIG_BBP9981_CURSOR_SPEED=n时按/放纯return OPAQUE，预处理排除held/cycle/service引用，与原&none输入行为等效。service仍只ON编译。独立OFF目标无service/无bbp桩，8组合（开关缺省/显式0×settings×metadata）链接、nm与ASan验证；云端还必须查实际node、零cells、UPPER28及其余167键。
+
+默认/加载不写仅指本速度key；主配置选SDK SETTINGS_TABLE，新behavior首次注册可能由SDK另存内部local-ID，不是动画/每帧写速度，也不要求清设置。
 
 ### 本轮验证状态
 
 | 项目 | 结果 |
 | --- | --- |
-| 精确生产范围/四层绑定/CPP ON-OFF | 父侧已执行 PASS |
+| 精确历史投影/四层绑定/无Kconfig的CPP | 修正后父侧PASS；初次CONFIG分支证据撤回 |
 | service/behavior 四组合 strict UBSan | 父侧已执行 PASS（含 frame latch） |
 | MEDIA ON 与三种旧 OFF oracle strict UBSan | 父侧已执行 PASS |
 | 历史重构机械证明/差分 | 父侧已执行 PASS；本地无 CMake 明确 SKIP |

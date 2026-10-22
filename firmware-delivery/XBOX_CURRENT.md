@@ -1,9 +1,9 @@
 # Xbox 布局标准 HID：v2.3.3 五档记忆/MEDIA慢呼吸候选（2026-10-22）
 
 - 用户已刷v2.3.2并反馈“有提升，但是提升不大”；坏C-to-C线已由用户确认。随后明确要求Z循环调速、重启保留和MEDIA键盘慢呼吸，选择五档0.6/0.9/1.2/1.5/1.8、首次1.2、物理左Ctrl半速。不把有限改善或本轮软件结果称实机手感彻底解决。
-- 功能源 `1a1e15fc1b89d0bd31da449cab1f3e13661c35a9`，候选分支 `codex/cursor-presets-v2.3.3-20261022`，基线 `11218ad83292f5ccf9105e41010c1062073e474d`。仅UPPER Z/P28变正常可映射behavior；独立两字节设置key、1秒合并保存、最多3失败、用户优先、frame latch避免跨gain旧tap/replay。MEDIA键盘仅改约3.6秒10→100→10%呼吸，其他层与触板灯保留；非硬件DPI。见[本轮说明](<../docs/cursor_preferences.md>)。
+- 功能源 `048201f8caeedeb729df3ca22aa2186c50aea476`，候选分支 `codex/cursor-presets-v2.3.3-20261022`，基线 `11218ad83292f5ccf9105e41010c1062073e474d`。仅UPPER Z/P28变正常可映射behavior；独立两字节设置key、1秒合并保存、最多3失败、用户优先、frame latch避免跨gain旧tap/replay。MEDIA键盘仅改约3.6秒10→100→10%呼吸，其他层与触板灯保留；非硬件DPI。见[本轮说明](<../docs/cursor_preferences.md>)。
 - 父侧新增专项strict UBSan/非PIE ASan已通过：actual service/behavior四组合、五档全signed8 XY小数、actual A320直发/microtap/raw shadow、I2C中途1/5次cycle、旧轮/RAW游戏杆隔离、MEDIA ON+三OFF灯oracle；fresh-gain旁路实际编译后被负例拒绝。初轮仅新测试误用旧idle无报告帮助器，在预期RAW replay的130ms改为普通poll后复验PASS，旧oracle未动。独立只读审查无未解决P1/P2；历史重构机械证明/差分PASS。
-- 范围：73/81旧配置原字节不变，8显式feature追加+4新文件；精确还原v2.3.2后再进原历史BASE，所有旧C oracle/SDK fixture冻结。两键图实际4×42只有UPPER Z不同，真正CPP核对ON/OFF。
+- 范围：73/81旧配置原字节不变，8受控修改+4新文件；明确历史投影精确还原v2.3.2后再进原BASE，所有旧C oracle/SDK fixture冻结。DTS先于Kconfig，node/Z无条件，adapter始终编译且OFF纯OPAQUE、不链接速度service；独立OFF八组合/nm/ASan通过。OFF输入等效原none，非DTS字节相同；SDK首次注册行为可能单独存内部ID。首次Run39740546545虽ARM成功但云DTS未绑定Z，已隔离禁止刷写，后续必须重新构建并验实际node/Z/其余167键。
 - 完整host exit0，85配置/四层168绑定与手册同步通过；27页A5 PDF/离线HTML/可编辑Word和四图同批导出，DOM最小页脚间距9px、PDF正文和Word4图/原生文本结构通过；Word未独立Office渲染。ARM/UF2与云端DTS/Kconfig核验待本轮Actions，不拿旧件冒充。候选未刷/未实机视觉/断电记忆验收，device_tested=false；不发布/归档、不推稳定、不刷写、清配对/settings或改主机，不以600KB删功能。
 - 精确回退：[已刷v2.3.2原UF2](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/09_云端构建产物/bbp9981-zmk.uf2>)，SHA `dbfc480a7da14ec8932b92083a60aea13986f98847320ba854577b838eda940c`。恢复固定1.2/0.6、UPPER Z无输出和MEDIA快闪；不擦新独立速度记录。下方旧记录是当时交付状态，不追改旧device_tested。
 
