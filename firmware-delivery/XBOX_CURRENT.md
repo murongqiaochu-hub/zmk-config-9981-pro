@@ -1,4 +1,11 @@
-# Xbox 布局标准 HID：v2.3.1 长期稳定性加固候选（2026-10-21）
+# Xbox 布局标准 HID：v2.3.1 研发封版（2026-10-22）
+
+- **最终只推荐v2.3.1现有二进制，不再继续改键/调参/重构，不以600KB为指标。** 本次封版只增加测试/文档，80份配置全部与实际构建d607df8相同，不重复ARM编译。手册v2.3.1.1只是文档修订；研发封版不是稳定发布或实机认证。
+- [最终单一UF2](</vol1/1000/agent/output/1022/104251_9981Pro最终封版_v2.3.1/09_最终固件/9981Pro_v2.3.1_封版.uf2>)与下方原v2.3.1逐字节相同，SHA不变；已刷相同SHA不需再刷。边界与来源仍是Run39614649971及下方完整记录。
+- 两名独立只读审查与父侧固定SDK/HAL核查未找到新增封版阻断。补充4500周期恢复边界只证明后续stock报告实际完成可恢复许可，不代表轻拍FAULT自动开启或物理恢复保证；原HID_0限制完整保留。
+- 日用三项注意、保留风险与不再安排多日研发长测见[封版说明](<../docs/final_release.md>)；下方为原加固/ARM/UF2核验证据，均保持真实历史身份。
+
+## v2.3.1 加固与实际ARM构建记录（2026-10-21）
 
 - 源码 `7d6ab94e57653deb8e20d142665eee351736f297`，候选分支 `codex/firmware-stability-v2.3.1-20261021`；基线v2.3.0 `2b2c7dc3cacfc64e5ec4a2b64c306f1caf2a1d6e`。79/80配置原字节不变，仅USB轻拍snapshot的异步RAM寿命与等待后BOOT复验；不改键/参数/灯效/存储格式/手柄实现。
 - strict UBSan/ASan专项与同公共API旧失败新通过对照PASS；两种BOOT各50000次USB连续周期、30000手柄/24000输入/20000轻拍周期、两灯各200万poll的加速模拟均PASS。本轮完整host exit0、80配置/四层图/manifest、原机械证明/68万事件差分及新稳定性runner均PASS。[Actions Run 39614649971](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39614649971>) regression、bbp9981 ARM及artifact合并成功，deliver/failure_context按候选条件跳过；构建提交 `d607df8b55ab676aa8910e787fb0a18e9e221389`。CI实际32组合CMake/9负例、新ASan/稳定性runner全部PASS；本地无CMake仍如实SKIP。
