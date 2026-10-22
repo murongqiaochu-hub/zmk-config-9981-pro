@@ -12,12 +12,13 @@ FROZEN_BUILD = 'd607df8b55ab676aa8910e787fb0a18e9e221389'
 def main():
     paths = subprocess.check_output(['git','ls-tree','-r','--name-only',FROZEN_BUILD,'config'],
                                     cwd=ROOT,text=True).splitlines()
-    actual = {str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
-    assert actual == set(paths), 'Final firmware must not add or remove config files'
+    from pointer_steady_scope import verified_legacy_view
+    actual = verified_legacy_view()
+    assert set(actual) == set(paths), 'Historical seal view must not add or remove config files'
     for path in paths:
         before = subprocess.check_output(['git','show',FROZEN_BUILD+':'+path],cwd=ROOT)
-        assert (ROOT/path).read_bytes() == before, 'Final firmware freeze changed: '+path
-    print(f'PASS final freeze: all {len(paths)} config files byte-identical to verified ARM build {FROZEN_BUILD}; no firmware feature/parameter or byte changes',flush=True)
+        assert actual[path] == before, 'Historical firmware seal changed: '+path
+    print(f'PASS historical v2.3.1 seal: verified feature-OFF view restores all {len(paths)} configs to ARM build {FROZEN_BUILD}; enabled v2.3.2 is separately scoped/tested, NOT binary-identical',flush=True)
     build = ROOT/'.host-test-build'
     build.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='final-review-',dir=build) as folder:

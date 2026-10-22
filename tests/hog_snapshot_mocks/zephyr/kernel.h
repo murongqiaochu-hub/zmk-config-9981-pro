@@ -25,6 +25,7 @@ struct k_msgq {
     struct k_msgq name = {.buffer = name##_buffer, .item_size = (size), .capacity = (depth)}
 int k_msgq_put(struct k_msgq *q, const void *data, k_timeout_t timeout);
 int k_msgq_get(struct k_msgq *q, void *data, k_timeout_t timeout);
+int k_msgq_peek(struct k_msgq *q, void *data);
 unsigned int k_msgq_num_used_get(struct k_msgq *q);
 struct k_work_q { bool started, plugged; };
 struct k_work { void (*handler)(struct k_work *); };

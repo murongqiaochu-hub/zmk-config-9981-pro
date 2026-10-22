@@ -30,7 +30,9 @@ def same_function(old, new, name):
 def scope_checks():
     previous = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', BASE, 'config'],
                                        cwd=ROOT, text=True).splitlines()
-    changed = {p for p in previous if reference(p) != (ROOT / p).read_bytes()}
+    from pointer_steady_scope import verified_legacy_view
+    legacy_view = verified_legacy_view()
+    changed = {p for p in previous if reference(p) != legacy_view[p]}
     expected = {'config/boards/arm/bbp9981/CMakeLists.txt'} | {DRIVER + p for p in [
         'a320_0x57.c', 'behavior_gamepad.c', 'gamepad_runtime.h', 'gamepad_usb.c',
         'gamepad_usb_extension.h', 'keyboard_backlight.c', 'trackpad_led.c']}
@@ -44,7 +46,7 @@ def scope_checks():
         verify_stability_scope()
         changed.remove(snapshot)
     assert changed == expected, ('unexpected refactor edits', changed ^ expected)
-    added = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.is_file()} - set(previous)
+    added = set(legacy_view) - set(previous)
     new = {DRIVER + p for p in ['trackpad_mode.c', 'trackpad_mode.h', 'trackpad_scroll.h',
                                'gamepad_runtime.c', 'indicator_pwm.h']}
     new |= {'config/boards/arm/bbp9981/cmake/' + p for p in ['matrix_guard.cmake',
@@ -56,7 +58,7 @@ def scope_checks():
     # All sensor I/O, diagnostic probe transactions and mode/listener bodies are frozen.
     old = reference(DRIVER + 'a320_0x57.c').decode()
     mode = text(DRIVER + 'trackpad_mode.c')
-    sensor = text(DRIVER + 'a320_0x57.c')
+    sensor = legacy_view[DRIVER + 'a320_0x57.c'].decode()
     for name in ['ctrl_listener_cb', 'tp_scroll_mode_active', 'tp_scroll_lock_is_latched',
                  'tp_scroll_aa_is_pressed', 'tp_scroll_is_locked', 'tp_mouse_orientation_reversed',
                  'tp_mouse_orientation_toggle', 'scroll_shoulder_bit',

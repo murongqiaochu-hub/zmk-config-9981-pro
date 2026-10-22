@@ -17,9 +17,12 @@ def reference(path):
 def verify_stability_scope():
     paths=subprocess.check_output(['git','ls-tree','-r','--name-only',STABILITY_BASE,'config'],
                                   cwd=ROOT,text=True).splitlines()
-    current={str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
-    assert current==set(paths),'Stability release must not add/remove config files'
-    changed={p for p in paths if (ROOT/p).read_bytes()!=reference(p)}
+    # v2.3.2 is a NEW, explicitly authorized mouse behavior change. Preserve this
+    # older BASE/proof using its independently verified exact feature-OFF view.
+    from pointer_steady_scope import verified_legacy_view
+    current=verified_legacy_view()
+    assert set(current)==set(paths),'Stability release must not add/remove config files'
+    changed={p for p in paths if current[p]!=reference(p)}
     assert changed=={SNAPSHOT},('Unreviewed production scope',changed)
     # Real SDK source fixtures and all pre-existing behavior oracles stay exact.
     for path in ['tests/sdk_v0_3_0_usb.c','tests/sdk_v0_3_0_usb_hid.c',

@@ -26,6 +26,16 @@
 #include "trackpad_scroll_lock.h"
 #include "trackpad_pointer.h"
 #include "trackpad_scroll.h"
+#ifdef CONFIG_A320_CURSOR_STEADY
+#include "trackpad_cursor_filter.h"
+#include <zmk/events/endpoint_changed.h>
+#if IS_ENABLED(CONFIG_ZMK_USB)
+#include <zmk/events/usb_conn_state_changed.h>
+#endif
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+#include <zmk/events/ble_active_profile_changed.h>
+#endif
+#endif
 #ifdef CONFIG_BBP9981_GAMEPAD
 #include "gamepad_runtime.h"
 /* Late ownership check also covers a layer change during an I2C read/replay.
@@ -74,6 +84,24 @@ static uint8_t last_scroll_rotation;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
 static bool last_mouse_orientation_reversed;
+#ifdef CONFIG_A320_CURSOR_STEADY
+static struct tp_cursor_filter cursor_filter;
+/* Callbacks publish only a reset request; the sensor worker owns filter state. */
+static atomic_t cursor_context_dirty;
+static int cursor_context_changed(const zmk_event_t *event) {
+    (void)event;
+    atomic_set(&cursor_context_dirty, 1);
+    return ZMK_EV_EVENT_BUBBLE;
+}
+ZMK_LISTENER(a320_cursor_context, cursor_context_changed);
+ZMK_SUBSCRIPTION(a320_cursor_context, zmk_endpoint_changed);
+#if IS_ENABLED(CONFIG_ZMK_USB)
+ZMK_SUBSCRIPTION(a320_cursor_context, zmk_usb_conn_state_changed);
+#endif
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+ZMK_SUBSCRIPTION(a320_cursor_context, zmk_ble_active_profile_changed);
+#endif
+#endif
 
 /* =========================
  *   Data & Config structs
@@ -192,6 +220,11 @@ struct micro_cursor_context { const struct device *dev; bool slow; bool invert_y
 static void micro_emit_cursor(void *opaque, int16_t dx, int16_t dy, uint32_t at_ms) {
     const struct micro_cursor_context *ctx = opaque;
     int16_t x, y;
+#ifdef CONFIG_A320_CURSOR_STEADY
+    /* Shape only committed cursor frames, using original sample timestamps.
+     * The raw shadow pointer used by tap eligibility is deliberately untouched. */
+    tp_cursor_filter_apply(&cursor_filter, (int8_t)dx, (int8_t)dy, at_ms, &dx, &dy);
+#endif
     /* Only committed raw frames reach the ORIGINAL fractional pointer state.
      * A discarded gesture has never spent a fraction or moved the host cursor. */
     tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy, ctx->slow, at_ms, &x, &y);
@@ -206,6 +239,12 @@ static void a320_poll_work_handler(struct k_work *work) {
     const struct device *dev = data->dev;
 
     int pin_state = gpio_pin_get(motion_gpio_dev, MOTION_GPIO_PIN);
+#ifdef CONFIG_A320_CURSOR_STEADY
+    if (atomic_set(&cursor_context_dirty, 0)) {
+        tp_cursor_filter_reset(&cursor_filter);
+        tp_pointer_reset(&cursor_motion);
+    }
+#endif
 #ifdef CONFIG_A320_TAP_OUTPUT
     int32_t tap_dx=0,tap_dy=0;
     bool tap_motion_fault=pin_state<0;
@@ -218,6 +257,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     if (mouse_reversed != last_mouse_orientation_reversed) {
         /* Reset only mouse pointer fractions; leave scroll accumulation untouched. */
         tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
         last_mouse_orientation_reversed = mouse_reversed;
 #ifdef CONFIG_A320_MICROTAP
         tp_microtap_runtime_interrupt();
@@ -234,6 +276,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     if (game_epoch != last_gamepad_pointer_epoch) {
         tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
         last_gamepad_pointer_epoch = game_epoch;
     }
     if (bbp_gamepad_layer_active()) {
@@ -245,6 +290,9 @@ static void a320_poll_work_handler(struct k_work *work) {
         /* Never spend old cursor fractions or wheel accumulation in a stick. */
         tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
         last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
         last_scroll_locked = scroll_locked; last_shoulder_slow = shoulder_slow;
         last_scroll_rotation = scroll_rotation;
@@ -269,6 +317,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
         tp_scroll_reset(&scroll_motion);
         tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
     }
     if (scroll_locked != last_scroll_locked || shoulder_slow != last_shoulder_slow) {
         /* Do not carry raw samples or fractional wheel notches across lock/speed edges. */
@@ -283,12 +334,18 @@ static void a320_poll_work_handler(struct k_work *work) {
     }
     if (speed != last_cursor_speed_snapshot) {
         tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
     }
     last_scroll_snapshot = snapshot;
     last_cursor_speed_snapshot = speed;
     tp_pointer_prepare(&cursor_motion, slow_pointer);
 #ifndef CONFIG_A320_MICROTAP
     tp_pointer_expire(&cursor_motion, k_uptime_get_32());
+#ifdef CONFIG_A320_CURSOR_STEADY
+    tp_cursor_filter_expire(&cursor_filter, k_uptime_get_32());
+#endif
 #endif
 
     if (pin_state == 0) {
@@ -308,6 +365,10 @@ static void a320_poll_work_handler(struct k_work *work) {
                 }
 #else
                 int16_t cursor_x, cursor_y;
+#ifdef CONFIG_A320_CURSOR_STEADY
+                tp_cursor_filter_apply(&cursor_filter, (int8_t)dx, (int8_t)dy,
+                                       k_uptime_get_32(), &dx, &dy);
+#endif
                 tp_pointer_motion(&cursor_motion, (int8_t)dx, (int8_t)dy,
                                   slow_pointer, k_uptime_get_32(), &cursor_x, &cursor_y);
                 if (mouse_reversed) { cursor_y = tp_scroll_negate_saturated(cursor_y); }
@@ -343,11 +404,17 @@ static void a320_poll_work_handler(struct k_work *work) {
             atomic_set(&touched, 0);
             tp_scroll_reset(&scroll_motion);
             tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+            tp_cursor_filter_reset(&cursor_filter);
+#endif
         }
     } else {
         atomic_set(&touched, 0);
         if (pin_state < 0) {
             tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+            tp_cursor_filter_reset(&cursor_filter);
+#endif
         }
     }
 
@@ -359,6 +426,15 @@ static void a320_poll_work_handler(struct k_work *work) {
     struct micro_cursor_context cursor_ctx = {
         .dev = dev, .slow = slow_pointer, .invert_y = mouse_reversed,
     };
+#ifdef CONFIG_A320_CURSOR_STEADY
+    if (tap_motion_fault) {
+        /* A fault ends this cursor epoch. Cancel undecided/queued pre-fault
+         * motion through the existing context path; a deferred replay must not
+         * repopulate the freshly reset spike/band state after recovery.
+         * The bridge still owns and completes any necessary button UP. */
+        tp_microtap_runtime_interrupt();
+    }
+#endif
     tp_microtap_runtime_poll(k_uptime_get_32(), (int16_t)tap_dx, (int16_t)tap_dy,
                             !tap_motion_fault, scroll_mode, snapshot, speed,
                             micro_emit_cursor, &cursor_ctx);
@@ -369,6 +445,9 @@ static void a320_poll_work_handler(struct k_work *work) {
     }
     if (!tp_microtap_runtime_pending()) {
         tp_pointer_expire(&cursor_motion, k_uptime_get_32());
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_expire(&cursor_filter, k_uptime_get_32());
+#endif
     }
 #elif defined(CONFIG_A320_TAP_OUTPUT)
     tp_tap_pipeline_poll(k_uptime_get_32(),tap_dx,tap_dy,tap_motion_fault,scroll_mode,snapshot);
@@ -436,6 +515,9 @@ static int a320_init(const struct device *dev) {
     }
 
     data->dev = dev;
+#ifdef CONFIG_A320_CURSOR_STEADY
+    tp_cursor_filter_reset(&cursor_filter);
+#endif
     tp_mode_init();
 #ifdef CONFIG_A320_MICROTAP
     tp_microtap_runtime_init();

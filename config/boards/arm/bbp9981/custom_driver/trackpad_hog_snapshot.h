@@ -41,6 +41,9 @@ struct bbp9981_hog_mouse_stats {
     uint32_t retries;
     uint32_t security_requests;
     uint32_t schedule_errors;
+#ifdef CONFIG_A320_CURSOR_STEADY
+    uint32_t coalesced;
+#endif
     unsigned int outstanding;
     int last_enqueue_error;
     int last_send_error;
@@ -75,6 +78,9 @@ struct bbp9981_hog_mouse_entry {
     struct zmk_hid_mouse_report_body body;
     struct bt_conn *conn;
     int64_t expires_at;
+#ifdef CONFIG_A320_CURSOR_STEADY
+    bool normal_motion;
+#endif
 };
 
 /* outstanding includes the removed-but-pending HEAD, so total owned references
@@ -117,6 +123,45 @@ static void bbp9981_hog_mouse_load_head_locked(void) {
     }
 }
 
+#ifdef CONFIG_A320_CURSOR_STEADY
+/* Collapse only an already queued straight-line burst, with no new timer or
+ * admission wait. A snapshot, zero XY, wheel, turn, peer/button change, overflow,
+ * or >10ms from the FIRST admission is an absolute barrier. Keep oldest TTL.
+ * Never rewrite a failed or SDK-owned head: retry must use the identical body. */
+static unsigned int bbp9981_hog_mouse_coalesce_locked(struct bt_conn **released) {
+    if (!bbp9981_hog_mouse_head.valid || bbp9981_hog_mouse_head.sending ||
+        bbp9981_hog_mouse_head.attempts || !bbp9981_hog_mouse_head.entry.normal_motion) {
+        return 0;
+    }
+    struct bbp9981_hog_mouse_entry *head = &bbp9981_hog_mouse_head.entry;
+    unsigned int count = 0;
+    struct bbp9981_hog_mouse_entry next;
+    while (k_msgq_peek(&bbp9981_hog_mouse_fifo, &next) == 0) {
+        int32_t x = (int32_t)head->body.d_x + next.body.d_x;
+        int32_t y = (int32_t)head->body.d_y + next.body.d_y;
+        int64_t cross = (int64_t)head->body.d_x * next.body.d_y -
+                        (int64_t)head->body.d_y * next.body.d_x;
+        int64_t dot = (int64_t)head->body.d_x * next.body.d_x +
+                      (int64_t)head->body.d_y * next.body.d_y;
+        if (!next.normal_motion || next.conn != head->conn ||
+            next.body.buttons != head->body.buttons ||
+            next.expires_at < head->expires_at || next.expires_at - head->expires_at > 10 ||
+            cross != 0 || dot <= 0 || x < INT16_MIN || x > INT16_MAX ||
+            y < INT16_MIN || y > INT16_MAX) {
+            break;
+        }
+        int ret = k_msgq_get(&bbp9981_hog_mouse_fifo, &next, K_NO_WAIT);
+        __ASSERT_NO_MSG(ret == 0);
+        (void)ret;
+        head->body.d_x = (int16_t)x;
+        head->body.d_y = (int16_t)y;
+        released[count++] = next.conn;
+        bbp9981_hog_mouse_stats.outstanding--;
+        bbp9981_hog_mouse_stats.coalesced++;
+    }
+    return count;
+}
+#endif
 /* Terminal failure/disconnect cancels HEAD and all already queued reports for
  * that SAME connection (including a queued UP), without replay or rerouting.
  * Other captured peers retain their FIFO order. NULL cancels all unsent entries
@@ -236,10 +281,19 @@ static void bbp9981_hog_mouse_worker(struct k_work *work) {
         bbp9981_hog_mouse_unref_batch(released, count);
         return;
     }
+#ifdef CONFIG_A320_CURSOR_STEADY
+    count = bbp9981_hog_mouse_coalesce_locked(released);
+#endif
     struct bbp9981_hog_mouse_entry entry = bbp9981_hog_mouse_head.entry;
     unsigned int diag_outstanding = bbp9981_hog_mouse_stats.outstanding;
     bbp9981_hog_mouse_head.sending = true;
     k_spin_unlock(&bbp9981_hog_mouse_lock, key);
+#ifdef CONFIG_A320_CURSOR_STEADY
+    /* Release absorbed references BEFORE an SDK wait: producers may refill the
+     * freed capacity, so retaining this batch would overflow cleanup's array. */
+    bbp9981_hog_mouse_unref_batch(released, count);
+    count = 0;
+#endif
 
     struct bt_conn_info info;
     bool terminal = false;
@@ -323,6 +377,10 @@ static int bbp9981_hog_mouse_enqueue(const struct zmk_hid_mouse_report_body *bod
         return bbp9981_hog_mouse_reject(-EINVAL);
     }
     struct bbp9981_hog_mouse_entry entry = {.body = *body};
+#ifdef CONFIG_A320_CURSOR_STEADY
+    entry.normal_motion = expected_profile < 0 && (body->d_x != 0 || body->d_y != 0) &&
+                          body->d_scroll_x == 0 && body->d_scroll_y == 0;
+#endif
     int profile = zmk_ble_active_profile_index();
     if (profile < 0 || (expected_profile >= 0 && profile != expected_profile)) {
         return bbp9981_hog_mouse_reject(-ESTALE);

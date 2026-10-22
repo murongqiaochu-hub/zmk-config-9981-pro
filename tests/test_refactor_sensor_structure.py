@@ -54,7 +54,8 @@ def main():
                             ('scroll_shoulder_modifier_snapshot','tp_mode_shoulder_snapshot')]:
         expected=expected.replace('(uint32_t)atomic_get(&'+snapshot+')',getter+'()')
     expected=expected.replace('atomic_set(&scroll_shoulder_modifier_snapshot, 0);','tp_mode_init();')
-    actual=(ROOT/DRIVER/'a320_0x57.c').read_text()
+    from pointer_steady_scope import verified_legacy_view
+    actual=verified_legacy_view()[DRIVER+'a320_0x57.c'].decode()
     assert tokens(expected)==tokens(actual),'driver changed beyond enumerated extraction/state/getter/reset edits'
 
     mode=(ROOT/DRIVER/'trackpad_mode.c').read_text()
