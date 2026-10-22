@@ -7,6 +7,7 @@
  * /tmp/test_cursor_speed_on
  * Replace CONFIG_SETTINGS=1 with =0 and use another output for volatile mode.
  */
+#define CONFIG_BBP9981_CURSOR_SPEED 1
 #include "cursor_speed_mocks/cursor_speed_mock_env.h"
 #include "../config/boards/arm/bbp9981/custom_driver/trackpad_cursor_speed.c"
 #include "../config/boards/arm/bbp9981/custom_driver/behavior_cursor_speed.c"

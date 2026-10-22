@@ -10,6 +10,7 @@
 #include "trackpad_cursor_speed.h"
 
 #if DT_HAS_COMPAT_STATUS_OKAY(DT_DRV_COMPAT)
+#if IS_ENABLED(CONFIG_BBP9981_CURSOR_SPEED)
 /* BBP9981 has 42 positions. Track ownership by captured physical position, not
  * current layer or binding pointer. ZMK retains DOWN's layer state for normal
  * cross-layer UP, so leaving UPPER does not strand the held bit. Live Studio
@@ -48,6 +49,22 @@ static int cursor_speed_released(struct zmk_behavior_binding *binding,
     }
     return ZMK_BEHAVIOR_OPAQUE;
 }
+
+#else
+/* DTS is generated before Kconfig: the normal node always exists. Keep a
+ * linkable opaque no-op when disabled, with no service/work/settings refs.
+ */
+static int cursor_speed_pressed(struct zmk_behavior_binding *binding,
+                                struct zmk_behavior_binding_event event) {
+    (void)binding; (void)event;
+    return ZMK_BEHAVIOR_OPAQUE;
+}
+static int cursor_speed_released(struct zmk_behavior_binding *binding,
+                                 struct zmk_behavior_binding_event event) {
+    (void)binding; (void)event;
+    return ZMK_BEHAVIOR_OPAQUE;
+}
+#endif /* CONFIG_BBP9981_CURSOR_SPEED */
 
 static const struct behavior_driver_api cursor_speed_api = {
     .binding_pressed = cursor_speed_pressed,

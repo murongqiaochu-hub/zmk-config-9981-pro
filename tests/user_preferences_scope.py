@@ -11,7 +11,7 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
-from build_manual import bindings, select_cursor_speed_keymap
+from build_manual import bindings
 
 BASE='11218ad83292f5ccf9105e41010c1062073e474d'
 DRIVER='config/boards/arm/bbp9981/custom_driver/'
@@ -26,12 +26,20 @@ CONF_ADDITION='''
 CONFIG_BBP9981_CURSOR_SPEED=y
 CONFIG_BBP9981_MEDIA_BREATHE=y
 '''
-CMAKE_ADDITION='''    # v2.3.3: one optional mouse-speed setting and its keymap adapter.
+CMAKE_ADDITION='''    # v2.3.3: DTS precedes Kconfig; always provide the node's OFF-safe adapter.
+    zephyr_library_sources(custom_driver/behavior_cursor_speed.c)
     if(CONFIG_BBP9981_CURSOR_SPEED)
-        zephyr_library_sources(custom_driver/trackpad_cursor_speed.c
-                               custom_driver/behavior_cursor_speed.c)
+        zephyr_library_sources(custom_driver/trackpad_cursor_speed.c)
     endif()
 '''
+KEYMAP_NODE='''        cursor_speed: cursor_speed {
+            compatible = "zmk,behavior-cursor-speed";
+            #binding-cells = <0>;
+            display-name = "Mouse gain: cycle five persistent presets";
+        };
+'''
+KEYMAP_ROW_OLD='    &kp LSHFT    &none      &rgb_ug RGB_BRD &bl BL_DEC        &rgb_ug RGB_TOG  &bl BL_INC       &rgb_ug RGB_BRI &aa_scroll_gesture_key &td_boot_out     &kp ENTER\n'
+KEYMAP_ROW_NEW='    &kp LSHFT    &cursor_speed &rgb_ug RGB_BRD &bl BL_DEC        &rgb_ug RGB_TOG  &bl BL_INC       &rgb_ug RGB_BRI &aa_scroll_gesture_key &td_boot_out     &kp ENTER\n'
 KCONFIG_ADDITION='''config BBP9981_CURSOR_SPEED
     bool "Five persistent ordinary mouse gain presets"
     depends on BOARD_BBP9981 && ZMK_POINTING && SETTINGS
@@ -93,7 +101,14 @@ def remove_exact(path,data,text):
 
 def restore(path,data):
     if path in KEYMAPS:
-        return select_cursor_speed_keymap(data.decode(),enabled=False).encode()
+        # This is an explicit historical projection, NOT real Kconfig-OFF DTS.
+        # Real OFF keeps the node and uses the compiled opaque no-op adapter.
+        data=remove_exact(path,data,KEYMAP_NODE)
+        newline='\r\n' if b'\r\n' in base(path) else '\n'
+        before=KEYMAP_ROW_NEW.replace('\n',newline).encode()
+        after=KEYMAP_ROW_OLD.replace('\n',newline).encode()
+        assert data.count(before)==1,('Exact Z-only row missing',path)
+        return data.replace(before,after)
     if path in {DRIVER+'a320_0x57.c',DRIVER+'trackpad_pointer.h'}:
         return strip_blocks(data,'CONFIG_BBP9981_CURSOR_SPEED')
     if path==DRIVER+'keyboard_backlight.c':
@@ -132,7 +147,7 @@ def verified_v232_view():
 def main():
     view=verified_v232_view()
     print(f'PASS v2.3.3 scope: {len(view)-len(CHANGED)}/{len(view)} existing configs byte-exact, '
-          '8 exact feature additions + 4 new speed files; complete v2.3.2 OFF view restored; '
+          '8 explicitly scoped edits + 4 new speed files; complete v2.3.2 historical projection restored; '
           'enabled 4x42 maps differ ONLY at UPPER Z; all old C oracles/SDK fixtures frozen')
 
 

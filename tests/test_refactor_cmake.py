@@ -78,13 +78,18 @@ def run(harness, board, sdk, flags, failure=''):
 
 def events(result, board, sdk):
     lines = [line for line in result.stdout.splitlines() if line.startswith('-- EVENT')]
-    # The added mode/runtime sources are the two intentional build differences.
+    # Preserve the two original refactor exceptions. v2.3.3's one always-built
+    # opaque adapter is separately exact-scoped and asserted below, not hidden
+    # by changing the immutable historical BASE or accepting arbitrary sources.
     lines = [line for line in lines if line not in [
-        '-- EVENT source custom_driver/trackpad_mode.c', '-- EVENT source custom_driver/gamepad_runtime.c']]
+        '-- EVENT source custom_driver/trackpad_mode.c', '-- EVENT source custom_driver/gamepad_runtime.c',
+        '-- EVENT source custom_driver/behavior_cursor_speed.c']]
     return [line.replace(str(board), 'BOARD').replace(str(sdk), 'SDK') for line in lines]
 
 
 def main():
+    from user_preferences_scope import verified_v232_view
+    verified_v232_view()  # Verify the one new adapter before projecting its event.
     if shutil.which('cmake') is None:
         assert not os.environ.get('CI'), 'CI must execute the real CMake contract matrix'
         print('SKIP executed CMake matrix locally: cmake unavailable; exact expanded-token gate still runs; CI requires real CMake')
@@ -107,7 +112,20 @@ def main():
             before=run(harness,old,sdk,flags); after=run(harness,ROOT/BOARD,sdk,flags)
             assert before.returncode==after.returncode==0, (flags,before.stderr,after.stderr)
             assert events(before,old,sdk)==events(after,ROOT/BOARD,sdk), flags
+            assert after.stdout.splitlines().count('-- EVENT source custom_driver/behavior_cursor_speed.c')==1
+            assert '-- EVENT source custom_driver/trackpad_cursor_speed.c' not in after.stdout
             count+=1
+        # Actual current CMake: adapter must link even with Kconfig OFF, whereas
+        # only the settings/motion service is optional. Do not fake DTS config.
+        for speed in [0,1]:
+            flags=dict(CONFIG_BBP9981_GAMEPAD=1,CONFIG_A320_TAP_OUTPUT=1,
+                       CONFIG_ZMK_USB=1,CONFIG_ZMK_BLE=1,CONFIG_A320_MICROTAP=1,
+                       CONFIG_BBP9981_CURSOR_SPEED=speed)
+            result=run(harness,ROOT/BOARD,sdk,flags)
+            assert result.returncode==0,result.stderr
+            lines=result.stdout.splitlines()
+            assert lines.count('-- EVENT source custom_driver/behavior_cursor_speed.c')==1
+            assert lines.count('-- EVENT source custom_driver/trackpad_cursor_speed.c')==speed
         flags=dict(CONFIG_BBP9981_GAMEPAD=1,CONFIG_A320_TAP_OUTPUT=1,
                    CONFIG_ZMK_USB=1,CONFIG_ZMK_BLE=1,CONFIG_A320_MICROTAP=1)
         failures=['missing_revision','zephyr_revision','zephyr_dirty','hal_revision','hal_dirty']
@@ -123,6 +141,7 @@ def main():
             path.write_bytes(good)
     print(f'PASS CMake contract: {count} GP/tap/USB/BLE/micro combinations identical source/preinclude traces; '
           '5 revision/dirty + 4 SHA negatives still fail closed; no real SDK writes')
+    print('PASS CMake cursor adapter: actual OFF/ON always links one adapter; only ON links speed service')
 
 
 if __name__=='__main__': main()

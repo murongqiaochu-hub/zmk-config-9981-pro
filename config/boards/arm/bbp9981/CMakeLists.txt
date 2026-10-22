@@ -10,10 +10,10 @@ if(CONFIG_BOARD_BBP9981)
                            custom_driver/behavior_aa_layer.c)
     zephyr_library_sources(custom_driver/trackpad_led.c)
     zephyr_library_sources(custom_driver/keyboard_backlight.c)
-    # v2.3.3: one optional mouse-speed setting and its keymap adapter.
+    # v2.3.3: DTS precedes Kconfig; always provide the node's OFF-safe adapter.
+    zephyr_library_sources(custom_driver/behavior_cursor_speed.c)
     if(CONFIG_BBP9981_CURSOR_SPEED)
-        zephyr_library_sources(custom_driver/trackpad_cursor_speed.c
-                               custom_driver/behavior_cursor_speed.c)
+        zephyr_library_sources(custom_driver/trackpad_cursor_speed.c)
     endif()
     include("${CMAKE_CURRENT_LIST_DIR}/cmake/matrix_guard.cmake")
     zephyr_library_include_directories(${ZEPHYR_BASE}/drivers)

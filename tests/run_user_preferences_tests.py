@@ -9,8 +9,8 @@ import re
 import resource
 import subprocess
 import tempfile
-from user_preferences_scope import (ROOT, DRIVER, KEYMAPS, base, restore,
-                                    verified_v232_view, select_cursor_speed_keymap)
+from user_preferences_scope import (ROOT, DRIVER, KEYMAPS, KEYMAP_NODE,
+                                    KEYMAP_ROW_NEW, base, restore, verified_v232_view)
 
 CC=os.environ.get('CC','cc')
 COMMON=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-parameter',
@@ -41,19 +41,18 @@ def source_contracts():
         assert re.search('^'+re.escape(flag)+'$',conf,re.M),flag
     schema=(ROOT/'config/dts/bindings/behaviors/zmk,behavior-cursor-speed.yaml').read_text()
     assert 'include: zero_param.yaml' in schema and not re.search(r'^binding-cells:',schema,re.M)
-    # Resolve actual feature islands with the system CPP as well as the export
-    # parser; fail if either ON or OFF metadata/binding escapes its gate.
+    # Real Zephyr generates DTS BEFORE Kconfig. Do NOT inject CONFIG macros to
+    # make a test pass while the deployed Z binding vanishes. The normal node
+    # and binding must survive preprocessing with NO Kconfig definitions.
     for path in KEYMAPS:
         data=(ROOT/path).read_text()
-        islands=re.findall(r'^#ifdef CONFIG_BBP9981_CURSOR_SPEED\n.*?^#endif\n',data,re.M|re.S)
-        assert len(islands)==2
-        fragment=''.join(islands)
-        for enabled in [False,True]:
-            flags=['-DCONFIG_BBP9981_CURSOR_SPEED=1'] if enabled else []
-            expanded=subprocess.check_output([CC,'-E','-P','-x','assembler-with-cpp',*flags,'-'],input=fragment,text=True)
-            expected=select_cursor_speed_keymap(fragment,enabled)
-            assert expanded.split()==expected.split(),(path,enabled,expanded,expected)
-        assert select_cursor_speed_keymap(data,False).encode()==base(path).replace(b'\r\n',b'\n')
+        assert 'CONFIG_BBP9981_CURSOR_SPEED' not in data
+        assert data.count(KEYMAP_NODE)==1 and data.count(KEYMAP_ROW_NEW)==1
+        fragment=KEYMAP_NODE+KEYMAP_ROW_NEW
+        expanded=subprocess.check_output([CC,'-E','-P','-x','assembler-with-cpp','-'],input=fragment,text=True)
+        assert expanded.split()==fragment.split(),(path,expanded)
+        assert 'cursor_speed: cursor_speed' in expanded and '&cursor_speed' in expanded
+        assert restore(path,(ROOT/path).read_bytes())==base(path)
     # These changes were NOT authorized: the feature projection must reject
     # altered GPIO, fixed denominator, SYM flash rate and non-Z key bindings.
     for path,before,after in [
@@ -64,7 +63,7 @@ def source_contracts():
     ]:
         current=(ROOT/path).read_bytes();changed=current.replace(before,after,1)
         assert changed!=current and restore(path,changed)!=base(path),path
-    print(f'PASS v2.3.3 source contracts: {len(view)} exact v2.3.2 files restored, 4x42 current maps only UPPER Z; CPP ON/OFF, schema, persistence defaults, out-of-scope counterexamples',flush=True)
+    print(f'PASS v2.3.3 source contracts: {len(view)} exact v2.3.2 historical files restored, 4x42 current maps only UPPER Z; no-Kconfig DTS CPP, schema, persistence defaults, out-of-scope counterexamples',flush=True)
 
 
 def main():
@@ -79,6 +78,14 @@ def main():
                 build_run('test_cursor_speed.c',temp/f'service{settings}{metadata}',
                           [ROOT/'tests/cursor_speed_mocks'],
                           [f'-DCONFIG_SETTINGS={settings}',f'-DCONFIG_ZMK_BEHAVIOR_METADATA={metadata}','-pedantic'])
+        for defined_zero in [False,True]:
+            for settings in [0,1]:
+                for metadata in [0,1]:
+                    target=temp/f'disabled{int(defined_zero)}{settings}{metadata}'
+                    flags=[f'-DCONFIG_SETTINGS={settings}',f'-DCONFIG_ZMK_BEHAVIOR_METADATA={metadata}','-pedantic']
+                    if defined_zero:flags.append('-DCONFIG_BBP9981_CURSOR_SPEED=0')
+                    build_run('test_cursor_speed_disabled.c',target,[ROOT/'tests/cursor_speed_mocks'],flags)
+                    assert 'bbp_cursor_speed_' not in subprocess.check_output(['nm','-u',str(target)],text=True)
         build_run('test_cursor_presets_math.c',temp/'math',[stubs])
         for micro in [0,1]:
             build_run('test_cursor_presets_driver.c',temp/f'driver{micro}',[stubs],
@@ -90,13 +97,15 @@ def main():
             build_run('test_media_breathe.c',temp/('media-off-'+label),[stubs],[*media,*extra])
         build_run('test_cursor_speed.c',temp/'service-asan',[ROOT/'tests/cursor_speed_mocks'],
                   ['-DCONFIG_SETTINGS=1','-DCONFIG_ZMK_BEHAVIOR_METADATA=1','-pedantic'],asan=True)
+        build_run('test_cursor_speed_disabled.c',temp/'disabled-asan',[ROOT/'tests/cursor_speed_mocks'],
+                  ['-DCONFIG_SETTINGS=1','-DCONFIG_ZMK_BEHAVIOR_METADATA=1','-pedantic'],asan=True)
         build_run('test_cursor_presets_math.c',temp/'math-asan',[stubs],asan=True)
         build_run('test_cursor_presets_driver.c',temp/'driver-asan',[stubs],asan=True)
         build_run('test_media_breathe.c',temp/'media-asan',[stubs],
                   [*media,'-DCONFIG_BBP9981_MEDIA_BREATHE=1'],asan=True)
         build_run('test_cursor_presets_driver.c',temp/'negative',[stubs],
                   ['-DTEST_CURSOR_MICRO=1','-DTEST_NEGATIVE_LIVE_GAIN=1'],negative=True)
-    print('PASS user preferences: actual ON service/behavior/pointer/A320/shadow/filter and MEDIA, true feature OFF, strict UBSan + ASan; no physical flash, visual, radio or host-speed acceptance')
+    print('PASS user preferences: actual ON service/behavior/pointer/A320/shadow/filter and MEDIA, independent compiled OFF no-op shim without service, strict UBSan + ASan; no physical flash, visual, radio or host-speed acceptance')
 
 
 if __name__=='__main__':main()
