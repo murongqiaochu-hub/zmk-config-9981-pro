@@ -63,7 +63,7 @@ try{
  for(let i=0;i<4;i++)await shoot(`.map:has(svg[aria-label^="${['default','sym','upper','media'][i]}"]) svg`,path.join(imageDir,names[i]+'.png'));
  const previews=path.join(root,'排版预览');fs.mkdirSync(previews,{recursive:true});
  await cmd('Emulation.setDeviceMetricsOverride',{width:760,height:1100,deviceScaleFactor:2,mobile:false});
- for(const n of [1,3,6,7,8,11,13,17,18,22,23,24,25,26,27])if(n<=qa.pages.length)await shoot('#p'+String(n).padStart(2,'0'),path.join(previews,String(n).padStart(2,'0')+'_页面.png'));
+ for(const n of [1,3,6,7,8,11,13,15,16,17,18,22,23,24,25,26,27])if(n<=qa.pages.length)await shoot('#p'+String(n).padStart(2,'0'),path.join(previews,String(n).padStart(2,'0')+'_页面.png'));
  console.log('PDF_CREATED',pdf,fs.statSync(pdf).size,'pages',qa.pages.length);
 }finally{
  if(ws)ws.close();

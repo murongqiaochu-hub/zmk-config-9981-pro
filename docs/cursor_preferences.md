@@ -46,7 +46,7 @@ v2.3.2 防抖/旧削峰/BLE积压合并原样保留；滚轮/游戏杆继续走�
 
 ## 范围与证据链
 
-基线是 v2.3.2 文档源 `11218ad83292f5ccf9105e41010c1062073e474d`。当前 85 个 config 文件：73/81 个既有文件原字节未动、8 个既有文件仅显式追加、4 个新速度/behavior 文件。
+基线是 v2.3.2 文档源 `11218ad83292f5ccf9105e41010c1062073e474d`。当前85个config文件：73/81个既有文件原字节未动、8个受控修改（两键图只新增node/改Z，其余显式feature追加）、4个新速度/behavior文件。
 
 [新范围闸](<../tests/user_preferences_scope.py>)明确移除授权新增内容/恢复Z，精确还原全部81份v2.3.2历史配置，再进入[原v2.3.2范围闸](<../tests/pointer_steady_scope.py>)还原80份v2.3.1；所有更早BASE/C oracle/SDK fixture保留。历史投影视图字节精确，**不冒称实际关闭Kconfig后的DTS/固件字节相同**。实际ON由[专项runner](<../tests/run_user_preferences_tests.py>)真实编译生产代码，OFF由不带service的独立目标验证输入等效none。
 
@@ -66,7 +66,7 @@ v2.3.2 防抖/旧削峰/BLE积压合并原样保留；滚轮/游戏杆继续走�
 | 历史重构机械证明/差分 | 父侧已执行 PASS；本地无 CMake 明确 SKIP |
 | 五档全 XY/actual A320/ASan/完整 host | 父侧已执行 PASS；包含I2C中途1/5cycle与live-gain负例 |
 | 独立只读审查 | 已核 pinned SDK/settings/workqueue/release；帧内窗口已修且正/负集成验证通过，无未解P1/P2 |
-| Actions ARM/UF2/DTS/Kconfig/资源 | 待本轮构建，不拿旧结果替代 |
+| Actions ARM/UF2/DTS/Kconfig/资源 | Run39743108339通过；618496B/1208块，实际node/0cell/Z与其余167键核对通过；1167旧值不变，2新开关+1精确DT派生值；FLASH309124/RAM89198B |
 | 同批 PDF/Word/HTML/四图 QA | 27页A5/DOM≥9px、四图42键、PDF正文/Word原生文本+4图通过；Word未独立Office渲染 |
 | 设备刷写/断电保存/视觉/手感 | 未执行，device_tested=false |
 

@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3",
   "manual_date": "2026-10-22",
-  "updated": "2026-10-22T15:47:18+08:00",
+  "updated": "2026-10-22T15:55:03+08:00",
   "source_commit": "048201f8caeedeb729df3ca22aa2186c50aea476",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "撤回CONFIG宏控制DTS的错误前提：node/Z正常无条件，始终编译OFF-safe adapter，独立不带service的OFF八组合/nm与实际ON UBSan/ASan通过；所有旧C oracle/BASE保持。首次Run39740546545拒交隔离，必须重建并核实际云DTS。",
+  "review_note": "v2.3.3最终：Z五档独立记忆/MEDIA慢呼吸；修正DTS早于Kconfig接法，实际OFF无service的opaque shim；完整host/UBSan/ASan、Run39743108339 ARM、实际node/UPPER28/其余167键、旧1167Kconfig+2开关+1精确DT派生值、UF2边界/SHA均已通过。首次缺Z件拒交隔离；本批最终PDF/Word/HTML/四图。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "03a859d2cbb765ddc3b6a23171b40d75dfd1a6db4c708cb6a6f87002f2bb074f",
+  "manual_sha256": "e00ba35a13f2e3c6b3eb3b0af06f5a3ca498215e8e9ddadafeb3cc4d22a3cb86",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
