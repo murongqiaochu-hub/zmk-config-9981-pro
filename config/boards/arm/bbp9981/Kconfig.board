@@ -80,6 +80,23 @@ config A320_CURSOR_STEADY
       BLE may merge adjacent same-direction XY in a 10 ms admission window;
       button/zero/wheel reports remain ordered barriers, without extra delay.
 
+config BBP9981_CURSOR_SPEED
+    bool "Five persistent ordinary mouse gain presets"
+    depends on BOARD_BBP9981 && ZMK_POINTING && SETTINGS
+    default n
+    help
+      UPPER Z cycles 0.6/0.9/1.2/1.5/1.8 gain; default 1.2 and Ctrl half.
+      Save the last preset using an independent, debounced settings key.
+      Scroll/gamepad keep their original gain; no sensor DPI register writes.
+
+config BBP9981_MEDIA_BREATHE
+    bool "Slow MEDIA keyboard backlight breathing"
+    depends on BOARD_BBP9981 && ZMK_RGB_UNDERGLOW && LED_PWM
+    default n
+    help
+      Only MEDIA changes from flashing to a 3.6 second triangular breath.
+      Keep the user's brightness/off state, idle and other layer patterns.
+
 config BBP9981_MENU_DIAG
     bool "Bounded menu/left-button chain diagnostics"
     depends on BOARD_BBP9981 && A320_TAP_OUTPUT && LOG

@@ -20,7 +20,9 @@ FLAGS = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter',
          '-fno-sanitize-recover=all']
 
 
-def text(path): return (ROOT / path).read_text()
+def text(path):
+    from pointer_steady_scope import verified_legacy_view
+    return verified_legacy_view()[path].decode()
 
 
 def same_function(old, new, name):

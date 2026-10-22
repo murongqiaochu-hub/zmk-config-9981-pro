@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+description: Cycle persistent ordinary mouse gain presets
+compatible: "zmk,behavior-cursor-speed"
+include: zero_param.yaml

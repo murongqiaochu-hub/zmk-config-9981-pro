@@ -5,6 +5,9 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#ifdef CONFIG_BBP9981_CURSOR_SPEED
+#include "trackpad_cursor_speed.h"
+#endif
 
 /* Fixed gain at the factory default reference of 40: normal 1.2, Ctrl 0.6.
  * LED brightness has no input into pointer motion. */
@@ -65,6 +68,9 @@ static inline int16_t tp_pointer_axis_motion(struct tp_pointer_axis *axis, int8_
 /* Run even on no-motion polls; speed transitions still clear fractions. */
 static inline void tp_pointer_prepare(struct tp_pointer_state *state, bool slow) {
     uint16_t gain = slow ? TP_POINTER_NORMAL_GAIN / 2U : TP_POINTER_NORMAL_GAIN;
+#ifdef CONFIG_BBP9981_CURSOR_SPEED
+    gain = bbp_cursor_speed_motion_gain(slow);
+#endif
     if (!state->gain_valid || state->gain != gain) {
         tp_pointer_reset(state);
         state->gain = gain;

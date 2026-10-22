@@ -41,6 +41,8 @@ def function(text, name):
 def expand_cmake(path):
     """Resolve only this board's literal local includes for contract comparison."""
     path = Path(path)
-    text = path.read_text()
+    from user_preferences_scope import verified_v232_view
+    relative = str(path.resolve().relative_to(ROOT))
+    text = verified_v232_view()[relative].decode()
     pattern = r'include\("\$\{CMAKE_CURRENT_LIST_DIR\}/([^"\n]+)"\)'
     return re.sub(pattern, lambda m: expand_cmake(path.parent / m[1]), text)

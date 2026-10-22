@@ -33,7 +33,36 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def select_cursor_speed_keymap(text, enabled=None):
+    """Resolve the one optional v2.3.3 keymap branch, not arbitrary CPP.
+
+    Production DTS uses the same Kconfig boolean. Explicit enabled=False lets
+    historical proofs retain the exact old map without changing their BASE.
+    """
+    if enabled is None:
+        enabled = bool(re.search(r'^CONFIG_BBP9981_CURSOR_SPEED=y$',
+                                 (ROOT / 'config/bbp9981.conf').read_text(), re.M))
+    out, inside, take = [], False, False
+    for line in text.splitlines(keepends=True):
+        directive = line.strip()
+        if directive == '#ifdef CONFIG_BBP9981_CURSOR_SPEED':
+            assert not inside, 'Nested cursor-speed keymap branch'
+            inside, take = True, enabled
+        elif inside and directive == '#else':
+            take = not enabled
+        elif inside and directive == '#endif':
+            inside = False
+        elif inside:
+            assert not directive.startswith(('#if ', '#ifdef ', '#ifndef ', '#elif ')), 'Unreviewed nested keymap feature'
+            if take: out.append(line)
+        else:
+            out.append(line)
+    assert not inside, 'Unclosed cursor-speed keymap branch'
+    return ''.join(out)
+
+
 def bindings(text):
+    text = select_cursor_speed_keymap(text)
     result = {}
     for layer in LAYERS:
         m = re.search(r'\b' + layer + r'_layer\s*\{.*?bindings\s*=\s*<(.*?)>;', text, re.S)
@@ -69,6 +98,7 @@ def label(binding, layer=None, position=None):
         if layer == 'upper' and position == 5: return ['aA按住:槽2', '锁轮三击:固定右→上']
         if layer == 'upper' and position == 34: return ['aA按住双击', '翻转鼠标']
         return ['aA层手势']
+    if b == '&cursor_speed': return ['指针速度', '循环五档']
     if b == '&gamepad':
         return [['↑'], ['↓'], ['←'], ['→'], ['A'], ['B'], ['X'], ['Y'], ['LB'], ['RB'],
                 ['LT'], ['RT'], ['View'], ['Menu'], ['Guide'], ['L3'], ['R3'],

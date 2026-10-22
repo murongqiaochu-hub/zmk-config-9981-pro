@@ -217,7 +217,8 @@ class GraphTests(unittest.TestCase):
             for entry in re.findall(r"<(&gpio[^>]+)>", section):
                 self.assertEqual(set(re.findall(r"GPIO_[A-Z_]+", entry)), expected)
         for relative in ("config/bbp9981.keymap", "config/boards/arm/bbp9981/bbp9981.keymap"):
-            keymap = strip_comments((ROOT / relative).read_text())
+            from user_preferences_scope import select_cursor_speed_keymap
+            keymap = strip_comments(select_cursor_speed_keymap((ROOT / relative).read_text()))
             for layer in ("default_layer", "sym_layer", "upper_layer", "media_layer"):
                 block = re.search(r"\b" + layer + r"\s*\{\s*bindings\s*=\s*<(.*?)>;", keymap, re.S).group(1)
                 bindings = tuple(" ".join(x.split()) for x in re.findall(r"&[^&]+", block))

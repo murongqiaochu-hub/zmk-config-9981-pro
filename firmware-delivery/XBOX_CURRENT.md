@@ -1,4 +1,13 @@
-# Xbox 布局标准 HID：v2.3.2 普通鼠标修正候选（2026-10-22）
+# Xbox 布局标准 HID：v2.3.3 五档记忆/MEDIA慢呼吸候选（2026-10-22）
+
+- 用户已刷v2.3.2并反馈“有提升，但是提升不大”；坏C-to-C线已由用户确认。随后明确要求Z循环调速、重启保留和MEDIA键盘慢呼吸，选择五档0.6/0.9/1.2/1.5/1.8、首次1.2、物理左Ctrl半速。不把有限改善或本轮软件结果称实机手感彻底解决。
+- 功能源 `V233_FUNCTIONAL_COMMIT`，候选分支 `codex/cursor-presets-v2.3.3-20261022`，基线 `11218ad83292f5ccf9105e41010c1062073e474d`。仅UPPER Z/P28变正常可映射behavior；独立两字节设置key、1秒合并保存、最多3失败、用户优先、frame latch避免跨gain旧tap/replay。MEDIA键盘仅改约3.6秒10→100→10%呼吸，其他层与触板灯保留；非硬件DPI。见[本轮说明](<../docs/cursor_preferences.md>)。
+- 父侧新增专项strict UBSan/非PIE ASan已通过：actual service/behavior四组合、五档全signed8 XY小数、actual A320直发/microtap/raw shadow、I2C中途1/5次cycle、旧轮/RAW游戏杆隔离、MEDIA ON+三OFF灯oracle；fresh-gain旁路实际编译后被负例拒绝。初轮仅新测试误用旧idle无报告帮助器，在预期RAW replay的130ms改为普通poll后复验PASS，旧oracle未动。独立只读审查无未解决P1/P2；历史重构机械证明/差分PASS。
+- 范围：73/81旧配置原字节不变，8显式feature追加+4新文件；精确还原v2.3.2后再进原历史BASE，所有旧C oracle/SDK fixture冻结。两键图实际4×42只有UPPER Z不同，真正CPP核对ON/OFF。
+- 完整host、说明书/PDF/Word/HTML与四图、本轮Actions ARM/UF2及云端DTS/Kconfig核验正在执行；完成前不把旧UF2冒称本轮构建。候选未刷/未实机视觉/断电记忆验收，device_tested=false；不发布/归档、不推稳定、不刷写、清配对/settings或改主机，不以600KB删功能。
+- 精确回退：[已刷v2.3.2原UF2](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/09_云端构建产物/bbp9981-zmk.uf2>)，SHA `dbfc480a7da14ec8932b92083a60aea13986f98847320ba854577b838eda940c`。恢复固定1.2/0.6、UPPER Z无输出和MEDIA快闪；不擦新独立速度记录。下方旧记录是当时交付状态，不追改旧device_tested。
+
+## 历史：v2.3.2 普通鼠标修正候选（2026-10-22）
 
 - 用户已刷v2.3.1，反馈蓝牙普通鼠标小幅往返抖动/速度不匀，明确授权防抖、输出突发与旧削峰一起修，不以关轻拍为前提；此前封版决定被本次明确授权取代，不删功能、不以600KB为指标。
 - 功能源码 `1124252fcd43375a27b826224747121ba78e06a2`，候选分支 `codex/pointer-steady-v2.3.2-20261022`。普通cursor增加一计数滞回+四慢帧削峰；BLE仅首发前合并既有积压中≤10ms同向共线纯XY，不加等候且不跨按钮/零/轮/peer等屏障。4份配置仅feature追加+1纯核，其他76份原字节不变；RAW轻拍资格/键位/滚轮/手柄/灯/设置/USB修复保留。

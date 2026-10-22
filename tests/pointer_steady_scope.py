@@ -75,13 +75,17 @@ def restore(path, data):
 def verified_legacy_view():
     paths = subprocess.check_output(['git','ls-tree','-r','--name-only',SEALED,'config'],
                                     cwd=ROOT,text=True).splitlines()
-    actual = {str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
+    # The newly authorized v2.3.3 is checked independently before this older
+    # proof sees its exact v2.3.2 feature-OFF view. No historical BASE changes.
+    from user_preferences_scope import verified_v232_view
+    current = verified_v232_view()
+    actual = set(current)
     assert actual == set(paths) | {FILTER}, ('Unapproved files', actual ^ (set(paths)|{FILTER}))
-    changed = {p for p in paths if (ROOT/p).read_bytes() != sealed(p)}
+    changed = {p for p in paths if current[p] != sealed(p)}
     assert changed == CHANGED, ('Unapproved production scope', changed ^ CHANGED)
     result = {}
     for path in paths:
-        result[path] = restore(path, (ROOT/path).read_bytes())
+        result[path] = restore(path, current[path])
         assert result[path] == sealed(path), 'Changed outside explicit v2.3.2 feature: '+path
     # ALL pre-existing C oracles/SDK fixtures/mocks remain byte-exact except the
     # official nonblocking peek declaration needed by the enabled HOG extension.

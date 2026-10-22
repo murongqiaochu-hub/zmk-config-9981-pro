@@ -48,6 +48,13 @@ static bool blink_on = false;
 static bool blink_start_high = true;
 static uint8_t cycle_brightness = CYCLE_BRT_MIN;
 static bool cycle_direction_up = true;
+#ifdef CONFIG_BBP9981_MEDIA_BREATHE
+#define MEDIA_BREATHE_MIN 10U
+#define MEDIA_BREATHE_MAX 100U
+#define MEDIA_BREATHE_INTERVAL_MS 20
+#define MEDIA_BREATHE_HALF_STEPS (MEDIA_BREATHE_MAX - MEDIA_BREATHE_MIN)
+static uint8_t media_phase;
+#endif
 
 static struct k_work_delayable polling_work;
 static struct k_work_delayable blink_work;
@@ -88,6 +95,9 @@ static void set_mode_brightness(uint8_t pattern) {
 
 /* 层1/层3闪烁 */
 static void blink_work_handler(struct k_work *work) {
+#ifdef CONFIG_BBP9981_MEDIA_BREATHE
+    if (prev_layer == 3) { return; } /* Ignore a cancelled MEDIA blink callback. */
+#endif
     if (!prev_active || (prev_layer != 1 && prev_layer != 3)) {
         return;
     }
@@ -100,6 +110,16 @@ static void blink_work_handler(struct k_work *work) {
 }
 
 static void cycle_work_handler(struct k_work *work) {
+#ifdef CONFIG_BBP9981_MEDIA_BREATHE
+    if (prev_active && prev_layer == 3) {
+        media_phase = (uint8_t)((media_phase + 1U) % (2U * MEDIA_BREATHE_HALF_STEPS));
+        uint8_t step = media_phase <= MEDIA_BREATHE_HALF_STEPS ? media_phase :
+                       (uint8_t)(2U * MEDIA_BREATHE_HALF_STEPS - media_phase);
+        set_mode_brightness((uint8_t)(MEDIA_BREATHE_MIN + step));
+        k_work_reschedule(&cycle_work, K_MSEC(MEDIA_BREATHE_INTERVAL_MS));
+        return;
+    }
+#endif
     if (!prev_active || prev_layer != 2) {
         return;
     }
@@ -188,6 +208,12 @@ static void polling_work_handler(struct k_work *work) {
             break;
 
         case 3:
+#ifdef CONFIG_BBP9981_MEDIA_BREATHE
+            media_phase = 0;
+            set_mode_brightness(MEDIA_BREATHE_MIN);
+            k_work_reschedule(&cycle_work, K_MSEC(MEDIA_BREATHE_INTERVAL_MS));
+            break;
+#endif
             blink_on = false;
             set_mode_brightness(BRT_BLINK_LOW);
             k_work_reschedule(&blink_work, K_MSEC(BLINK_INTERVAL_MS / 2));

@@ -1,6 +1,15 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
-## 当前明确修正合同：v2.3.2（2026-10-22）
+## 当前明确功能合同：v2.3.3（2026-10-22）
+
+- 用户已刷v2.3.2，反馈“有提升，但是提升不大”，坏C-to-C线已由用户确认；随后明确授权“用z循环调节dpi吧，重启之后也要保留记忆，另外media层键盘灯还是闪烁，给我把它改成慢速呼吸灯”，并选择0.6→0.9→1.2→1.5→1.8→0.6、首次1.2。仅UPPER Z/P28为正常可映射behavior，DEFAULT字母Z/MEDIA Dpad↓不变；不改M鼠标翻转、Y/F留空或维护键，不加隐藏Z监听。
+- “DPI”是固件相对位移增益，非已核实的sensor DPI寄存器；物理左下aA/Ctrl减半所选档。实际cursor和RAW tap影子共享单帧锁存：只有非重入A320 poll推进motion latch；选档/load在I2C/输出中交错时下一完整poll才应用，epoch清小数/滤波并interrupt旧tap/replay，五次回原档亦不混。后续若新增并行传感器消费者，须显式传frame context，不复用全局latch。
+- 独立key `bbp9981_cursor/gain_v1`，两字节`[1,index]`，只首次commit加载、用户先改优先；静态delayable work、末次操作1000ms合并保存、最多3失败后等下一次用户cycle。无逐帧/动画/默认加载写flash；backend锁外，旧save不清新generation。正常已保存值重启恢复，中途断电或存储故障不保证，CONFIG_SETTINGS=n仅volatile测试。
+- 仅MEDIA键盘背光由快闪改20ms/1%步进、10→100→10、标称3.6秒慢呼吸，仍乘用户亮度/开关并尊重idle/cancel/缓存和错误重试。SYM500ms闪、UPPER原5%/20ms呼吸、DEFAULT授权亮灯、触板灯及两灯保存器不变。
+- [本轮范围闸](<tests/user_preferences_scope.py>)将8份显式feature追加/4新文件投影还原全部81份v2.3.2配置（73份原字节未动），再进入旧v2.3.2→v2.3.1→更早BASE证明；所有既有C oracle/SDK fixture冻结。实际ON必须跑[新runner](<tests/run_user_preferences_tests.py>)，默认host包含；键图导出/矩阵解析显式解析唯一feature分支，并用真正CPP复核ON/OFF，不用会少算一个绑定的别名。
+- 新候选分支 `codex/cursor-presets-v2.3.3-20261022`，基线 `11218ad83292f5ccf9105e41010c1062073e474d`；实际构建/UF2结果见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)和[本轮说明](<docs/cursor_preferences.md>)。本批同步手册/四图/PDF/Word/HTML，沿用“以后都直接构建”授权，仅必要精确仓库候选推送/既有Actions/下载校验，不推稳定、发布/归档回推、刷写、清配对/settings或改主机；600KB不约束，不删功能。用户对v2.3.2有限反馈单列，不追改旧`device_tested=false`。
+
+## 历史明确修正合同：v2.3.2（2026-10-22）
 
 - 用户已刷v2.3.1，并反馈蓝牙指针小幅往返抖动与速度不匀；重新明确授权“小位移抖动、输出节奏不均匀、旧削峰算法这些一起处理”，不以先关轻拍为前提。此授权取代此前“不再迭代”的限制，仅限本次鼠标修正；600KB仍不是约束，不删功能。
 - 普通鼠标在原1.2/0.6小数增益前新增一计数逐轴滞回与历史四慢帧削峰；仅对已提交cursor帧生效，不改轻拍RAW影子判据、滚轮或游戏杆。无惯性/补偿尾巴，但起步/反向/空闲会丢弃边界计数，故不称完全无损或绝对线性。

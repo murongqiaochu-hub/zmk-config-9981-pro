@@ -83,6 +83,9 @@ static bool last_shoulder_slow;
 static uint8_t last_scroll_rotation;
 static struct tp_pointer_state cursor_motion;
 static uint32_t last_cursor_speed_snapshot;
+#ifdef CONFIG_BBP9981_CURSOR_SPEED
+static uint32_t last_cursor_preset_snapshot;
+#endif
 static bool last_mouse_orientation_reversed;
 #ifdef CONFIG_A320_CURSOR_STEADY
 static struct tp_cursor_filter cursor_filter;
@@ -270,6 +273,21 @@ static void a320_poll_work_handler(struct k_work *work) {
     uint8_t scroll_rotation = tp_scroll_rotation_quadrants();
     uint32_t speed = tp_mode_speed_snapshot();
     bool slow_pointer = (speed & 1U) != 0;
+#ifdef CONFIG_BBP9981_CURSOR_SPEED
+    uint32_t preset = bbp_cursor_speed_begin_motion_frame();
+    if (preset != last_cursor_preset_snapshot) {
+        /* A complete five-step round trip is still a cursor epoch boundary.
+         * Cancel before any old tap/replay can spend the newly selected gain. */
+        tp_pointer_reset(&cursor_motion);
+#ifdef CONFIG_A320_CURSOR_STEADY
+        tp_cursor_filter_reset(&cursor_filter);
+#endif
+#ifdef CONFIG_A320_MICROTAP
+        tp_microtap_runtime_interrupt();
+#endif
+        last_cursor_preset_snapshot = preset;
+    }
+#endif
 
 #ifdef CONFIG_BBP9981_GAMEPAD
     uint32_t game_epoch = bbp_gamepad_pointer_epoch();

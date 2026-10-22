@@ -80,7 +80,10 @@ def layers(text):
 updated = []
 for relative in paths:
     before = layers(subprocess.check_output(['git', 'show', BASE + ':' + relative], cwd=ROOT, text=True))
-    after = layers((ROOT / relative).read_text())
+    # Keep every old keymap assertion; the separate v2.3.3 scope gate proves
+    # the actual ON map differs only at UPPER Z before supplying this view.
+    from user_preferences_scope import verified_v232_view
+    after = layers(verified_v232_view()[relative].decode())
     assert before['upper_layer'][40] == '&aa_sym_ctrl'
     assert before['upper_layer'][41] == '&to UPPER'
     assert before['upper_layer'][0] == '&aa_scroll_shoulder SCRL_UP'
@@ -183,3 +186,5 @@ subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_stability_tests.p
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_final_review_tests.py')], check=True)
 # New user-authorized v2.3.2 behavior must ALSO pass the actual feature-ON paths.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_cursor_tests.py')], check=True)
+# v2.3.3 old proofs keep their immutable BASE; test the new enabled product too.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_user_preferences_tests.py')], check=True)
