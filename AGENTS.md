@@ -6,7 +6,7 @@
 - 普通鼠标在原1.2/0.6小数增益前新增一计数逐轴滞回与历史四慢帧削峰；仅对已提交cursor帧生效，不改轻拍RAW影子判据、滚轮或游戏杆。无惯性/补偿尾巴，但起步/反向/空闲会丢弃边界计数，故不称完全无损或绝对线性。
 - BLE仅首发前合并既有积压中首入队窗≤10ms、同captured conn/buttons、严格同向共线且不溢出的纯XY；零帧/按钮快照/全部滚轮/拐角/反向/peer均是屏障。无新增定时等待、线程或重试策略；并非固定10ms发送或host ACK。
 - 四份既有配置仅追加显式feature块，新增纯核；[新范围闸](<tests/pointer_steady_scope.py>)精确还原全部80份封版配置，旧BASE/全部既有C oracle与SDK fixture不换（仅mock新增官方peek声明）；旧验证跑OFF，新[专项](<tests/run_cursor_tests.py>)必须跑实际ON。
-- 候选分支 `codex/pointer-steady-v2.3.2-20261022`。按既有“以后都直接构建”授权完成必要候选推送、既有Actions、UF2校验与同批手册；不刷写、清配对/settings、改主机、推稳定分支或发布/归档。源码/构建/交付/实机反馈分开记录，具体进度见[指针修正说明](<docs/pointer_steady.md>)和[交付记录](<firmware-delivery/XBOX_CURRENT.md>)。
+- 候选分支 `codex/pointer-steady-v2.3.2-20261022`；功能源 `1124252fcd43375a27b826224747121ba78e06a2`，构建 `3d7078e65bbc1e0c30cb4a8da272c1f578aaf343`。完整host、Run39725910232 regression/ARM及UF2校验通过；DTS全文与1166旧Kconfig不变，仅新增本开关，FLASH307692B/RAM89102B（+924/+224），UF2 SHA `dbfc480a7da14ec8932b92083a60aea13986f98847320ba854577b838eda940c`。按既有“以后都直接构建”授权完成必要候选推送、既有Actions、UF2校验与同批手册；不刷写、清配对/settings、改主机、推稳定分支或发布/归档。源码/构建/交付/实机反馈分开记录，具体进度见[指针修正说明](<docs/pointer_steady.md>)和[交付记录](<firmware-delivery/XBOX_CURRENT.md>)。
 
 ## 历史研发封版合同：v2.3.1（2026-10-22，后被上方明确修正授权取代）
 

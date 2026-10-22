@@ -48,7 +48,7 @@
 - [新范围闸](<../tests/pointer_steady_scope.py>)保留旧BASE；所有原C oracle、SDK fixture与mock原字节不改，只有mock新增官方非阻塞peek声明。旧差分/机械证明在精确OFF视图继续执行，新[专项runner](<../tests/run_cursor_tests.py>)必须运行实际ON。
 - 新专项strict UBSan与非PIE ASan已实际通过：65536 signed8 XY×3历史×9余量、所有持续signed8、反向/逐轴50/51ms/重复时间/回绕、两段10万帧与20万混合ledger；实际A320直发/真实micro runtime、RAW3资格/RAW1回放、九帧原时间回放及pending候选I2C/GPIO故障反例。
 - BLE实际扩展头的旧25例ON保留，新11组包括窗口、方向/零/快照/滚轮/peer屏障、溢出、重试不改head、最早TTL、40次、plug/schedule failure，以及SDK等待中最大补满/取消数组与引用账本；32轮固定种子直线批次。绕过滤波的真实驱动负例编译成功、运行被断言拒绝。
-- 独立只读复核与独立UBSan故障反例复测完成；当前没有剩余阻挡。**完整host exit0，81份配置/四层42键图与手册同步通过；本地无CMake仍如实SKIP，CI必须实际跑32组合/9负例。ARM/UF2待本轮流程完成后记入交付记录。** 软件通过不代表真实BLE时序、屏幕线性或手感已验收。
+- 独立只读复核与独立UBSan故障反例复测完成；当前没有剩余阻挡。**完整host exit0，81份配置/四层42键图与手册同步通过；本地无CMake仍如实SKIP，CI必须实际跑32组合/9负例。[Run39725910232](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39725910232>) regression/ARM通过，CI实际32组合/9负例及新专项通过；构建 `3d7078e65bbc1e0c30cb4a8da272c1f578aaf343` 与功能源码config完全一致。UF2本地校验通过，615424B/1202块、family0xada52840、应用区[0x1000,0x4c200)，SHA `dbfc480a7da14ec8932b92083a60aea13986f98847320ba854577b838eda940c`。最终DTS全文与v2.3.1相同，1166项旧Kconfig不变，仅新增本次开关；FLASH307692B/RAM89102B，分别+924B/+224B，无体积削功能。** 软件通过不代表真实BLE时序、屏幕线性或手感已验收。
 
 ## 交付与回退
 

@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.2",
   "manual_date": "2026-10-22",
-  "updated": "2026-10-22T13:03:55+08:00",
+  "updated": "2026-10-22T13:12:12+08:00",
   "source_commit": "1124252fcd43375a27b826224747121ba78e06a2",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.2普通鼠标防抖/旧削峰/BLE既有积压合并；保留RAW轻拍资格、所有键位/滚轮/手柄/灯/设置/USB修复；故障取消旧候选防历史污染。strict UBSan/ASan新专项、独立复核、完整host exit0与81配置/四层图同步通过；本地无CMake如实SKIP，待既有CI ARM及UF2，不以关轻拍为前提。",
+  "review_note": "用户已刷v2.3.1反馈BLE往返微抖与速度不匀，明确授权三项一起修。v2.3.2防抖/历史削峰/BLE既有积压合并；RAW轻拍资格/键位/滚轮/手柄/灯/设置/USB修复保留，故障取消旧候选防污染。完整host exit0、新UBSan/ASan/独立复核、Run39725910232 regression/ARM及UF2校验PASS；构建3d7078e与功能源1124252 config一致，DTS及1166旧Kconfig不变，仅新增开关；非实机手感验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "382696a788c430c0637eae831e020a00c37f357a9c1646d37d9b38286643e6be",
+  "manual_sha256": "33c1683027a43445fdcbc201073180c7d4e573849a0740eee7c15d0229f764d7",
   "source_sha256": {
     "config/bbp9981.conf": "81ab729f1a8155e06f4e7c9afd095f1e95bc47d5a0aa38e7c13a92373c382b7c",
     "config/bbp9981.keymap": "66557d5f72fd488657a042e76adb89ff6d7f17cba2223646714865baf3cd7c96",

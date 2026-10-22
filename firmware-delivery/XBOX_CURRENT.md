@@ -2,7 +2,9 @@
 
 - 用户已刷v2.3.1，反馈蓝牙普通鼠标小幅往返抖动/速度不匀，明确授权防抖、输出突发与旧削峰一起修，不以关轻拍为前提；此前封版决定被本次明确授权取代，不删功能、不以600KB为指标。
 - 功能源码 `1124252fcd43375a27b826224747121ba78e06a2`，候选分支 `codex/pointer-steady-v2.3.2-20261022`。普通cursor增加一计数滞回+四慢帧削峰；BLE仅首发前合并既有积压中≤10ms同向共线纯XY，不加等候且不跨按钮/零/轮/peer等屏障。4份配置仅feature追加+1纯核，其他76份原字节不变；RAW轻拍资格/键位/滚轮/手柄/灯/设置/USB修复保留。
-- strict UBSan/ASan新专项和独立复核已通过；修掉故障后旧候选回放重新污染削峰历史的边界。完整host exit0、81份配置/四层42键图与手册同步通过；本地CMake缺失仍SKIP，既有CI将实际跑32组合/9负例。Actions ARM/UF2待完成后在此填写，不将旧Run/SHA冒作新件。手册v2.3.2同批同步，范围与手感取舍见[修正说明](<../docs/pointer_steady.md>)。
+- strict UBSan/ASan新专项和独立复核已通过；修掉故障后旧候选回放重新污染削峰历史的边界。完整host exit0、81份配置/四层42键图与手册同步通过；本地CMake缺失仍SKIP，既有CI将实际跑32组合/9负例。[Actions Run39725910232](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39725910232>) regression、bbp9981 ARM和artifact合并均成功，deliver/failure_context按候选条件跳过；构建 `3d7078e65bbc1e0c30cb4a8da272c1f578aaf343` 与功能源码config完全一致。手册v2.3.2同批同步，范围与手感取舍见[修正说明](<../docs/pointer_steady.md>)。
+- [本轮UF2](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/09_云端构建产物/bbp9981-zmk.uf2>)：615424B（601KiB）/1202块，family `0xada52840`，连续应用区 `[0x1000,0x4c200)`、无bootloader/NVS块；SHA `dbfc480a7da14ec8932b92083a60aea13986f98847320ba854577b838eda940c`。见[UF2校验](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/09_云端构建产物/validation.json>)、[Actions身份](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/17_Actions运行记录.json>)、[云日志](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/18_Actions完整日志.zip>)。
+- 最终DTS全文与v2.3.1逐字节相同（去日志时间），1166项旧Kconfig不变，唯一新增 `CONFIG_A320_CURSOR_STEADY=y`；FLASH307692B、RAM89102B，较v2.3.1增加924B/224B，不删功能压体积。见[云端核验](</vol1/1000/agent/output/1022/124037_9981Pro蓝牙指针稳态修正_v2.3.2/14_云端基线一致性核验.json>)。手册27页A5 PDF/四图可编辑DOCX/离线HTML同批导出；Word只做结构/文本验证，未独立Office渲染。
 - 新候选尚未刷写/未实机手感验收；系统加速度仍影响屏幕速度，不保证抖动已消除/绝对线性。不刷写、清配对/settings、改主机、推稳定分支或发布/自动归档；不安排多日专项长测。
 - 精确回退：[原v2.3.1 UF2](</vol1/1000/agent/output/1022/104251_9981Pro最终封版_v2.3.1/09_最终固件/9981Pro_v2.3.1_封版.uf2>)，SHA `ab9c0c10cb46e5c957ae4f55ecd71dac0817e345353e7f7777776a2abf66f50a`，保留当前键位/手柄/灯与USB修复。下方“未刷写”等为对应历史交付时状态，不否认用户后续已刷及本次反馈。
 
