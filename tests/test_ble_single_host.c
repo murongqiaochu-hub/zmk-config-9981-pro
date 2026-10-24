@@ -275,12 +275,15 @@ static void same_index_peer_case(void) {
     bootstrap(false);
     struct bt_conn *old=test_seed_conn(0,&peers[0],BT_CONN_ROLE_PERIPHERAL,BT_ID_DEFAULT);
     struct bt_conn *latest=test_seed_conn(1,&peers[1],BT_CONN_ROLE_PERIPHERAL,BT_ID_DEFAULT);
-    /* Registered settings h_set is the real SDK's public RAM-loading seam.
-     * A competing thread cannot run it while target_snapshot holds its short
-     * scheduler lock; inject at the outer unlock, without touching SDK statics. */
-    test_update_profile_on_sched_lock=0;test_update_profile_addr=peers[1];
-    bbp_ble_single_host_reconcile();test_run_ready();
-    assert(test_update_profile_on_sched_lock==-1);
+    /* Queue first, arm second: reconcile's own lock cannot consume the hook.
+     * Only the service TU's public getter call is bridged; the first worker
+     * target getter must itself hold the scheduler lock. The registered h_set
+     * writer is deferred until the outer unlock, never injected inside it. */
+    assert(!test_snapshot_getter_armed&&test_snapshot_getter_hits==0);
+    bbp_ble_single_host_reconcile();
+    test_update_profile_addr=peers[1];test_snapshot_getter_armed=true;
+    test_run_ready();
+    assert(!test_snapshot_getter_armed&&test_snapshot_getter_hits==1);
     assert(!bt_addr_le_cmp(zmk_ble_profile_address(0),&peers[1]));
     assert(!latest->disconnect_calls);
     bbp_ble_single_host_reconcile();test_run_ready();

@@ -25,7 +25,7 @@ execute_process(COMMAND git -C "${ZEPHYR_BASE}" diff --quiet HEAD --
     include/zephyr/bluetooth/conn.h include/zephyr/bluetooth/bluetooth.h
     include/zephyr/bluetooth/addr.h include/zephyr/kernel.h
     kernel/sched.c kernel/work.c subsys/bluetooth/host/conn.c
-    subsys/bluetooth/host/id.c subsys/bluetooth/host/keys.c
+    subsys/bluetooth/host/hci_core.c subsys/bluetooth/host/id.c subsys/bluetooth/host/keys.c
     subsys/bluetooth/host/smp.c
     RESULT_VARIABLE _ble_host_zephyr_dirty)
 if(NOT _ble_host_zephyr_dirty EQUAL 0)

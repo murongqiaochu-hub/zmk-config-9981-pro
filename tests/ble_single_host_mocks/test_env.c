@@ -12,7 +12,8 @@ struct bt_conn test_connections[CONFIG_BT_MAX_CONN];
 unsigned test_conn_callback_count,test_init_count,test_listener_count;
 unsigned test_irq_depth,test_sched_depth;
 int test_select_on_sched_lock=-1,test_select_on_settings_block=-1;
-int test_update_profile_on_sched_lock=-1;
+bool test_snapshot_getter_armed;
+unsigned test_snapshot_getter_hits;
 bt_addr_le_t test_update_profile_addr;
 static int deferred_select=-1,deferred_profile=-1;
 static bt_addr_le_t deferred_profile_addr;
@@ -51,13 +52,27 @@ static void perform_select(int index) {
     (void)index;assert(false&&"BLE-OFF cannot schedule profile selection");
 #endif
 }
+/* Only the policy TU's external public getter calls are macro-bridged here.
+ * The frozen SDK and test TU call the unmodified real getter. The oracle arms
+ * AFTER reconcile is queued, so this is the first worker target getter, not an
+ * unrelated bookkeeping scheduler lock. A competing RAM writer runs only at
+ * the outer unlock, after target_snapshot has copied its peer. */
+bt_addr_le_t *test_policy_profile_address(uint8_t index) {
+#if IS_ENABLED(CONFIG_ZMK_BLE)
+    bt_addr_le_t *peer=zmk_ble_profile_address(index);
+    if(test_snapshot_getter_armed){
+        test_snapshot_getter_armed=false;test_snapshot_getter_hits++;
+        assert(test_sched_depth > 0 && "target_snapshot getter must hold scheduler lock");
+        deferred_profile=index;deferred_profile_addr=test_update_profile_addr;
+    }
+    return peer;
+#else
+    (void)index;assert(!test_snapshot_getter_armed);return NULL;
+#endif
+}
 void k_sched_lock(void) {
     test_sched_depth++;test_metrics.sched_locks++;
     test_metrics.sched_max_depth=MAX(test_metrics.sched_max_depth,test_sched_depth);
-    if(test_update_profile_on_sched_lock>=0){
-        deferred_profile=test_update_profile_on_sched_lock;
-        deferred_profile_addr=test_update_profile_addr;test_update_profile_on_sched_lock=-1;
-    }
     if(test_select_on_sched_lock>=0){
         deferred_select=test_select_on_sched_lock;test_select_on_sched_lock=-1;
     }

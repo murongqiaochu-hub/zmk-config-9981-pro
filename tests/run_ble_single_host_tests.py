@@ -101,7 +101,7 @@ def run_case(binary, case, asan=False, negative=False):
     return result.stdout
 
 
-def compile_binary(temp, stubs, name, definitions, with_policy=False, asan=False):
+def compile_binary(temp, stubs, name, definitions, with_policy=False, asan=False, policy_source=None):
     folder = temp / name
     folder.mkdir()
     flags = [*COMMON, '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-no-pie'] if asan else [*COMMON, '-fsanitize=undefined']
@@ -112,13 +112,17 @@ def compile_binary(temp, stubs, name, definitions, with_policy=False, asan=False
     if definitions.get('CONFIG_ZMK_BLE', 1):
         sources.append(MOCKS / 'sdk_v0_3_0_ble.c')
     if with_policy:
-        sources.append(DRIVER / 'ble_single_host.c')
+        sources.append(policy_source if policy_source is not None else DRIVER / 'ble_single_host.c')
     objects = []
     for index, source in enumerate(sources):
         target = folder / f'{index}-{source.stem}.o'
         extra = []
         if with_policy and source.name == 'sdk_v0_3_0_ble.c':
             extra = ['-include', str(DRIVER / 'ble_single_host_prefix.h')]
+        elif with_policy and source.name == 'ble_single_host.c':
+            # Bridge only this TU's external getter. Never alias or rewrite the
+            # official SDK fixture or direct calls made by the test driver.
+            extra = ['-Dzmk_ble_profile_address=test_policy_profile_address']
         subprocess.run([CC, *flags, *extra, '-c', str(source), '-o', str(target)], cwd=ROOT, check=True)
         if source.name == 'ble_single_host.c':
             undefined = subprocess.check_output(['nm', '-u', str(target)], text=True)
@@ -130,6 +134,32 @@ def compile_binary(temp, stubs, name, definitions, with_policy=False, asan=False
     binary = folder / name
     subprocess.run([CC, *flags, *map(str, objects), '-o', str(binary)], cwd=ROOT, check=True)
     return binary
+
+
+def snapshot_lock_negative(temp, stubs):
+    # Mutate only a newly created private build copy, not production or SDK.
+    original = (DRIVER / 'ble_single_host.c').read_bytes()
+    begin = original.index(b'static bool target_snapshot(')
+    end = original.index(b'\nstatic bool target_equal(', begin)
+    block = original[begin:end]
+    lock, unlock = b'    k_sched_lock();\n', b'    k_sched_unlock();\n'
+    assert block.count(lock) == block.count(unlock) == 1, 'Review target_snapshot mutation anchors'
+    changed_block = block.replace(lock, b'', 1).replace(unlock, b'', 1)
+    changed = original[:begin] + changed_block + original[end:]
+    assert len(original) - len(changed) == len(lock) + len(unlock)
+    assert changed[:begin] == original[:begin] and changed[begin + len(changed_block):] == original[end:]
+    source_dir = temp / 'snapshot-unlocked-source'
+    source_dir.mkdir()
+    source = source_dir / 'ble_single_host.c'
+    source.write_bytes(changed)
+    binary = compile_binary(temp, stubs, 'snapshot-unlocked-negative', config(flag=1),
+                            with_policy=True, policy_source=source)
+    result = subprocess.run([str(binary), 'same-index-peer'], cwd=ROOT, text=True,
+                            capture_output=True, preexec_fn=no_core)
+    assert result.returncode != 0, 'Unlocked target_snapshot escaped the real getter oracle'
+    assert ('Assertion' in result.stderr and
+            'target_snapshot getter must hold scheduler lock' in result.stderr), (result.stdout, result.stderr)
+    print('PASS live snapshot negative: actual policy build copy minus ONLY target_snapshot scheduler locks is rejected at its first worker getter; production/SDK untouched', flush=True)
 
 
 def config(settings=1, usb=1, ble=1, split=0, central=0, peripheral=0, flag=None):
@@ -187,6 +217,7 @@ def main():
                         run_case(binary, 'duplicate')
                         run_case(binary, 'same-index-peer')
                         run_case(binary, 'pair-backend-block')
+        snapshot_lock_negative(temp, stubs)
         for settings in [0, 1]:
             binary = compile_binary(temp, stubs, f'bleoff{settings}', config(settings=settings, ble=0, flag=1), with_policy=True)
             run_case(binary, 'off')
