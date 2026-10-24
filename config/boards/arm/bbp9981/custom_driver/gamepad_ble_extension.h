@@ -26,11 +26,23 @@ _Static_assert(sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor) 
 
 /* A two-segment immutable slice, not a large stack or shared concatenation.
  * Only the exact stock descriptor object AND stock length identify Report Map.
- * All other HOG reads keep the SDK helper's offset/error semantics unchanged.
+ * Other HOG reads keep the SDK helper's offset/error semantics; the optional
+ * metadata correction below changes only the two bcdHID bytes of HID Information.
  */
 static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                        void *buf, uint16_t len, uint16_t offset,
                                        const void *value, uint16_t value_len) {
+#if IS_ENABLED(CONFIG_BBP9981_BLE_HID_METADATA_COMPAT)
+#pragma message("BBP9981_BLE_HID_METADATA_COMPAT_ACTIVE")
+    if (attr && attr->uuid && value && value_len == 4U &&
+        bt_uuid_cmp(attr->uuid, BT_UUID_HIDS_INFO) == 0) {
+        const uint8_t *original = value;
+        /* The native helper copies synchronously; no pointer is retained.
+         * HID 1.11 is little-endian 0x0111. Country and flags remain stock. */
+        const uint8_t corrected[4] = {0x11U, 0x01U, original[2], original[3]};
+        return bt_gatt_attr_read(conn, attr, buf, len, offset, corrected, sizeof(corrected));
+    }
+#endif
     if (value != (const void *)zmk_hid_report_desc || value_len != sizeof(zmk_hid_report_desc)) {
         return bt_gatt_attr_read(conn, attr, buf, len, offset, value, value_len);
     }

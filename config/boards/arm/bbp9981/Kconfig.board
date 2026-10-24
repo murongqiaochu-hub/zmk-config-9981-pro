@@ -87,4 +87,16 @@ config BBP9981_GAMEPAD
       Requires matching bindings. Relative trackpad motion drives one stick
       at a time; LT/RT are digital. This is not native XInput and has no rumble.
 
+config BBP9981_BLE_HID_METADATA_COMPAT
+    bool "Standards-compliant BLE HID metadata candidate"
+    depends on BBP9981_GAMEPAD && ZMK_BLE && BT_DIS && BT_DIS_PNP
+    default n
+    help
+      Advertise implemented HID 1.11 in the HID Information read response while
+      preserving its country and flags. This does not change any report map,
+      report body, characteristic, CCC, route, security or pairing policy.
+      The product config also corrects the USB-IF PnP namespace and adds the
+      standard DIS software revision characteristic for native schema refresh.
+      Software validation is not a claim of iPad device compatibility.
+
 endmenu
