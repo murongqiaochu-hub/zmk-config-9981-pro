@@ -20,6 +20,7 @@ set(CMAKE_CURRENT_SOURCE_DIR "${BOARD_ROOT}")
 set(ZEPHYR_BASE "${SDK_ROOT}/zephyr")
 set(APPLICATION_SOURCE_DIR "${SDK_ROOT}/app")
 set(CMAKE_SOURCE_DIR "${SDK_ROOT}/app")
+set(CMAKE_NM "SDK/arm-nm")
 set(CONFIG_BOARD_BBP9981 ON)
 function(zephyr_library)
   message(STATUS "EVENT library")
@@ -98,9 +99,12 @@ def compare(harness, old, sdk, flags):
     source = '-- EVENT source custom_driver/ble_single_host.c'
     prefix = ('-- EVENT property SOURCE;SDK/app/src/ble.c;DIRECTORY;SDK/app;APPEND;PROPERTY;'
               'COMPILE_OPTIONS;-include;BOARD/custom_driver/ble_single_host_prefix.h')
+    elf_proof = ('-- EVENT property GLOBAL;APPEND;PROPERTY;extra_post_build_commands;'
+                 'COMMAND;SDK/arm-nm;--defined-only;$<TARGET_FILE:zephyr_final>')
     assert actual.count(source) == int(enabled), (flags, actual)
     assert actual.count(prefix) == int(enabled), (flags, actual)
-    filtered = [line for line in actual if line not in {source, prefix}]
+    assert actual.count(elf_proof) == int(enabled), (flags, actual)
+    filtered = [line for line in actual if line not in {source, prefix, elf_proof}]
     assert filtered == original, ('Existing ordered source/prefix/diagnostic trace changed', flags, original, filtered)
     assert sum('ble_single_host_prefix.h' in line for line in actual) == int(enabled)
 

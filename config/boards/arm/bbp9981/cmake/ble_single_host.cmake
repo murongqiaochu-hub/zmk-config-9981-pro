@@ -11,4 +11,7 @@ if(CONFIG_BBP9981_BLE_SINGLE_HOST AND CONFIG_ZMK_BLE AND
     set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/ble.c"
         DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
         "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/ble_single_host_prefix.h")
+    # Read-only proof from the actual final ARM ELF, not the CMake recorder.
+    set_property(GLOBAL APPEND PROPERTY extra_post_build_commands
+        COMMAND "${CMAKE_NM}" "--defined-only" "$<TARGET_FILE:zephyr_final>")
 endif()
