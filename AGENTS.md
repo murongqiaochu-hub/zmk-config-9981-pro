@@ -19,14 +19,22 @@
 6. 每批次都运行 `python3 tests/check_manual_sync.py`；完整主机回归已经包含此检查。`config/` 任一受跟踪文件增加、删除或内容变化而未同步清单会失败。同步检查只是防遗漏，不替代人工核对说明是否真实。
 7. 仅写说明书不授权改固件功能、自动触发新 ARM 构建、推送、刷写、清配对或主机设置。2026-10-20 用户已撤回未发布 GBA 候选，另明确选择 **MEDIA / Xbox 布局标准 HID**，不是原生 XInput，不冒充微软 VID/PID；不得继续发布 GBA 或称 Xbox 已交付。轻拍继续暂停调优。2026-10-20 10:44 用户已精确批准本次 Xbox 分支推送 / Actions 云编译 / UF2 校验交付；仅本次新分支，不发布旧 GBA 历史。刷写、清配对等仍须各自精确授权，不由历史文档任务推定。
 
-## 本轮 Xbox 标准 HID 合同（2026-10-20）
+## 当前 iPad 兼容候选合同（2026-10-24）
 
-- 当前文档为 v2.2.1，保留原普通 / SYM / UPPER 说明和参数。手册原 18–23 章号不变，第 26–27 章说明 velocity 虚拟摇杆的使用、参数与鼠标隔离；功能源码只在手册第 23 章单点回填，未填前不冒称最终功能提交。
+- 当前分支 `codex/ipad-hid-metadata-v2.2.1-20261024`；用户要求先对照正常 v2.0 `28f6c86` 与失败 v2.2.1 `1c61b81`，先交单份最小修正 v2.2.1，再由用户 iPad 实测；确认成功才移植原 v2.3.3 `432d6c857382769963afd65de0f803a303a67e59`。不能擅自继续 v2.3.4 单主机路线。
+- 功能源 `f1d862ffc22ad7371b5a59471b11e086764cf5d6`：仅 HID Information bcdHID `0000→0111`、USB-IF PnP Source `1→2`、标准 DIS 软件版本 `2.2.1-ipad-hid1`。63 份配置恰 4 处受控改变、59 份字节相同；168 绑定、原 USB/BLE 手柄、键鼠、生命周期/路由、权限、配对及 settings 不删改。DIS 新增两属性会改变数据库和可能的绝对句柄，不能称已清缓存或 HOG 绝对句柄不变。
+- 两项旧元数据问题也存在于正常 v2.0；“加入 Game Pad 后触发更严格主机处理”只是待实机验证假设，不得写成已定位根因或已修好 iPad。新测试固定真实 337B map，不能用精简 mock 的 map 代替；旧 BASE、SDK fixtures、旧 oracle 和原回归保留。
+- 本轮仅获精确仓库 `murongqiaochu-hub/zmk-config-9981-pro` 的本候选分支推送、既有 Actions ARM 构建、单份 UF2 下载校验授权；不推稳定/release、不扩大既有 auto-deliver 旧分支闸门、不归档回推、不刷写、不清配对/settings、不改主机或 MAC，不读取/发布凭证或网络身份。
+- 当前手册 v2.2.1.1；本轮新增真实 HID 16组合 UBSan＋ASan、特定 OFF 负例、旧范围闸及完整主机回归均 PASS（exit0）；ARM/UF2 待执行，未刷写、未 iPad 验收。状态须随本轮实测证据更新，同批导出 PDF/Word/离线 HTML；见[对比与修正说明](<docs/ipad_hid_metadata.md>)。下面保留原 v2.2.1 的布局/参数合同，其历史状态不替代本轮结果。
+
+## 原始 Xbox 标准 HID 合同（2026-10-20，布局沿用）
+
+- 原始文档为 v2.2.1，现修订手册 v2.2.1.1，保留原普通 / SYM / UPPER 说明和参数。手册原 18–23 章号不变，第 26–27 章说明 velocity 虚拟摇杆的使用、参数与鼠标隔离；功能源码只在手册第 23 章单点回填，未填前不冒称最终功能提交。
 - 仅 MEDIA：WASD 是 D-pad，不是左杆；I/J/L/M＝Y/X/B/A；通话/结束＝LB/RB；双肩＝数字 LT/RT（0/255）；实体 T/Y＝View/Back、Menu/Start；空格＝Guide/Xbox。黑莓按住换右杆、松开不锁定；机械触板 DOWN 捕获 L3/R3，切模式不重映射已按住按钮。17 个 gamepad 位置、3 个回 DEFAULT 出口、22 个 None；原 J/K＝B/A 已废止，K/N/Enter 留空。
 - 触板只有相对光学位移：默认左 X/Y、按住黑莓右 Z/Rz，raw 右正下正；velocity 不累计位置。默认 gain8 / 逻辑 deadzone4 / 75%新+25%旧对称舍入，最大输入首帧为 ±95 而非满量程；有效位移续时，120ms 无有效位移本地归零，GPIO/I2C 故障清轴但不代替按钮 UP。不能把本地计时写成 host ACK 或收包时限；停住手指不能保持杆倾斜，单触板不能独立双杆或同时 L3/R3。
 - 游戏层新增 driver 独占分支、晚发送 gate 及轻拍临时保护 / 取消旧候选，退出恢复原鼠标；不能声称触板 driver / microtap runtime / 输出 bridge 整文件未变。三者仅新增 GP 所有权与代际门；原 gesture 参数、开机 OFF、三击开关、桥接 I/O / 必要 UP、灯光和 GPIO / 矩阵保留。范围闸验证 46 份旧配置字节相同、3 份源去门后精确恢复（仅归一历史 CRLF）。P37 slow、P41 滚轮物理监听仍存在，但游戏层不发鼠标 / 滚轮，P37 不是摇杆加速。
 - 标准 HID ID4：body9，USB10（aligned staging12 但只发10），BLE9 无 ID；13 个真实 Button usages、四轴、数字 LT/RT。它不是 Xbox 原生 XInput，不保证 Windows XInput-only、Xbox 主机或各版本目标 App 兼容；无振动 / Share，Guide 可能被系统截获。矩阵三键鬼键风险未消除，移动 + modifier + 开火等组合必须实测。
-- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。当前未 ARM / UF2、USB / BT 枚举、刷写或 App 实玩；纯核、runtime 新轴合并 / quiet、真实 driver、异步 bridge 及新 ABI 专项已实际通过；完整主机回归已实际通过，含原键鼠 / 灯光 / 矩阵 / 文档同步与新手柄专项；这不是 ARM 或实机验收。
+- 旧 `28f6c86` 与手册第 19 章的 UF2 SHA 保留作键鼠回退；旧 GBA `abe65ea` / `89fbe9d` 仅是本地撤回历史，不搬动旧产物。原始 2026-10-20 文档记录当时未 ARM / UF2、USB / BT 枚举、刷写或 App 实玩；纯核、runtime 新轴合并 / quiet、真实 driver、异步 bridge 及新 ABI 专项已实际通过；完整主机回归已实际通过，含原键鼠 / 灯光 / 矩阵 / 文档同步与新手柄专项；这不是 ARM 或实机验收。
 - [使用说明书](<docs/9981Pro_使用说明书.md>)、[实现笔记](<docs/gamepad_implementation_notes.md>)、[README](<README.md>)、[核对清单](<docs/manual_manifest.json>)与四层图稿须同批同步；导出 PDF / Word / HTML 并核对排版。下面的维护命令不是推送、Actions、刷写或清设置授权。
 
 ## 更新和导出的最短流程

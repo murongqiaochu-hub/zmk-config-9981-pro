@@ -81,7 +81,11 @@ assert not re.search(r'\b(?:zmk_hid_mouse_button(?:s)?_(?:press|release)|zmk_beh
 workflow = (ROOT / '.github/workflows/main.yml').read_text()
 branch = 'codex/xbox-layout-20261020'
 assert workflow.count(f'refs/heads/{branch}') == 1 and workflow.count(f'HEAD:{branch}') == 1
-conf = (ROOT / 'config/bbp9981.conf').read_text()
+# Verify the entire four-file candidate before projecting only its exact conf insertion.
+# The legacy BASE, original conf oracle, driver restorations and all old gates remain intact.
+from hid_metadata_scope import check_scope, projected_legacy_conf
+check_scope()
+conf = projected_legacy_conf((ROOT / 'config/bbp9981.conf').read_text())
 assert conf == old('config/bbp9981.conf').decode().replace('\r\n', '\n').replace('CONFIG_ZMK_BLE=y\n',
     'CONFIG_ZMK_BLE=y\n\n# Keep the stock keyboard/mouse HID_0; expose the gamepad on its own USB HID_1.\nCONFIG_BBP9981_GAMEPAD=y\nCONFIG_USB_HID_DEVICE_COUNT=2\nCONFIG_USB_HID_REPORTS=4\n')
 print(f'PASS Xbox scope: {len(protected)} base config files byte-identical; A320/micro/bridge original source restored exactly after GP-only gates/old A320 CRLF normalization; tap policy and bridge I/O/UP logic, native shoulder/Ctrl, GPIO/matrix/DT, pointer math and lights preserved; eight integration + nine new GP files only')

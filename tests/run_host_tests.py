@@ -82,6 +82,7 @@ for relative in paths:
 assert updated[0] == updated[1]
 print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; 17 formerly-empty MEDIA positions gain Xbox-layout HID actions, WASD remains Dpad, IY/JX/LB/MA; three exits and all other bindings unchanged')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_hid_metadata_tests.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/run_diag_hid.py')], check=True)
