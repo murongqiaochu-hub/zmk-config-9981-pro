@@ -25,7 +25,7 @@
 - 功能源 `f1d862ffc22ad7371b5a59471b11e086764cf5d6`：仅 HID Information bcdHID `0000→0111`、USB-IF PnP Source `1→2`、标准 DIS 软件版本 `2.2.1-ipad-hid1`。63 份配置恰 4 处受控改变、59 份字节相同；168 绑定、原 USB/BLE 手柄、键鼠、生命周期/路由、权限、配对及 settings 不删改。DIS 新增两属性会改变数据库和可能的绝对句柄，不能称已清缓存或 HOG 绝对句柄不变。
 - 两项旧元数据问题也存在于正常 v2.0；“加入 Game Pad 后触发更严格主机处理”只是待实机验证假设，不得写成已定位根因或已修好 iPad。新测试固定真实 337B map，不能用精简 mock 的 map 代替；旧 BASE、SDK fixtures、旧 oracle 和原回归保留。
 - 本轮仅获精确仓库 `murongqiaochu-hub/zmk-config-9981-pro` 的本候选分支推送、既有 Actions ARM 构建、单份 UF2 下载校验授权；不推稳定/release、不扩大既有 auto-deliver 旧分支闸门、不归档回推、不刷写、不清配对/settings、不改主机或 MAC，不读取/发布凭证或网络身份。
-- 当前手册 v2.2.1.1；本轮新增真实 HID 16组合 UBSan＋ASan、特定 OFF 负例、旧范围闸及完整主机回归均 PASS（exit0）；ARM/UF2 待执行，未刷写、未 iPad 验收。状态须随本轮实测证据更新，同批导出 PDF/Word/离线 HTML；见[对比与修正说明](<docs/ipad_hid_metadata.md>)。下面保留原 v2.2.1 的布局/参数合同，其历史状态不替代本轮结果。
+- 当前手册 v2.2.1.1；本轮新增真实 HID 16组合 UBSan＋ASan、特定 OFF 负例、旧范围闸及完整主机回归均 PASS（exit0）；ARM构建 `17192e63fdc94e8080d61f89cd97724339bd64c7`、Run `40082379873` 及605184B单份UF2校验PASS，SHA256 `9dd7bbf5e33ef2a414e7725994c710131c9036e751f322f7009783e08e4691fe`；原生DT全文相同、旧正向Kconfig仅PnP来源改变另增3项，auto-deliver旧分支闸门保持且实际SKIP。未刷写、未 iPad 验收。状态须随本轮实测证据更新，同批导出 PDF/Word/离线 HTML；见[对比与修正说明](<docs/ipad_hid_metadata.md>)。下面保留原 v2.2.1 的布局/参数合同，其历史状态不替代本轮结果。
 
 ## 原始 Xbox 标准 HID 合同（2026-10-20，布局沿用）
 

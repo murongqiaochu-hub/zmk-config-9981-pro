@@ -61,7 +61,9 @@ python3 -B tests/run_host_tests.py
 - 初次静态范围锚点多一个空格，已修正；真实196B描述符暴露旧未调用组合测试的128B临时缓冲过小，仅在受控临时副本精确扩大为512B，旧断言逐字保留、反向替换证明其他字节不变。
 - 本机 GCC12 的 ASan+PIE 空程序也会随机在 main 前崩溃（20次中7次）；非PIE空程序20/20通过。ASan测试改为 `-fno-pie -no-pie`，仍保留全部 sanitizer、严格警告和失败即退出，不重试掩盖固件测试失败。证据见[环境探针](</vol1/1000/projects/output/1024/164259_iPad兼容修正_v2.2.1/11_ASan环境探针.json>)。
 
-ARM校验必须绑定本分支的确切构建提交/Run，并检查真实 `.config`、固定SDK/HAL标记、HOG编译修正标记、DT/168绑定和唯一UF2；UF2需核验云端artifact digest、SHA256、nRF52840 family、连续应用分区且不触碰bootloader/settings。当前ARM/UF2尚待执行。
+**本轮 ARM/UF2 实际 PASS：** 构建 `17192e63fdc94e8080d61f89cd97724339bd64c7`，[Run 40082379873](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40082379873>)，artifact `12554904750`。原生旧1163个正向Kconfig项仅PnP Source改变，另增3项；最终DT全文29300B与原v2.2.1逐字节相同。原生HOG修正前缀、固定SDK/HAL标记均命中，最终UF2中原196B与手柄141B描述符各有2份，标准软件版本及Source2的PnP数据亦存在。
+
+唯一交付UF2为605184B、1182块，nRF52840 family `0xADA52840`，连续应用地址 `[0x1000,0x4AE00)`，SHA256 `9dd7bbf5e33ef2a414e7725994c710131c9036e751f322f7009783e08e4691fe`。云端ZIP digest与API吻合；旧auto-deliver归档回推作业实际SKIP。详见[可重放核验报告](</vol1/1000/projects/output/1024/164259_iPad兼容修正_v2.2.1/23_ARM与UF2核验.json>)。这些是构建/文件证据，**不是已刷写、无线收包、Apple缓存刷新或iPad实机验收**。
 
 ## iPad 验收及下一阶段
 

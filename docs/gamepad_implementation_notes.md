@@ -1,6 +1,6 @@
 # MEDIA / Xbox 布局标准 HID 手柄：实现与验证说明
 
-2026-10-24，与[使用说明书 v2.2.1.1](<9981Pro_使用说明书.md>)同步。固件是保留全部原 v2.2.1 功能的 iPad 元数据兼容候选；标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。本轮仅修 HID Information、PnP 来源及标准 DIS 软件版本，功能源 `f1d862ffc22ad7371b5a59471b11e086764cf5d6`；尚未证明 iPad 可用，详见[本轮对比与修正说明](<ipad_hid_metadata.md>)。以下保留原 v2.2.1 的实现与既有主机验证记录，不把旧 PASS 当成本轮结果；本轮新增真实 HID 16组合 UBSan＋ASan、特定 OFF 负例、旧范围闸与完整主机回归均 PASS（exit0）；ARM/UF2 待执行。
+2026-10-24，与[使用说明书 v2.2.1.1](<9981Pro_使用说明书.md>)同步。固件是保留全部原 v2.2.1 功能的 iPad 元数据兼容候选；标准 HID，**不是原生 XInput，不冒充微软 VID/PID**。本轮仅修 HID Information、PnP 来源及标准 DIS 软件版本，功能源 `f1d862ffc22ad7371b5a59471b11e086764cf5d6`；尚未证明 iPad 可用，详见[本轮对比与修正说明](<ipad_hid_metadata.md>)。以下保留原 v2.2.1 的实现与既有主机验证记录，不把旧 PASS 当成本轮结果；本轮新增真实 HID 16组合 UBSan＋ASan、特定 OFF 负例、旧范围闸与完整主机回归均 PASS（exit0）；ARM构建 `17192e6`、[Run 40082379873](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40082379873>)及605184B单份UF2校验PASS，原生DT全文不变、配置仅预期4项差异；未刷写或iPad验收。
 
 旧 GBA 功能快照 `abe65ea`、含文档提交 `89fbe9d` 已由用户撤回，仅保留本地历史，不是当前 Xbox 源码或可刷固件；不搬动、不覆盖旧产物。键鼠回退仍为 `28f6c86`，对应 UF2 SHA-256 见手册第 19 章。
 
