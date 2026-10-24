@@ -3,9 +3,11 @@
 - 用户清理全部BLE槽后报告旧版、新版恢复可用，随后明确选择“修改并构建单主机候选”；不把恢复归因为已证实的多连接根因，也不将其记成本候选实机验收。
 - 功能源 `eca6120042ca3fa02872e2ce180385a56079fce8`；基线v2.3.3 `432d6c857382769963afd65de0f803a303a67e59`；专属分支 `codex/ble-single-host-v2.3.4-20261024`。切槽断非当前默认身份LE PERIPHERAL主机，后续事件重判，配对记录保留；CENTRAL/非默认身份/split-peripheral豁免。空槽新配对与配对中切槽保护、重试及异步限制见[单主机说明](<../docs/ble_single_host.md>)。
 - 实现冻结版本完整host exit0；审查补强后专项UBSan/ASan及“实际生产临时副本只删除target_snapshot一对scheduler锁”的指定断言负例通过。独立只读审查无新增阻断P1/P2。85份旧配置中82份原字节不变，3精确追加+5新策略文件；全部168绑定/旧C oracle/SDK fixture保留。SDK脏改闸已覆盖RPA归一所依赖的hci_core路径，实际BLE TU新增唯一auth前缀编译标记供ARM日志核验。
-- 当前本地缺CMake，执行矩阵明确SKIP，不能拿替身记录器的136组合代替ARM。既有Actions须执行完整host与实际CMake、ARM构建，并核验前缀、策略链接、DTS/168键及旧Kconfig后才交UF2；此处尚无本候选构建/UF2通过结论。
-- 本批同步手册v2.3.4、清单、四图、PDF/DOCX/离线HTML；候选未刷/未实机验收。不推稳定/发布，不归档UF2回推，不自动刷写、清配对/settings或改主机。
-- 精确回退仍为v2.3.3原UF2，SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`；[恢复备用](</vol1/1000/projects/output/1024/005305_iPad蓝牙只读诊断/08_9981Pro_v2.3.3_恢复备用.uf2>)。下方旧记录只代表各版当时状态。
+- 构建 `cfceb0c691289411d5ee164252175c31ed2c3ec5` 与功能源config/测试完全一致；[Actions Run40071403293](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40071403293>) regression、bbp9981 ARM及合并artifact成功，deliver/failure_context均跳过。CI实际执行136组合/6Git响应+4真实SHA负例及删快照锁编译负例；本地缺CMake仍明确SKIP，模型不能代替ARM。实际West编译只有一个auth前缀note，最终ARM ELF的两个auth注册guard和`bt_conn_cb_bbp_ble_single_host`静态回调均有定义，回调确位于native可迭代表内；不是仅检查CMake替身。
+- 云DTS全文与v2.3.3逐字节相同，全168绑定/硬件不变；1170旧Kconfig赋值不变，唯一新增`CONFIG_BBP9981_BLE_SINGLE_HOST=y`。FLASH312604B/RAM89646B，较前版+3480B/+448B；未删功能。见[云端基线与链接核验](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/14_云端基线一致性核验.json>)、[运行记录](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/11_Actions运行记录.json>)和[实际完整日志](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/13_Actions完整日志.zip>)。
+- [本轮候选UF2](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/18_9981Pro_v2.3.4_单主机连接候选.uf2>)为原始artifact的逐字节命名副本：625664B（611KiB）/1222块，family`0xada52840`，连续应用区`[0x1000,0x4d600)`，不含bootloader/NVS块；SHA `8d4f408d1c900409dc145a8f3b5be48c89796d3a56e39aa2f9312669b0de8406`。[原始UF2校验](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/09_云端构建产物/validation.json>)及下载ZIP与GitHub immutable artifact digest均核验通过，device_tested=false。
+- 本批手册v2.3.4、清单、四图、27页A5 PDF/离线HTML/可编辑DOCX同步。PDF/HTML排版与文字核验通过；Word仅结构/文本核验，未独立Office渲染。候选未刷/未实机验收，不宣称iPad根因已证或保证瞬时单连接；不推稳定/发布，不归档UF2回推，不自动刷写、清配对/settings或改主机。
+- 精确回退仍为v2.3.3原UF2，SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`；[本批恢复备用](</vol1/1000/projects/output/1024/135239_9981Pro单主机连接_v2.3.4/19_9981Pro_v2.3.3_恢复备用.uf2>)与原备份逐字节相同。下方旧记录只代表各版当时状态。
 
 ## 历史：v2.3.3 五档记忆/MEDIA慢呼吸候选（2026-10-22）
 

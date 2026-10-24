@@ -6,7 +6,7 @@
 - 在v2.3.3工作树 `432d6c857382769963afd65de0f803a303a67e59` 上，只让默认本地身份的LE PERIPHERAL入站主机保留当前槽peer；切槽扫描断旧，并在连接/身份/安全事件后重判。CENTRAL外设链接及split-peripheral豁免，USB/输出偏好不动，配对记录不自动删除；空槽允许真正unknown，但拒已映射其它槽的旧peer，至多一个临时候选。不启FAL或定向广告，必须披露短连/UI延迟、快切回原机仍可能重连、无固定完成时限。
 - 新增策略服务与只包固定BLE源auth注册的source-specific前缀。配对中切槽、取消/失败和失效候选不进stock错槽保存/unpair分支；合法complete最终gate前短sched锁依赖已pin源码在捕获index前无阻塞，settings阻塞时index已捕获。无IRQ/spin锁跨BT/设置调用，不保证ISR选槽或未知SDK变更。RPA身份等待1000ms、错误50ms最多3次，不能把请求成功当对端ACK，错误耗尽不自激循环、不清设置。
 - 生产仅conf/Kconfig/CMake三份精确追加、5新策略/构建文件，82/85旧config原字节不变；全部168绑定、HID/USB/指针/轻拍/手柄/灯/已有存储格式不变。新[scope](<tests/ble_single_host_scope.py>)恢复精确v2.3.3再进入旧链；旧BASE/C oracle/SDK fixture冻结。新增真实原字节BLE TU与公开头、ON/OFF/role/快切/身份/配对竞态/错误专项；不拿旧HOG fixture代替BLE路径。
-- 当前在专属 `codex/ble-single-host-v2.3.4-20261024` 实施与回归；实际功能提交、完整host、ARM/UF2和文档状态见[单主机说明](<docs/ble_single_host.md>)及[当前交付](<firmware-delivery/XBOX_CURRENT.md>)，未通过不写PASS。沿用必要候选推送/既有Actions/下载核验授权，不推稳定/发布或归档，不自动刷写/清配对/settings/改主机；精确回退仍v2.3.3 SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`。
+- 功能源 `eca6120042ca3fa02872e2ce180385a56079fce8`，专属 `codex/ble-single-host-v2.3.4-20261024` 构建 `cfceb0c691289411d5ee164252175c31ed2c3ec5`、Run40071403293的完整host、CI实际CMake136组合/10闸门负例、ARM/UF2、DTS/168键/1170旧Kconfig及最终ELF策略/auth注册/静态回调核验通过。仅新增单主机开关；本地CMake仍SKIP，不以模型冒充空口。交付与同批手册/四图/PDF/DOCX/HTML见[单主机说明](<docs/ble_single_host.md>)及[当前交付](<firmware-delivery/XBOX_CURRENT.md>)；未刷/未实机验收。只推专属候选，不推稳定/发布或归档，不自动刷写/清配对/settings/改主机；精确回退仍v2.3.3 SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`。
 
 ## 历史明确功能合同：v2.3.3（2026-10-22）
 

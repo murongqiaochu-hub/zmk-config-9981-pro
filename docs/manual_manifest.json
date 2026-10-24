@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.4",
   "manual_date": "2026-10-24",
-  "updated": "2026-10-24T14:43:11+08:00",
+  "updated": "2026-10-24T14:59:55+08:00",
   "source_commit": "eca6120042ca3fa02872e2ce180385a56079fce8",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.4单主机策略与审查补强冻结；完整本地主机回归、补强专项及仅删target_snapshot锁的真实编译负例通过；原BASE/oracle/SDK及168绑定不改。本地CMake明确SKIP，最终CI/ARM、唯一前缀编译标记/最终ELF符号和UF2待核验；非实机验收，不自动刷写或清设置。",
+  "review_note": "功能源eca6120042ca3fa02872e2ce180385a56079fce8；实际构建cfceb0c691289411d5ee164252175c31ed2c3ec5、Run40071403293。完整host、CI实际136组合/10闸门负例与删快照锁真实编译负例、ARM唯一auth前缀/最终ELF策略和静态回调、UF2核验通过；DTS全文/168键和1170旧Kconfig原样，仅新增单主机开关。27页手册同批同步，Word只核结构/文本；未刷/未实机，不自动清设置、刷写或归档。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "52016b93b68a6e765f7b074f4b87d774de5ec4ead0ffbd20f0bf41973ff04fed",
+  "manual_sha256": "db40555a91ae34f664719516c76323b186abd61c9cbb865be2684caac5347ab6",
   "source_sha256": {
     "config/bbp9981.conf": "4085b58709f1a1a219dd6b7a88ba8c7f86a00775111f779f16417ef09216fe9e",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",

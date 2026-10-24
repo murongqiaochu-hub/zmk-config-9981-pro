@@ -41,4 +41,6 @@ auth前缀只替换固定BLE TU的两个注册函数，保留正常回调委托�
 
 使用固定ZMK v0.3.0的原字节BLE TU、真实公开头、实际服务与auth前缀，分TU进行ON/OFF、settings/USB/split-central、BLE OFF/split-peripheral、快切/旧机重连/空槽候选/身份解析/错误退避/连接复用/配对竞争的UBSan和ASan主机模型测试。stock不主动断旧连接是实际原代码的负例，不能用自写stock替身凑通过。same-index-peer在reconcile排队后才armed，仅policy TU的getter桥检查首个worker读取持有scheduler锁；实际生产临时副本仅删除target_snapshot一对锁，必须被该特定断言拒绝，原生产和冻结SDK不写。新增独立CMake source/prefix顺序和固定SDK身份负例；本地缺CMake明确SKIP，CI必须执行。SDK脏改闸包含负责RPA归一的hci_core；ARM日志需核唯一`BBP9981_BLE_SINGLE_HOST_AUTH_PREFIX_ACTIVE`编译标记及策略实际链接，不能把CMake替身的136组合冒称真实编译参数/ELF证明。
 
-这些测试不等于空口、iPadOS、其他主机或全部App实机验收。发布流程只向版本专属候选分支推送并使用既有Actions；不推稳定/发布分支、不自动归档回推。UF2须完成身份、family、连续应用区、DTS/键图和旧配置一致性核验后才交付；保留v2.3.3原UF2用于回退。不会自动刷写、清配对/settings或改主机。
+本候选功能源`eca6120042ca3fa02872e2ce180385a56079fce8`，实际构建`cfceb0c691289411d5ee164252175c31ed2c3ec5`、Run40071403293。完整host、CI实际136组合/10闸门负例、ARM、原生唯一前缀note与最终ELF中两个auth注册guard/静态回调、UF2身份与边界核验均已通过。DTS全文及168绑定与v2.3.3逐字节相同，1170旧Kconfig赋值不变，仅新增单主机开关。FLASH312604B/RAM89646B（+3480/+448B），不删功能；精确产物/SHA见交付记录。后续文档提交不代表新ARM构建。
+
+这些测试不等于空口、iPadOS、其他主机或全部App实机验收。仅向版本专属候选分支推送并使用既有Actions；不推稳定/发布分支、不自动归档回推。保留v2.3.3原UF2用于回退，不会自动刷写、清配对/settings或改主机。
