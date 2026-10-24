@@ -188,3 +188,6 @@ subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_final_review_test
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_cursor_tests.py')], check=True)
 # v2.3.3 old proofs keep their immutable BASE; test the new enabled product too.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_user_preferences_tests.py')], check=True)
+# v2.3.4 adds only the separately exact-scoped BLE host policy, not new oracles.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_ble_single_host_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_ble_single_host_tests.py')], check=True)

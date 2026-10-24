@@ -26,5 +26,6 @@ if(CONFIG_BOARD_BBP9981)
     include("${CMAKE_CURRENT_LIST_DIR}/cmake/tap_extensions.cmake")
     include("${CMAKE_CURRENT_LIST_DIR}/cmake/gamepad.cmake")
     include("${CMAKE_CURRENT_LIST_DIR}/cmake/diagnostics.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake/ble_single_host.cmake")
 
 endif()

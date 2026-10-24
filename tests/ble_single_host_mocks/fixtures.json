@@ -1,0 +1,31 @@
+{
+  "repository": "https://github.com/zmkfirmware/zmk",
+  "tag": "v0.3.0",
+  "commit": "edf5c0814fd3ea202e43aad2d68fd32e882a518c",
+  "files": {
+    "sdk_v0_3_0_ble.c": {
+      "upstream": "app/src/ble.c",
+      "size": 27201,
+      "git_blob": "2611eee5e49169ebb0f145ef052a75084929ef72",
+      "sha256": "ab936cdb01c2c9ddd3c90ac1c231fb18b791f92e2f5ab8e934b8d8bbd23291d0"
+    },
+    "zmk/ble.h": {
+      "upstream": "app/include/zmk/ble.h",
+      "size": 1524,
+      "git_blob": "92b2107d88b12d2779c02305053032372386391a",
+      "sha256": "f1a212524ca101289d21fcfe9f2e27de0f61a741582878974d7b7b262f6ec500"
+    },
+    "zmk/ble/profile.h": {
+      "upstream": "app/include/zmk/ble/profile.h",
+      "size": 265,
+      "git_blob": "0a57f16fa4b5a752d3c51d97358891c725256635",
+      "sha256": "f680f4603b13e2a9b6e00639a60d62e80ae3add18440f802e3e7ad8940f28aef"
+    },
+    "zmk/events/ble_active_profile_changed.h": {
+      "upstream": "app/include/zmk/events/ble_active_profile_changed.h",
+      "size": 367,
+      "git_blob": "620e19b4b882d0cc5799ee1107d6b68dd99eb37b",
+      "sha256": "aed2b7d6c3ba6a28319501cdcce25aee7d6fa6254c29a6bbc6b864cf8f81559b"
+    }
+  }
+}

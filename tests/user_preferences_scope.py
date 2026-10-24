@@ -122,11 +122,15 @@ def restore(path,data):
 @lru_cache(maxsize=1)
 def verified_v232_view():
     paths=subprocess.check_output(['git','ls-tree','-r','--name-only',BASE,'config'],cwd=ROOT,text=True).splitlines()
-    actual={str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
+    # First prove and remove only the newer user-authorized BLE policy layer.
+    # Keep this historical BASE/CHANGED/ADDED and its restoration rules intact.
+    from ble_single_host_scope import verified_v233_view
+    current_view=verified_v233_view()
+    actual=set(current_view)
     assert actual==set(paths)|ADDED,('Unapproved config files',actual^(set(paths)|ADDED))
-    changes={p for p in paths if (ROOT/p).read_bytes()!=base(p)}
+    changes={p for p in paths if current_view[p]!=base(p)}
     assert changes==CHANGED,('Unapproved production scope',changes^CHANGED)
-    view={p:restore(p,(ROOT/p).read_bytes()) for p in paths}
+    view={p:restore(p,current_view[p]) for p in paths}
     for p in paths: assert view[p]==base(p),'Changed outside explicit v2.3.3 additions: '+p
     # Check ACTUAL enabled maps, not merely the restored historical view.
     mapped=[]

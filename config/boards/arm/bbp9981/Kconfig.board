@@ -97,6 +97,17 @@ config BBP9981_MEDIA_BREATHE
       Only MEDIA changes from flashing to a 3.6 second triangular breath.
       Keep the user's brightness/off state, idle and other layer patterns.
 
+config BBP9981_BLE_SINGLE_HOST
+    bool "Keep only the selected Bluetooth host connected"
+    depends on BOARD_BBP9981 && ZMK_BLE && (!ZMK_SPLIT || ZMK_SPLIT_ROLE_CENTRAL)
+    default n
+    help
+      Disconnect inactive incoming hosts on profile selection and reconnect.
+      Retain bonds and allow new pairing on an empty selected profile.
+      Central-role links and split-peripheral builds are not managed.
+      A rejected host can appear connected briefly; no link-layer whitelist
+      or directed advertising is enabled, preserving privacy compatibility.
+
 config BBP9981_MENU_DIAG
     bool "Bounded menu/left-button chain diagnostics"
     depends on BOARD_BBP9981 && A320_TAP_OUTPUT && LOG
