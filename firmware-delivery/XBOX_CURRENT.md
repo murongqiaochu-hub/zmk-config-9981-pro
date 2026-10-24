@@ -1,4 +1,13 @@
-# Xbox 布局标准 HID：v2.3.3 五档记忆/MEDIA慢呼吸候选（2026-10-22）
+# Xbox 布局标准 HID：v2.3.4 BLE单主机连接候选（2026-10-24）
+
+- 用户清理全部BLE槽后报告旧版、新版恢复可用，随后明确选择“修改并构建单主机候选”；不把恢复归因为已证实的多连接根因，也不将其记成本候选实机验收。
+- 功能源 `eca6120042ca3fa02872e2ce180385a56079fce8`；基线v2.3.3 `432d6c857382769963afd65de0f803a303a67e59`；专属分支 `codex/ble-single-host-v2.3.4-20261024`。切槽断非当前默认身份LE PERIPHERAL主机，后续事件重判，配对记录保留；CENTRAL/非默认身份/split-peripheral豁免。空槽新配对与配对中切槽保护、重试及异步限制见[单主机说明](<../docs/ble_single_host.md>)。
+- 实现冻结版本完整host exit0；审查补强后专项UBSan/ASan及“实际生产临时副本只删除target_snapshot一对scheduler锁”的指定断言负例通过。独立只读审查无新增阻断P1/P2。85份旧配置中82份原字节不变，3精确追加+5新策略文件；全部168绑定/旧C oracle/SDK fixture保留。SDK脏改闸已覆盖RPA归一所依赖的hci_core路径，实际BLE TU新增唯一auth前缀编译标记供ARM日志核验。
+- 当前本地缺CMake，执行矩阵明确SKIP，不能拿替身记录器的136组合代替ARM。既有Actions须执行完整host与实际CMake、ARM构建，并核验前缀、策略链接、DTS/168键及旧Kconfig后才交UF2；此处尚无本候选构建/UF2通过结论。
+- 本批同步手册v2.3.4、清单、四图、PDF/DOCX/离线HTML；候选未刷/未实机验收。不推稳定/发布，不归档UF2回推，不自动刷写、清配对/settings或改主机。
+- 精确回退仍为v2.3.3原UF2，SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`；[恢复备用](</vol1/1000/projects/output/1024/005305_iPad蓝牙只读诊断/08_9981Pro_v2.3.3_恢复备用.uf2>)。下方旧记录只代表各版当时状态。
+
+## 历史：v2.3.3 五档记忆/MEDIA慢呼吸候选（2026-10-22）
 
 - 用户已刷v2.3.2并反馈“有提升，但是提升不大”；坏C-to-C线已由用户确认。随后明确要求Z循环调速、重启保留和MEDIA键盘慢呼吸，选择五档0.6/0.9/1.2/1.5/1.8、首次1.2、物理左Ctrl半速。不把有限改善或本轮软件结果称实机手感彻底解决。
 - 功能源 `048201f8caeedeb729df3ca22aa2186c50aea476`，候选分支 `codex/cursor-presets-v2.3.3-20261022`，基线 `11218ad83292f5ccf9105e41010c1062073e474d`。仅UPPER Z/P28变正常可映射behavior；独立两字节设置key、1秒合并保存、最多3失败、用户优先、frame latch避免跨gain旧tap/replay。MEDIA键盘仅改约3.6秒10→100→10%呼吸，其他层与触板灯保留；非硬件DPI。见[本轮说明](<../docs/cursor_preferences.md>)。

@@ -1,6 +1,14 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
-## 当前明确功能合同：v2.3.3（2026-10-22）
+## 当前明确功能合同：v2.3.4 BLE单主机候选（2026-10-24）
+
+- 用户清理所有蓝牙槽后报告iPad及新版恢复，随后明确选择“修改并构建单主机候选”。这次是连接策略变更，不宣称已证iPad根因；不把该有限反馈追改成任意旧UF2全面验收。
+- 在v2.3.3工作树 `432d6c857382769963afd65de0f803a303a67e59` 上，只让默认本地身份的LE PERIPHERAL入站主机保留当前槽peer；切槽扫描断旧，并在连接/身份/安全事件后重判。CENTRAL外设链接及split-peripheral豁免，USB/输出偏好不动，配对记录不自动删除；空槽允许真正unknown，但拒已映射其它槽的旧peer，至多一个临时候选。不启FAL或定向广告，必须披露短连/UI延迟、快切回原机仍可能重连、无固定完成时限。
+- 新增策略服务与只包固定BLE源auth注册的source-specific前缀。配对中切槽、取消/失败和失效候选不进stock错槽保存/unpair分支；合法complete最终gate前短sched锁依赖已pin源码在捕获index前无阻塞，settings阻塞时index已捕获。无IRQ/spin锁跨BT/设置调用，不保证ISR选槽或未知SDK变更。RPA身份等待1000ms、错误50ms最多3次，不能把请求成功当对端ACK，错误耗尽不自激循环、不清设置。
+- 生产仅conf/Kconfig/CMake三份精确追加、5新策略/构建文件，82/85旧config原字节不变；全部168绑定、HID/USB/指针/轻拍/手柄/灯/已有存储格式不变。新[scope](<tests/ble_single_host_scope.py>)恢复精确v2.3.3再进入旧链；旧BASE/C oracle/SDK fixture冻结。新增真实原字节BLE TU与公开头、ON/OFF/role/快切/身份/配对竞态/错误专项；不拿旧HOG fixture代替BLE路径。
+- 当前在专属 `codex/ble-single-host-v2.3.4-20261024` 实施与回归；实际功能提交、完整host、ARM/UF2和文档状态见[单主机说明](<docs/ble_single_host.md>)及[当前交付](<firmware-delivery/XBOX_CURRENT.md>)，未通过不写PASS。沿用必要候选推送/既有Actions/下载核验授权，不推稳定/发布或归档，不自动刷写/清配对/settings/改主机；精确回退仍v2.3.3 SHA `ef911f23e250c55204d9342dea0a6322161e3c4ee624379c8bbe7ed8467c401a`。
+
+## 历史明确功能合同：v2.3.3（2026-10-22）
 
 - 用户已刷v2.3.2，反馈“有提升，但是提升不大”，坏C-to-C线已由用户确认；随后明确授权“用z循环调节dpi吧，重启之后也要保留记忆，另外media层键盘灯还是闪烁，给我把它改成慢速呼吸灯”，并选择0.6→0.9→1.2→1.5→1.8→0.6、首次1.2。仅UPPER Z/P28为正常可映射behavior，DEFAULT字母Z/MEDIA Dpad↓不变；不改M鼠标翻转、Y/F留空或维护键，不加隐藏Z监听。
 - “DPI”是固件相对位移增益，非已核实的sensor DPI寄存器；物理左下aA/Ctrl减半所选档。实际cursor和RAW tap影子共享单帧锁存：只有非重入A320 poll推进motion latch；选档/load在I2C/输出中交错时下一完整poll才应用，epoch清小数/滤波并interrupt旧tap/replay，五次回原档亦不混。后续若新增并行传感器消费者，须显式传frame context，不复用全局latch。
