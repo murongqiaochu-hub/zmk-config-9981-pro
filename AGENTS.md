@@ -24,6 +24,7 @@
 - 用户明确“整，赶紧的吧”：授权本轮临时关闭BLE手柄扩展并构建单份UF2。基于原失败 `1c61b817f7e2d52fd2bbea888d1867f354e4c2a8`，不是元数据候选或诊断版；不叠加这两轮修改。
 - 仅CMake取消HOG手柄前缀，改链接终止型 `-ENOTSUP` BLE手柄适配器。恢复旧196B Map与原生键鼠HOG属性；USB手柄、168绑定、behavior runtime、触板ownership/轻拍、灯光、身份、安全/配对/settings保持。BLE下MEDIA仍接管触板但无手柄输出，测试必须普通层。
 - 专属分支 `codex/ipad-bisect1-no-ble-gamepad-20261025`；仅推送精确HTTPS仓库 `murongqiaochu-hub/zmk-config-9981-pro`，允许本轮既有Actions/下载校验。不扩大原auto-deliver旧分支门、不发布稳定版、不自动刷机/清配对、不动v2.3.3。
+- 第一刀功能源 `d05c9e18bf97886a38e815001f04443598621b22`，构建 `8f56e28b6ae8b85c790b6738645327920f1122ca` / Run `40187705201` / artifact `12596966685` 成功。完整host与云回归/ARM PASS；UF2 602624B，SHA256 `198d484d47f4370c77d89baf991fd745101df3e162692abf87ee88cc977c0c6f`，应用区 `[0x1000,0x4a900)`。与1c61b81实际ARM日志比较1163项原生配置完全相同、DT29300B相同；UF2中旧196B键鼠描述符2处、141B手柄仅USB1处，无metadata/IPDIAG标记。未自动刷机，等待本刀用户反馈。文档追加skip-ci，不再构建。
 - 已知v2.0正常，原v2.2.1/元数据候选/diag1均用户确认仍无iPad键鼠；不能把软件通过当修复。第一刀实测通过后再拆BLE扩展；不通过再拆剩余运行时/USB增量。新增日志不再作为主线。
 
 ## 原始 Xbox 标准 HID 历史合同（2026-10-20，本轮BLE例外以上文为准）

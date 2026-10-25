@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.3",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T19:09:43+08:00",
+  "updated": "2026-10-25T19:16:33+08:00",
   "source_commit": "d05c9e18bf97886a38e815001f04443598621b22",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "二分第一刀完整host及stock HOG/stub专项PASS，实际配置仅2文件严格逆投影，旧USB/runtime/键图oracle保留；真实196B及ARM待验证，用户实机待测。",
+  "review_note": "第一刀Run40187705201构建8f56e28成功；完整host/云回归/ARM/UF2 PASS，1163原生配置与DT相同，196B描述符2处/141B仅USB1处；UF2 198d484d47f4370c77d89baf991fd745101df3e162692abf87ee88cc977c0c6f，602624B。用户刷测待验。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "c5900f2fd45d9481320f0fd636bc41c9aced7fc58aa61da964dd8c5c1017a622",
+  "manual_sha256": "a4a45d4f9c93ec758fbbccf9256e9f8d6a6cc50af9d1edde9b2ca338d72ae021",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "454f2aee5d3c31c8d41bacca63f18119c72d4c1df45ed62c2e28b9f50caf6b7b",
