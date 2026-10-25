@@ -3,7 +3,7 @@
 ## 当前移植合同：完整v2.3.3兼容修正（2026-10-25）
 
 - 基线为原v2.3.3树 `432d6c8`；原分支不动，另建 `codex/ipad-v233-repair-20261025` 移植。手册v2.3.3.1；功能源 `c667531a0c22d6677b735119861a6d6c1ed4b881`（父已冻结），不得以旧048或858当新功能源。
-- 上一候选 `79b7b7c` 是v2.2.1旧功能，用户仅确认键盘/鼠标正常，手柄未明确验收；不外推本轮。本轮完整host、ARM/UF2、原生GATT、实机全部待验证，最终源/运行号/hash见[移植记录](<docs/ipad_v233_repair.md>)。
+- 上一候选 `79b7b7c` 是v2.2.1旧功能，用户仅确认键盘/鼠标正常，手柄未明确验收；不外推本轮。本轮本地完整host、云端regression（含实际CMake32+9、反事实、独立HIDS）、ARM/UF2及原生GATT比对均PASS（Run40204700661 / 构建 `11ee89e`，UF2 SHA `1e277b08428984a6120c42310c34a6ad40eaaecdf491cbfb1d706e58c3359264`）；实机仍待用户验收，最终源/运行号/hash见[移植记录](<docs/ipad_v233_repair.md>)。
 - 85份旧config仅允许层判断/服务接线两处变更，其余字节不改；四层168绑定、五档记忆、指针滤波/削峰/BLE≤10ms积压合并、滚轮固定档/翻转、MEDIA慢呼吸、v2.3.1 USB修复全部保留，禁止恢复v2.2.1旧键图或手册。
 - 生产修改限定[手柄runtime](<config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c>) INDEX→stable ID、[构建接线](<config/boards/arm/bbp9981/cmake/gamepad.cmake>)取消HOG注入，新增[独立BLE服务](<config/boards/arm/bbp9981/custom_driver/gamepad_ble_service.c>)逐字节移植自79b7b7c。index bug上一版反事实已证，设备实际层重排未知，不称实机根因已证。
 - BLE stock196与GP141的Report Map分属两个HIDS，Input9无ID，原服务不拼接；手柄CP每peer独立suspend、无remote wake。身份/连接/cache仍共享，多HIDS不保证iPad手柄支持；不清配对/settings。

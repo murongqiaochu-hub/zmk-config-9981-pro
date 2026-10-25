@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.1",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T22:58:03+08:00",
+  "updated": "2026-10-25T23:08:57+08:00",
   "source_commit": "c667531a0c22d6677b735119861a6d6c1ed4b881",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v233兼容移植本地完整host PASS：原85配置精确逆投影/旧C与SDK冻结、12负向、投影legacy全suite、实际split runtime六分TU链接/层重排反事实、真196+141独立HIDS均通过。CMake32+9本地工具缺失明确SKIP，CI必须实跑；ARM/实机待验。168键/5档记忆/滤波/翻转/灯光/USB修复全部保留。",
+  "review_note": "完整v2.3.3兼容移植：本地/云端完整host、实际CMake32+9与反事实、真实196+141独立HIDS、ARM/UF2、原生GATT比对均PASS（Run40204700661/11ee89e）。85旧config仅2处受控改动+1新service，1170配置/30639B DT/168键与原v2.3.3全同；GATT差异仅为手柄服务实现方式。实机待用户验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "0a0c759e835e30f3d63233a0c69cc1ac6f0d7830a53222026e5f6a103fa94bf8",
+  "manual_sha256": "70608624c39704a8e19e6843c7fa4a516402601379261152b52553f353d9ef3f",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
