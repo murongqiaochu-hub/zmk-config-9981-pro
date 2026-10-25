@@ -64,7 +64,7 @@ def descriptor_checks(exe):
     assert triggers['bits'] == 16 and triggers['lo'] == 0 and triggers['hi'] == 255 and not triggers['flags'] & 4
     print('PASS Xbox-layout HID descriptor: ID4, 72body bits, 13 real Button usages, null hat8, four active signed axes and Brake/Gas triggers')
 
-def main():
+def main(repair_actual=False):
     BUILD.mkdir(exist_ok=True)
     fixtures = {
         'tests/gamepad_ble_mocks/sdk_v0_3_0_hog.c': '2e8c12bb4197173d238a6be1e33abf2db5dedbd4a6cf29a83d5e2f6c79d4919b',
@@ -94,7 +94,13 @@ def main():
         if not p.exists(): p.write_text('/* declarations from gamepad_runtime_env.h */\n')
     runtime = build('test_gamepad_runtime', includes=[includes], flags=['-Wno-unused-function'])
     run([str(runtime)])
-    run([os.sys.executable, '-B', str(ROOT/'tests/test_gamepad_refactor_structure.py')])
+    if repair_actual:
+        # Historical structure assertions run unchanged in the exact projection;
+        # actual production is instead guarded byte-for-byte by the repair gate.
+        from check_full_repair_scope import check
+        check()
+    else:
+        run([os.sys.executable, '-B', str(ROOT/'tests/test_gamepad_refactor_structure.py')])
     api = build('test_gamepad_refactor_api', includes=[includes], flags=['-Wno-unused-function'])
     run([str(api)])
     run([os.sys.executable, '-B', str(ROOT/'tests/test_refactor_link.py')])

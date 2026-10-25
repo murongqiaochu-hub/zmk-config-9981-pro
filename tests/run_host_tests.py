@@ -7,6 +7,12 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
+# Repair entry: retain every historical assertion on an exact 432d6c8 view,
+# then test the actual split runtime and independent HIDS separately.
+if os.environ.get('BBP_REPAIR_PROJECTED') != '1':
+    from run_full_repair_tests import main as repair_main
+    repair_main()
+    raise SystemExit(0)
 # User contract: every functionality/keymap update also updates the manual.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_manual_sync.py')], check=True)
 BUILD = ROOT / '.host-test-build'

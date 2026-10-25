@@ -1,6 +1,15 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
-## 当前明确功能合同：v2.3.3（2026-10-22）
+## 当前移植合同：完整v2.3.3兼容修正（2026-10-25）
+
+- 基线为原v2.3.3树 `432d6c8`；原分支不动，另建 `codex/ipad-v233-repair-20261025` 移植。手册v2.3.3.1；功能源 `c667531a0c22d6677b735119861a6d6c1ed4b881`（父已冻结），不得以旧048或858当新功能源。
+- 上一候选 `79b7b7c` 是v2.2.1旧功能，用户仅确认键盘/鼠标正常，手柄未明确验收；不外推本轮。本轮完整host、ARM/UF2、原生GATT、实机全部待验证，最终源/运行号/hash见[移植记录](<docs/ipad_v233_repair.md>)。
+- 85份旧config仅允许层判断/服务接线两处变更，其余字节不改；四层168绑定、五档记忆、指针滤波/削峰/BLE≤10ms积压合并、滚轮固定档/翻转、MEDIA慢呼吸、v2.3.1 USB修复全部保留，禁止恢复v2.2.1旧键图或手册。
+- 生产修改限定[手柄runtime](<config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c>) INDEX→stable ID、[构建接线](<config/boards/arm/bbp9981/cmake/gamepad.cmake>)取消HOG注入，新增[独立BLE服务](<config/boards/arm/bbp9981/custom_driver/gamepad_ble_service.c>)逐字节移植自79b7b7c。index bug上一版反事实已证，设备实际层重排未知，不称实机根因已证。
+- BLE stock196与GP141的Report Map分属两个HIDS，Input9无ID，原服务不拼接；手柄CP每peer独立suspend、无remote wake。身份/连接/cache仍共享，多HIDS不保证iPad手柄支持；不清配对/settings。
+- 本次文档子任务只写手册、README、本文件及新增repair记录；不改manifest/tools/config/tests，不提交、不操作云端、不委派。父负责manifest、导出与QA；历史验证仅属于对应旧版本。
+
+## 历史明确功能合同：v2.3.3（2026-10-22）
 
 - 用户已刷v2.3.2，反馈“有提升，但是提升不大”，坏C-to-C线已由用户确认；随后明确授权“用z循环调节dpi吧，重启之后也要保留记忆，另外media层键盘灯还是闪烁，给我把它改成慢速呼吸灯”，并选择0.6→0.9→1.2→1.5→1.8→0.6、首次1.2。仅UPPER Z/P28为正常可映射behavior，DEFAULT字母Z/MEDIA Dpad↓不变；不改M鼠标翻转、Y/F留空或维护键，不加隐藏Z监听。
 - “DPI”是固件相对位移增益，非已核实的sensor DPI寄存器；物理左下aA/Ctrl减半所选档。实际cursor和RAW tap影子共享单帧锁存：只有非重入A320 poll推进motion latch；选档/load在I2C/输出中交错时下一完整poll才应用，epoch清小数/滤波并interrupt旧tap/replay，五次回原档亦不混。后续若新增并行传感器消费者，须显式传frame context，不复用全局latch。
