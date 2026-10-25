@@ -95,6 +95,8 @@ def _expected(path, original):
 
 def projected_legacy_conf(conf: str) -> str:
     """Reject any unrelated conf delta BEFORE projecting to legacy's LF input."""
+    from ipad_diag_scope import project_conf
+    conf = project_conf(conf)
     original = _original(ROOT, CONF)
     expected = _expected(CONF, original).decode().replace("\r\n", "\n")
     assert conf == expected, "conf differs from the exact reviewed metadata insertion"
@@ -127,6 +129,8 @@ def check_scope(root=ROOT):
     entries = list((root / "config").rglob("*"))
     assert not any(p.is_symlink() for p in entries), "config symlink is not in the frozen tree"
     current = {p.relative_to(root).as_posix(): p.read_bytes() for p in entries if p.is_file()}
+    from ipad_diag_scope import project_config
+    current = project_config(current)
     _verify(original, current)
     return original, current
 

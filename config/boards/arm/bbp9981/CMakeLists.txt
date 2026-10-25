@@ -26,6 +26,27 @@ if(CONFIG_BOARD_BBP9981)
         zephyr_library_sources(custom_driver/trackpad_microtap_runtime.c
                                custom_driver/behavior_microtap_shoulder.c)
     endif()
+    # IPDIAG_BEGIN_CMAKE: first prefix observes ALL later HOG senders.
+    if(CONFIG_BBP9981_IPAD_DIAG)
+        if(NOT _iso_zephyr_rev STREQUAL "dacab4875df72109b96cc8977547a0dc04875bcd")
+            message(FATAL_ERROR "IPDIAG requires pinned Zephyr connection/GATT ABI")
+        endif()
+        execute_process(COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse HEAD
+            RESULT_VARIABLE _ipdiag_git_result OUTPUT_VARIABLE _ipdiag_config_rev
+            OUTPUT_STRIP_TRAILING_WHITESPACE)
+        string(LENGTH "${_ipdiag_config_rev}" _ipdiag_config_rev_len)
+        if(NOT _ipdiag_git_result EQUAL 0 OR NOT _ipdiag_config_rev_len EQUAL 40)
+            message(FATAL_ERROR "IPDIAG cannot identify actual config commit")
+        endif()
+        zephyr_library_sources(custom_driver/ipad_diag.c)
+        set_property(SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/ipad_diag.c"
+            APPEND PROPERTY COMPILE_DEFINITIONS "IPDIAG_CONFIG_REV=\"${_ipdiag_config_rev}\"")
+        set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/hog.c"
+            DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
+            "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/ipad_diag_hog.h")
+        message(STATUS "IPDIAG observer ipad_enum_diag1_20261025; HID/GATT unchanged")
+    endif()
+    # IPDIAG_END_CMAKE
     if(CONFIG_A320_TAP_OUTPUT)
         zephyr_library_sources(custom_driver/trackpad_tap_output.c custom_driver/trackpad_tap_pipeline.c)
         # Source-specific extension, no SDK checkout edits or global force-include.

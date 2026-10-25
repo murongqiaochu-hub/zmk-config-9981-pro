@@ -20,6 +20,9 @@ def scope_checks():
         ['git', 'diff', '--name-only', BASE, '--', 'config'], cwd=ROOT, text=True).splitlines())
     required = {'config/bbp9981.conf', DRIVER + 'Kconfig.board',
                 DRIVER + 'custom_driver/gamepad_ble_extension.h'}
+    # selftest above validates every byte of the additive diagnostic files first.
+    from ipad_diag_scope import NEW as diagnostic_new_files
+    changed -= set(diagnostic_new_files)
     assert required <= changed <= required | {DRIVER + 'CMakeLists.txt'}, changed
     subprocess.run(['git', 'diff', '--exit-code', BASE, '--', 'tests/test_gamepad_ble.c',
                     'tests/run_gamepad_tests.py', 'tests/gamepad_ble_mocks',

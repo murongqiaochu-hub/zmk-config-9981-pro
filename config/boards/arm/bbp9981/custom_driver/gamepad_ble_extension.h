@@ -29,6 +29,12 @@ _Static_assert(sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor) 
  * Other HOG reads keep the SDK helper's offset/error semantics; the optional
  * metadata correction below changes only the two bcdHID bytes of HID Information.
  */
+/* IPDIAG_BEGIN_READ_ALIAS: OFF retains the original function verbatim. */
+#if defined(CONFIG_BBP9981_IPAD_DIAG) && CONFIG_BBP9981_IPAD_DIAG
+#include "ipad_diag.h"
+#define bbp_gamepad_ble_attr_read bbp_gamepad_ble_attr_read_base
+#endif
+/* IPDIAG_END_READ_ALIAS */
 static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                        void *buf, uint16_t len, uint16_t offset,
                                        const void *value, uint16_t value_len) {
@@ -69,6 +75,23 @@ static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_g
     return (ssize_t)count;
 }
 
+/* IPDIAG_BEGIN_READ_OBSERVER */
+#if defined(CONFIG_BBP9981_IPAD_DIAG) && CONFIG_BBP9981_IPAD_DIAG
+#undef bbp_gamepad_ble_attr_read
+_Static_assert(sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor) == 337U,
+               "IPDIAG schema requires the pinned native 337-byte Report Map");
+static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                       void *buf, uint16_t len, uint16_t offset,
+                                       const void *value, uint16_t value_len) {
+    ssize_t ret = bbp_gamepad_ble_attr_read_base(conn, attr, buf, len, offset, value, value_len);
+    bool map = value == (const void *)zmk_hid_report_desc && value_len == sizeof(zmk_hid_report_desc);
+    bbp_ipdiag_read(conn, attr, len, offset, value,
+                   map ? sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor) : value_len,
+                   ret, map);
+    return ret;
+}
+#endif
+/* IPDIAG_END_READ_OBSERVER */
 static bool bbp_gamepad_ble_connected(const struct bt_conn *conn) {
     struct bt_conn_info info;
     return conn && bt_conn_get_info(conn, &info) == 0 && info.state == BT_CONN_STATE_CONNECTED;
@@ -124,8 +147,20 @@ static uint8_t bbp_gamepad_ble_report_ref[2] = {BBP_GAMEPAD_REPORT_ID, 0x01U};
 static ssize_t bbp_gamepad_ble_read_report_ref(struct bt_conn *conn,
                                              const struct bt_gatt_attr *attr, void *buf,
                                              uint16_t len, uint16_t offset) {
+/* IPDIAG_BEGIN_GP_REFERENCE */
+#if defined(CONFIG_BBP9981_IPAD_DIAG) && CONFIG_BBP9981_IPAD_DIAG
+    ssize_t ret = bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
+                                  sizeof(bbp_gamepad_ble_report_ref));
+    bbp_ipdiag_read(conn, attr, len, offset, attr->user_data,
+                   sizeof(bbp_gamepad_ble_report_ref), ret, false);
+    return ret;
+#else
+/* IPDIAG_END_GP_REFERENCE */
     return bt_gatt_attr_read(conn, attr, buf, len, offset, attr->user_data,
                              sizeof(bbp_gamepad_ble_report_ref));
+/* IPDIAG_BEGIN_GP_REFERENCE_END */
+#endif
+/* IPDIAG_END_GP_REFERENCE_END */
 }
 
 static void bbp_gamepad_ble_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value) {

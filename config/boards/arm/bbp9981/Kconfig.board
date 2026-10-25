@@ -99,4 +99,19 @@ config BBP9981_BLE_HID_METADATA_COMPAT
       standard DIS software revision characteristic for native schema refresh.
       Software validation is not a claim of iPad device compatibility.
 
+# IPDIAG_BEGIN_KCONFIG
+config BBP9981_IPAD_DIAG
+    bool "Bounded privacy-safe iPad HOG enumeration observer"
+    depends on BBP9981_GAMEPAD && ZMK_BLE && ZMK_USB && BT_SMP
+    depends on A320_TAP_OUTPUT && ZMK_HID_INDICATORS && ZMK_POINTING
+    depends on LOG_MODE_DEFERRED && LOG_BACKEND_UART && UART_LINE_CTRL
+    depends on !ZMK_POINTING_SMOOTH_SCROLLING && !LOG_BLOCK_IN_THREAD
+    default n
+    help
+      Observes existing HOG reads, original notify results and current per-peer
+      CCC/security/MTU. No report bytes, addresses, pairing keys or settings.
+      Uses a fixed 64-entry RAM ring and DTR-gated bounded deferred log output.
+      A notify success is not proof of host delivery or HID driver binding.
+# IPDIAG_END_KCONFIG
+
 endmenu
