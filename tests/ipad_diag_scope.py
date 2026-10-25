@@ -17,7 +17,7 @@ CONF = 'config/bbp9981.conf'
 EXISTING = {
     CONF: '975daa27e9a86b5b8d7fa93f2ff4e4578e1e500fb6504543edffb172129a3525',
     BOARD + 'Kconfig.board': 'f26f6f2cb182687558bd1d85e312dbef284ff298e92447cabeffe17d6f84a090',
-    BOARD + 'CMakeLists.txt': '7647b31526fc6eed2edf96af0f6e85f8e9b931e4b5231a440b99fc642d2a8df1',
+    BOARD + 'CMakeLists.txt': '59a1afe09399f22b84bf2878d592bfdb2d1e7d39f017a59bb0583bf04317997f',
     BOARD + 'custom_driver/gamepad_ble_extension.h': '55fd9db5d836bb2fea2311de9d4d20ed5ea1ebee3781db52e9099be2398361d8',
 }
 NEW = {

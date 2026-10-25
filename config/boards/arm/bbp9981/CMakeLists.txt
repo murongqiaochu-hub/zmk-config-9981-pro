@@ -31,7 +31,10 @@ if(CONFIG_BOARD_BBP9981)
         if(NOT _iso_zephyr_rev STREQUAL "dacab4875df72109b96cc8977547a0dc04875bcd")
             message(FATAL_ERROR "IPDIAG requires pinned Zephyr connection/GATT ABI")
         endif()
-        execute_process(COMMAND git -C "${CMAKE_CURRENT_SOURCE_DIR}" rev-parse HEAD
+        # The reusable ARM container has a different UID from actions/checkout.
+        # Trust only this config repository for this one read; never global or '*'.
+        get_filename_component(_ipdiag_repo "${CMAKE_CURRENT_SOURCE_DIR}/../../../.." REALPATH)
+        execute_process(COMMAND git -c "safe.directory=${_ipdiag_repo}" -C "${_ipdiag_repo}" rev-parse HEAD
             RESULT_VARIABLE _ipdiag_git_result OUTPUT_VARIABLE _ipdiag_config_rev
             OUTPUT_STRIP_TRAILING_WHITESPACE)
         string(LENGTH "${_ipdiag_config_rev}" _ipdiag_config_rev_len)
