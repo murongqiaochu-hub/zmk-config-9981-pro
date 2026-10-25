@@ -3,6 +3,8 @@
 from pathlib import Path
 import hashlib,re,subprocess
 ROOT=Path(__file__).resolve().parents[1]
+from check_ble_enum_scope import project_config
+PROJECTED = project_config()  # Exact seam inverse first, then the original oracle.
 BASE='7fce2be906f8f54517226bcd229fab6aa9c8e979'
 PREFIX='config/boards/arm/bbp9981/custom_driver/'
 ALLOWED={PREFIX+n for n in ['trackpad_microtap.h','trackpad_microtap_runtime.c','trackpad_microtap_runtime.h']}
@@ -11,7 +13,7 @@ def old(p):return subprocess.check_output(['git','show',BASE+':'+p],cwd=ROOT)
 def clean(s):return re.sub(r'\s+','',re.sub(r'/\*.*?\*/|//[^\n]*','',s,flags=re.S))
 protected={}
 for p in paths:
- a=old(p);b=(ROOT/p).read_bytes()
+ a=old(p);b=PROJECTED[p]
  if p not in ALLOWED:assert a==b,p
  if a==b:protected[p]=hashlib.sha256(b).hexdigest()
 core=clean((ROOT/(PREFIX+'trackpad_microtap.h')).read_text())

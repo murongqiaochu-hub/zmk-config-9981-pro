@@ -9,6 +9,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 # User contract: every functionality/keymap update also updates the manual.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_manual_sync.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_ble_enum_tests.py')], check=True)
 BUILD = ROOT / '.host-test-build'
 STUBS = BUILD / 'include'
 HEADERS = [
