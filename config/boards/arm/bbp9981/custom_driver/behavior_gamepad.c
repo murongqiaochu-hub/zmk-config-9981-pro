@@ -85,7 +85,8 @@ bool bbp_gamepad_context_valid(uint32_t expected) {
     return expected == bbp_gamepad_context_epoch();
 }
 bool bbp_gamepad_layer_active(void) {
-    return zmk_keymap_highest_layer_active() == BBP_GAMEPAD_LAYER;
+    /* The SDK returns an order index; Studio can reorder stable layer IDs. */
+    return zmk_keymap_layer_index_to_id(zmk_keymap_highest_layer_active()) == BBP_GAMEPAD_LAYER;
 }
 uint32_t bbp_gamepad_pointer_epoch(void) { return (uint32_t)atomic_get(&pointer_mode_epoch); }
 static void wake_worker(uint32_t delay) {

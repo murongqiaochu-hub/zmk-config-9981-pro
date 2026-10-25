@@ -23,6 +23,10 @@
 #include "trackpad_microtap.h"
 #include "trackpad_tap_output.h"
 #include "menu_click_diag.h"
+#ifdef CONFIG_BBP9981_GAMEPAD
+#include "gamepad_runtime.h"
+static uint32_t seen_gamepad_pointer_epoch;
+#endif
 
 LOG_MODULE_REGISTER(tp_microtap, CONFIG_A320_LOG_LEVEL);
 extern int bbp9981_hid_mouse_button_references(unsigned int button);
@@ -188,7 +192,22 @@ static bool foreign_buttons(struct tp_tap_output_inflight out, bool *known) {
     }
     return foreign;
 }
+#ifdef CONFIG_BBP9981_GAMEPAD
+static bool gamepad_suppresses_mouse(void) {
+    if (!bbp_gamepad_layer_active() &&
+        bbp_gamepad_pointer_epoch() == seen_gamepad_pointer_epoch) { return false; }
+    /* Ownership gate only: all gesture thresholds, user toggle and native
+     * guard are unchanged. Cancel undecided data, never replay it as a stick. */
+    tp_microtap_reset(&gesture);
+    head = count = 0;
+    (void)tp_tap_output_cancel();
+    return true;
+}
+#else
+#define gamepad_suppresses_mouse() false
+#endif
 static void drain(bool allow_click, tp_microtap_emit_fn emit, void *ctx) {
+    if (gamepad_suppresses_mouse()) { return; }
     while (count != 0U) {
         struct micro_event *event = &events[head];
         struct tp_tap_output_inflight out = tp_tap_output_read_inflight();
@@ -239,6 +258,7 @@ static void drain(bool allow_click, tp_microtap_emit_fn emit, void *ctx) {
                 pop_event();
                 continue;
             }
+            if (gamepad_suppresses_mouse()) { return; }
             int ret = tp_tap_output_submit();
             if (ret == -EBUSY) { return; }
             if (ret != 0) {
@@ -251,6 +271,7 @@ static void drain(bool allow_click, tp_microtap_emit_fn emit, void *ctx) {
             return;
         }
         if (out.owns_left || (out.busy && out.phase != TP_TAP_OUTPUT_FAULT)) { return; }
+        if (gamepad_suppresses_mouse()) { return; }
         emit(ctx, event->motion.dx, event->motion.dy, event->motion.at_ms);
         pop_event();
     }
@@ -259,6 +280,10 @@ void tp_microtap_runtime_poll(uint32_t now, int16_t dx, int16_t dy, bool valid,
                               bool scroll, uint32_t mode_epoch, uint32_t speed_epoch,
                               tp_microtap_emit_fn emit, void *ctx) {
     if (!initialized) { tp_microtap_runtime_init(); }
+#ifdef CONFIG_BBP9981_GAMEPAD
+    /* Capture before any policy/bridge callback can change the layer twice. */
+    seen_gamepad_pointer_epoch = bbp_gamepad_pointer_epoch();
+#endif
     struct zmk_endpoint_instance endpoint = zmk_endpoints_selected();
     uint32_t usb = 0;
 #if IS_ENABLED(CONFIG_ZMK_USB)
@@ -287,6 +312,9 @@ void tp_microtap_runtime_poll(uint32_t now, int16_t dx, int16_t dy, bool valid,
     struct native_guard_snapshot guard = native_guard_observe(!known || foreign);
     bool allowed = tp_microtap_runtime_enabled() && !scroll && !guard.blocked &&
                    valid && !changed;
+#ifdef CONFIG_BBP9981_GAMEPAD
+    allowed = allowed && !bbp_gamepad_layer_active();
+#endif
     struct tp_tap_output_context output = {.epoch = context_epoch, .enabled = allowed,
         .physical_left_known = known, .physical_left_down = foreign};
     (void)tp_tap_output_update_context(output);

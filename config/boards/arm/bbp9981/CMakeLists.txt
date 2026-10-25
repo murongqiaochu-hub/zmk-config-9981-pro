@@ -49,8 +49,8 @@ if(CONFIG_BOARD_BBP9981)
                 "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_usb_snapshot.h")
         endif()
     endif()
-    # USB enumeration isolation: original HID_1 adapter, neutral read-only shim.
-    if(CONFIG_ZMK_USB)
+    if(CONFIG_BBP9981_GAMEPAD)
+        # GATT macro shape and nRF RAM-lifetime proof were reviewed at this SDK.
         if(NOT _iso_zephyr_rev STREQUAL "dacab4875df72109b96cc8977547a0dc04875bcd")
             message(FATAL_ERROR "Gamepad requires re-review for this Zephyr revision: ${_iso_zephyr_rev}")
         endif()
@@ -58,31 +58,36 @@ if(CONFIG_BOARD_BBP9981)
             drivers/usb/device/usb_dc_nrfx.c subsys/usb/device/class/hid/core.c
             subsys/usb/device/usb_device.c subsys/usb/device/usb_descriptor.c
             include/zephyr/usb/usb_device.h include/zephyr/usb/class/usb_hid.h
+            include/zephyr/bluetooth/gatt.h subsys/bluetooth/host/gatt.c
             RESULT_VARIABLE _gamepad_sdk_dirty)
         if(NOT _gamepad_sdk_dirty EQUAL 0)
-            message(FATAL_ERROR "Gamepad reviewed Zephyr USB files must be clean")
+            message(FATAL_ERROR "Gamepad reviewed Zephyr USB/GATT files must be clean")
         endif()
-        if(DEFINED ZEPHYR_HAL_NORDIC_MODULE_DIR)
-            set(_gp_hal "${ZEPHYR_HAL_NORDIC_MODULE_DIR}")
-        else()
-            set(_gp_hal "${ZEPHYR_BASE}/../modules/hal/nordic")
+        if(CONFIG_ZMK_USB)
+            if(DEFINED ZEPHYR_HAL_NORDIC_MODULE_DIR)
+                set(_gp_hal "${ZEPHYR_HAL_NORDIC_MODULE_DIR}")
+            else()
+                set(_gp_hal "${ZEPHYR_BASE}/../modules/hal/nordic")
+            endif()
+            execute_process(COMMAND git -C "${_gp_hal}" rev-parse HEAD
+                RESULT_VARIABLE _gp_hal_git OUTPUT_VARIABLE _gp_hal_rev
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+            if(NOT _gp_hal_git EQUAL 0 OR NOT _gp_hal_rev STREQUAL "884c4d61746bc35fbd379c169fc87ddb56c6461d")
+                message(FATAL_ERROR "Gamepad RAM proof requires reviewed hal_nordic 884c4d: ${_gp_hal_rev}")
+            endif()
+            execute_process(COMMAND git -C "${_gp_hal}" diff --quiet HEAD --
+                nrfx/drivers/src/nrfx_usbd.c nrfx/drivers/include/nrfx_usbd.h nrfx/hal/nrf_usbd.h
+                RESULT_VARIABLE _gp_hal_dirty)
+            if(NOT _gp_hal_dirty EQUAL 0)
+                message(FATAL_ERROR "Gamepad reviewed nRF USB implementation/headers must be clean")
+            endif()
+            message(STATUS "GAMEPAD_SDK Zephyr=${_iso_zephyr_rev} HAL=${_gp_hal_rev}")
         endif()
-        execute_process(COMMAND git -C "${_gp_hal}" rev-parse HEAD
-            RESULT_VARIABLE _gp_hal_git OUTPUT_VARIABLE _gp_hal_rev
-            OUTPUT_STRIP_TRAILING_WHITESPACE)
-        if(NOT _gp_hal_git EQUAL 0 OR NOT _gp_hal_rev STREQUAL "884c4d61746bc35fbd379c169fc87ddb56c6461d")
-            message(FATAL_ERROR "Gamepad RAM proof requires reviewed hal_nordic 884c4d: ${_gp_hal_rev}")
-        endif()
-        execute_process(COMMAND git -C "${_gp_hal}" diff --quiet HEAD --
-            nrfx/drivers/src/nrfx_usbd.c nrfx/drivers/include/nrfx_usbd.h nrfx/hal/nrf_usbd.h
-            RESULT_VARIABLE _gp_hal_dirty)
-        if(NOT _gp_hal_dirty EQUAL 0)
-            message(FATAL_ERROR "Gamepad reviewed nRF USB implementation/headers must be clean")
-        endif()
-        message(STATUS "GAMEPAD_SDK Zephyr=${_iso_zephyr_rev} HAL=${_gp_hal_rev}")
-        foreach(_fixture IN ITEMS "src/usb_hid.c" "src/usb.c" "include/zmk/hid.h")
+        foreach(_fixture IN ITEMS "src/hog.c" "src/usb_hid.c" "src/usb.c" "include/zmk/hid.h")
             file(SHA256 "${APPLICATION_SOURCE_DIR}/${_fixture}" _actual_sha)
-            if(_fixture STREQUAL "src/usb_hid.c")
+            if(_fixture STREQUAL "src/hog.c")
+                set(_expected_sha "2e8c12bb4197173d238a6be1e33abf2db5dedbd4a6cf29a83d5e2f6c79d4919b")
+            elseif(_fixture STREQUAL "src/usb_hid.c")
                 set(_expected_sha "3c7a934a2b5eac808889cd14cbc2d8b40e1dcc35a4ce0fbf6e6ac3a12b51ac8a")
             elseif(_fixture STREQUAL "src/usb.c")
                 set(_expected_sha "4b182d9a942c6a09d4c6849f2c9504fd251b7bf5d1cd741e5d05dc82534c138e")
@@ -93,20 +98,24 @@ if(CONFIG_BOARD_BBP9981)
                 message(FATAL_ERROR "Gamepad pinned ZMK source changed: ${_fixture}")
             endif()
         endforeach()
-        zephyr_library_sources(custom_driver/gamepad_usb.c custom_driver/behavior_gamepad.c
-            custom_driver/gamepad_ble_disabled.c)
-        if(CMAKE_VERSION VERSION_LESS 3.18)
-            message(FATAL_ERROR "USB enumeration extensions require CMake >= 3.18")
-        endif()
-        if(NOT CONFIG_A320_TAP_OUTPUT)
+        zephyr_library_sources(custom_driver/behavior_gamepad.c)
+        if(CONFIG_ZMK_USB)
+            # Independent interface; never replace HID_0 callbacks/semaphore.
+            zephyr_library_sources(custom_driver/gamepad_usb.c)
+            if(NOT CONFIG_A320_TAP_OUTPUT)
+                set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/usb.c"
+                    DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
+                    "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_usb_epoch.h")
+            endif()
+            # Chain AFTER that prefix; distinguish CONFIGURED(0) without changing HID_0.
             set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/usb.c"
                 DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
-                "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_usb_epoch.h")
+                "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_usb_lifecycle.h")
         endif()
-        # Chain AFTER the original epoch prefix; never modify HID_0 or BLE.
-        set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/usb.c"
-            DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
-            "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_usb_lifecycle.h")
+        if(CONFIG_ZMK_BLE)
+            # A separate HIDS instance; never rewrite the stock keyboard/mouse HOG.
+            zephyr_library_sources(custom_driver/gamepad_ble_service.c)
+        endif()
     endif()
     if(CONFIG_BBP9981_MENU_DIAG)
         zephyr_library_sources(custom_driver/menu_click_diag.c)
