@@ -27,6 +27,8 @@
 - 当前从正常v2基线72c0cee（config同28f6c86）只加USB枚举面：conf两值HID_COUNT2/REPORTS4，原USB TU/6原头及源保持1c61字节，新增中立shim，无主动worker/游戏输入；GET_REPORT10B中立响应。无BLE扩展，无游戏键图/触板接管，无metadata/IPDIAG。HID_0/原BLE Map196保持，新增HID_1 Map141。不是可玩手柄版。
 - 分支codex/ipad-usb-enum-only-20261025，仅推https://github.com/murongqiaochu-hub/zmk-config-9981-pro.git；不扩大继承的auto-deliver旧分支窄门。先交本轮测试，再按反馈选下一最小变量。
 
+- USB-only构建成功：功能源b942152802a90ecc4c1b105aa485ed94e5fecbac；构建266c27b0205eec61ddea180176b1b950cae50ed0 / Run40191811435 / artifact12598825950。完整host/云回归/ARM/UF2 PASS，deliver实际skip。UF2 588800B/1150块，SHA256 1b94c830732723fcb4d2531c28342e8b3f0d82e8994652cd0921264259cae636，应用区[0x1000,0x48e00)。1161原生配置仅USB_HID_DEVICE_COUNT 1→2、USB_HID_REPORTS 1→4；DT与原v2逐字节同29007B/SHA50892b164b117c966bc8ca86cf732e83b49f975e7c0fcb143c95fad9155ef01b。映像196B键鼠Map2处/141B仅USB1处，未编译GP worker/BLE扩展，neutral shim已编译。未自动刷机，待用户iPad蓝牙键鼠反馈。若失败且电池可用可由用户另测拔USB；不清配对、不扩日志。文档skip-ci不重复构建。
+
 ## 更新和导出的最短流程
 
 ```bash

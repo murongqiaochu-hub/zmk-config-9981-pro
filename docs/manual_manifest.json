@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.5",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T20:08:21+08:00",
+  "updated": "2026-10-25T20:14:39+08:00",
   "source_commit": "b942152802a90ecc4c1b105aa485ed94e5fecbac",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "USB-only b942152完整host/USB20模式/实际neutral2模式/范围及11负向PASS；原键鼠/BLE/触板代码不变，无游戏worker。授权ARM构建待验，非iPad已修复。",
+  "review_note": "USB单变量Run40191811435/266c27b成功，完整host/ARM/UF2 PASS。588800B SHA1b94c830732723fcb4d2531c28342e8b3f0d82e8994652cd0921264259cae636；原生1161配置仅两USB值不同，DT同v2；旧196B描述符2处+141B USB1处，无BLE扩展/worker。用户实测待验。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "6e3722f69abce2a728f5f788863b3fb8cd8561f1ee5433e380a3016c21ff92eb",
+  "manual_sha256": "52125b421a22c1e323dd4ad2c665849c1b48b871ec1290ad84277d9b424ed880",
   "source_sha256": {
     "config/bbp9981.conf": "cdfc77a7bd98b5af9f2cc2b0bea54da80b80538bd40d31fee1f0df54b38904ea",
     "config/bbp9981.keymap": "12dce7e4a191dca58958200ba1939a7136e89ebe2a833e756da23f49665f7ca0",
