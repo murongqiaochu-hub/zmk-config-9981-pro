@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.6",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T20:34:25+08:00",
+  "updated": "2026-10-25T20:42:06+08:00",
   "source_commit": "6c0036736682ee19d956181d246ad1aace615503",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "运行时单变量6c00367：精确61配置逆投影、24负向、原runtime回归+真实disabled.c链接ordinary BLE事件无安全/重试/引用泄漏、USB worker中立路径及完整host PASS；原键图/触板/轻拍/USB/HOG不改，ARM/实机待验。",
+  "review_note": "运行时单变量Run40193709410/7eeca50成功；完整host/24负向/真实runtime+disabled出口/ARM/UF2 PASS。601088B SHA0390002d143dcfc3bc57a3a3c483df693bebbb341f3b1bdc25b9a287be1240d5；1161配置与DT同USB通过版，196B描述符2处/141B USB1处，worker已入映像。用户普通层刷测待验。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "00c412cce3b24f85b03f81fb42908fb40d8e3c7cd61f6dda0d8f7d1c31148bb0",
+  "manual_sha256": "8c2173ed5b5762b36aa710578fadb3728723790be1d2be6bdc03096e74106ee6",
   "source_sha256": {
     "config/bbp9981.conf": "cdfc77a7bd98b5af9f2cc2b0bea54da80b80538bd40d31fee1f0df54b38904ea",
     "config/bbp9981.keymap": "12dce7e4a191dca58958200ba1939a7136e89ebe2a833e756da23f49665f7ca0",

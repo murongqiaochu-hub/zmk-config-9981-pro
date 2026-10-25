@@ -26,6 +26,9 @@
 - 无新DT行为实例；原SYS_INIT独立，线程确会启动。恢复上下文监听/worker/USB中立握手；BLE恒ENOTSUP，无BLE手柄GATT/Map。没有游戏键绑定和指针生产者，不是完整可玩手柄。runtime仍保留进入/退出MEDIA的取消轻拍回调，所以本轮只测普通层、启动后不进MEDIA，不宣称所有MEDIA语义不变。
 - 精确HTTPS专属分支推送，继承旧auto-deliver窄门不扩展，软件通过不等于iPad恢复。先交本轮用户测试再决定输入接管组。
 
+- 本轮功能源6c0036736682ee19d956181d246ad1aace615503，构建7eeca50baa3b2d823c77a6af0cd6b91ca02cc54c / Run40193709410 / artifact12599376433成功。完整host/24负向/实际runtime+disabled出口/ARM/UF2 PASS。601088B/1174块，SHA0390002d143dcfc3bc57a3a3c483df693bebbb341f3b1bdc25b9a287be1240d5，仅应用[0x1000,0x4a600)。原生1161配置与通过USB版完全相同，DT同29007B/50892b164b117c966bc8ca86cf732e83b49f975e7c0fcb143c95fad9155ef01b；196B描述符2处/141B仅USB1处，runtime和disabled实际编译，neutral shim未编译，映像含原worker名/policy。待用户测试，未自动刷写。最终文档skip-ci不重复构建。
+- 额外只读检查固定ZMK behavior.c/keymap.c：当前原生CONFIG_ZMK_BEHAVIOR_LOCAL_ID_TYPE_SETTINGS_TABLE=y，正常按device name恢复local_id，新增DT实例并非简单重排所有旧绑定ID。孤立/缺失settings等例外无设备证据，不据此猜根因或要求清settings。本轮不加DT实例。
+
 ## 已通过USB单变量的历史记录（2026-10-25）
 
 - 用户已重新刷入原始v2.0 `28f6c86`确认“一切正常”；原UF2 SHA256 `e0c20d4dc2d35d5fe6395e4574ad7bb4272d92d3269b6452af95e2d87dcbb94d`、586752B。原样重编Run40190509334/124c073与原文件逐字节相同，1161配置及容器digest相同，不需重复刷控制。
