@@ -15,6 +15,10 @@ NEW = {PREFIX + n for n in ['gamepad_report.h', 'gamepad_stick.h', 'gamepad_runt
        'behavior_gamepad.c', 'gamepad_usb.c', 'gamepad_usb_extension.h',
        'gamepad_usb_lifecycle.h', 'gamepad_ble_extension.h']}
 NEW.add('config/dts/bindings/behaviors/zmk,behavior-gamepad.yaml')
+# Exact first-cut inverse projection is mandatory before admitting its one stub.
+from check_ipad_ble_bisect import check as check_ipad_ble_bisect
+check_ipad_ble_bisect()
+NEW.add(PREFIX + 'gamepad_ble_disabled.c')
 paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', BASE, 'config'], cwd=ROOT, text=True).splitlines()
 
 def old(p):

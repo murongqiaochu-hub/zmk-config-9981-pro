@@ -1,7 +1,11 @@
 # zmk-config-9981-pro
 This page contains zmk firmware config for 9981 keyboard with trackpad(pro version)
 
-## 当前使用说明书与维护约定
+## 当前二分第一刀（2026-10-25）
+
+本轮从原失败v2.2.1仅撤BLE手柄扩展，恢复旧196B键鼠Map/原生HOG；USB手柄、全部键位与运行逻辑保留。不叠加元数据修正/IPDIAG，不清配对。**BLE手柄暂不可用；iPad测试请退出MEDIA、用普通层。** 这是定位实验，不是最终删功能版；已授权专属分支构建，状态以[本轮说明书](<docs/9981Pro_使用说明书.md>)第23章为准。
+
+## 原始使用说明与维护约定（历史，BLE手柄描述不适用于本轮）
 
 - 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（v2.2.1，2026-10-20，当前为 **MEDIA / Xbox 布局标准 HID** 研发候选，非原生 XInput）。用户已撤回未发布 GBA 方案；旧 `abe65ea` / `89fbe9d` 仅为本地撤回历史，不是可刷当前 Xbox 固件。默认键图、物理监听与设备实际 Studio 覆盖须分别核对。
 - 仅 MEDIA 层：W/A/S/D 保持 D-pad，**不是左摇杆**；I/J/L/M＝Y/X/B/A；通话/结束＝LB/RB，双肩＝数字 LT/RT；实体 T/Y＝View/Back、Menu/Start，空格＝Guide/Xbox。K、N、Enter 等留空；$ / SYM / 右 aA 三出口仍回普通层，方向、面键、肩与菜单不发字母。

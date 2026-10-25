@@ -65,6 +65,9 @@ def descriptor_checks(exe):
     print('PASS Xbox-layout HID descriptor: ID4, 72body bits, 13 real Button usages, null hat8, four active signed axes and Brake/Gas triggers')
 
 def main():
+    # Production first-cut BLE path; retained extension tests below are archival.
+    from run_ipad_ble_bisect_tests import main as run_ipad_ble_bisect
+    run_ipad_ble_bisect()
     BUILD.mkdir(exist_ok=True)
     fixtures = {
         'tests/gamepad_ble_mocks/sdk_v0_3_0_hog.c': '2e8c12bb4197173d238a6be1e33abf2db5dedbd4a6cf29a83d5e2f6c79d4919b',
