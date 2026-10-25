@@ -5,7 +5,8 @@
 - 用户已确认原 v2、USB-only `266c27b`、runtime-only `7eeca50` 实机通过。当前分支 `codex/ipad-full-repair-20261025`，功能源 `85893971ddecfa32bd21a2309ff16e7925940c9b`；恢复二分前原 `1c61b81` 完整功能 / v2.2.1 旧映射，不混 v2.3.3。
 - 普通 / SYM / aA 三层和原参数保持；恢复 MEDIA 输入、WASD D-pad、黑莓切杆、机械点击 DOWN 捕获 L3/R3。可完整验收，不再沿用 runtime-only 的“只测普通层、不进 MEDIA”限制。
 - 两项修正：runtime 先将最高活动层 INDEX 转 stable ID 再判 MEDIA；BLE 第二独立 0x1812 gamepad HIDS，stock HOG 不改，196B 键鼠 Map 与 141B GP Map 分开。Input9 无 ID；Control Point 每 peer 独立，Suspend 只 gate 该 peer GP，Exit Suspend 先 neutral，无 remote wake。
-- 原完整 gamepad suite、独立真 196+141 服务、重排反事实旧代码失败 / 新代码通过、12 项负向专项 PASS。本轮完整 host 已PASS；ARM / UF2 / 实机待验；设备实际重排未证，不能称 INDEX bug 已确定为 iPad 故障根因，不能预先宣称新 ARM 原生 GATT 布局已核验。
+- 原完整 gamepad suite、真196+141独立服务、重排旧代码失败/新代码通过、12负向、完整host/云回归/ARM/UF2 PASS。设备实际重排未证，不称INDEX bug已确定为设备根因，实机尚待用户测试。
+- 构建79b7b7cd88d6a43a9261d4b145665cf355ee1995 / Run40201273432 / artifact12602038347成功；deliver实际skip。605696B/1183块、[0x1000,0x4af00)，SHA cb89bd9060347df06c5c66f7010afcb821513309ed14312c5e37a12ee3fd30b1。原生1163配置与首刀全同，相对通过runtime只加BBP_GAMEPAD与DT兼容两符号；DT同首刀29300B/SHA5f46dc75122cff42d25fdc02f7046a60a34eddb056c4fbdbbd991f118cf4582e。直接读取原v2和新UF2静态GATT表，原6服务UUID/权限/次序/绝对句柄全部相同，HOG28–49/22attrs保持，新独立GP最后54–64/11attrs；两Map分别196/141，USB/蓝牙各一份。不是用service名字猜排序，不是无线验收。最终文档skip-ci不重建。
 - 同一 BLE 身份仍共享 cache / 连接，多 HIDS 不保证 iPad 或游戏支持。定位构建按已授窄门执行；绝不自动刷写、清配对 / settings、改主机或稳定发布，不动 v2.3.3。下方二分记录均为历史，不覆盖本节。
 - [手册](<docs/9981Pro_使用说明书.md>) v2.2.1.7 恢复完整 27 章；导出工具恢复 gamepad 标签与 27 章版式 / 预览支持。manifest、PDF / DOCX / HTML 及 QA 由父会话生成并核验。
 

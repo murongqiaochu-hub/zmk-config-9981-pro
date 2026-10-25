@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.7",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T22:14:00+08:00",
+  "updated": "2026-10-25T22:24:52+08:00",
   "source_commit": "85893971ddecfa32bd21a2309ff16e7925940c9b",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "完整修复候选8589397：63原config严格逆投影、12负向、原完整手柄/USB/旧功能、真实196+141独立HIDS、层重排旧代码反事实与完整host全部PASS。恢复原v2.2.1映射不动v2.3.3，原HOG无手柄注入；ARM与iPad实机待验，设备重排未证。",
+  "review_note": "完整修复79b7b7c/Run40201273432：完整host、12负向、重排反事实、真196+141独立HIDS、ARM/UF2 PASS；605696B SHA cb89bd9060347df06c5c66f7010afcb821513309ed14312c5e37a12ee3fd30b1。原生1163配置/DT同完整首刀；直接读新旧UF2静态GATT，原六服务UUID/权限/次序/句柄保持，HOG28–49/22attrs、新GP54–64/11attrs。待实机验收，不称设备根因已证，不动v2.3.3。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "9fdab2fba91077db9de2fefe76a105a71eea225da35a34523e4d12b5071a0322",
+  "manual_sha256": "106478f76e4216e85303fd83acf461d3110f668e161e56068814f77a6d80bbfc",
   "source_sha256": {
     "config/bbp9981.conf": "bc83cd5ea63d2a7a172044b7210365f69ac0ebddac96e6964112d84b5846cde4",
     "config/bbp9981.keymap": "454f2aee5d3c31c8d41bacca63f18119c72d4c1df45ed62c2e28b9f50caf6b7b",

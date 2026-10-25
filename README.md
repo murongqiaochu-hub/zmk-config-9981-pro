@@ -8,7 +8,7 @@ This page contains zmk firmware config for 9981 keyboard with trackpad(pro versi
 - runtime 先由最高活动层 INDEX 转 stable ID 再判 MEDIA；反事实重排测试旧代码失败、新代码通过，但设备实际重排未证，不能称已确定 iPad 故障根因。
 - BLE 使用第二独立 0x1812 HIDS，stock HOG 不改；196B 键鼠与 141B GP Map 分开，Input9 无 ID。CP 每 peer 独立，Suspend 只 gate 该 peer GP，Exit Suspend 先 neutral，无 remote wake。同身份仍共享 cache / 连接，多 HIDS 不保证 iPad / 游戏兼容。
 
-原完整 gamepad suite、独立真 196+141 服务、重排反事实及 12 负向专项 PASS；本轮完整 host / ARM / UF2 / 实机待验，不预报新原生 GATT 核对结果。[手册](<docs/9981Pro_使用说明书.md>) v2.2.1.7 已恢复 27 章。必要定位构建已授权；不自动刷写，绝不清配对 / settings 或改主机配置。以下保留历史记录，不作为当前测试限制。
+原完整 gamepad suite、真196+141独立服务、重排反事实、12负向及完整host/ARM/UF2均PASS。Run40201273432 / 79b7b7c；直接核对新旧UF2，原六服务的UUID/权限/次序/句柄保持，HOG28–49，新增GP服务54–64。605696B，SHA256 cb89bd9060347df06c5c66f7010afcb821513309ed14312c5e37a12ee3fd30b1；本轮仍待实机验收。[手册](<docs/9981Pro_使用说明书.md>) v2.2.1.7 已恢复 27 章。必要定位构建已授权；不自动刷写，绝不清配对 / settings 或改主机配置。以下保留历史记录，不作为当前测试限制。
 
 ## 已通过运行时单变量（历史，2026-10-25）
 

@@ -8,7 +8,8 @@
 - BLE 改为第二独立 0x1812 HIDS，stock HOG 源码 / Map 不改；stock 196B 与 gamepad 141B Report Map 分开，不再在 stock Map 尾部追加手柄 TLC。Input body9 无 ID。
 - gamepad Control Point 每 peer 独立；Suspend 只 gate 该 peer GP，不暂停 stock 键鼠；Exit Suspend 先 neutral，无 remote wake。
 - 独立服务仍共用蓝牙身份、连接与主机 cache，多 HIDS 不保证 iPad / 游戏支持。不将“源码未改 stock HOG”写成“新 ARM 原生布局已验收”。
-- 原 v2、USB-only、runtime-only 用户实机均通过。本轮原完整 gamepad suite、独立真 196+141 服务、重排反事实及 12 负向专项 PASS；**完整 host、ARM / UF2、真实枚举、App 实玩仍待验**。本说明未自行执行测试，状态来自父实现交接。
+- 原v2、USB-only、runtime-only用户实机均通过。本轮原完整gamepad、真196+141独立服务、重排反事实、12负向、完整host/ARM/UF2全部PASS。Run40201273432 / 79b7b7c；605696B，SHA256 cb89bd9060347df06c5c66f7010afcb821513309ed14312c5e37a12ee3fd30b1。**真实枚举、App实玩仍待验**。
+- 使用[原生UF2解析工具](<../tools/inspect_gatt_uf2.py>)读取原v2及当前映像：原六服务UUID/属性权限/次序/绝对句柄全同；stock HOG28–49、22attrs；最后新增GP HIDS54–64、11attrs。该证据不是无线发现或iPad缓存验收。原生1163配置和29300B DT均同首刀完整输入版。
 
 ## 保留的完整功能与 ABI
 
