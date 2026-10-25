@@ -25,6 +25,7 @@
 - 当前从`72c0cee`建立，其config与正常`28f6c86`完全一致。仅接回原`1c61b81`的BLE扩展及纯头依赖，四头保持原字节；一个neutral shim提供四个依赖符号，不挂输入事件/工作、不主动通知/安全请求、不玩游戏。既有Map196+BLE GamePad141=337B。USB仍单键鼠HID，无手柄；MEDIA回v2.0默认，driver/轻拍无GP接管。
 - 不是简单数学补集：枚举扩展因依赖runtime需中立隔离接缝；本轮仅测试BLE枚举面，原动态手柄输入/发送不保留。不能将它描述为完整BLE手柄。
 - 当前分支`codex/ipad-bisect2-ble-only-20261025`，仅推送精确HTTPS仓库`murongqiaochu-hub/zmk-config-9981-pro`，不扩大继承工作流的旧分支auto-deliver门，不归档回推、不发布稳定、不动v2.3.3、不刷机/清配对/settings。
+- 本轮功能源`48db7af991c99ff72ec6ef681915d033ed8bc0dc`，实际构建`1c6012084c5e6f96249a6ff08f9939fef3a9d774` / Run`40189017323` / artifact`12597078777`成功；完整host与云回归/ARM/UF2 PASS，deliver实际跳过。UF2 588288B/1149块，SHA256 `a4ee8940932cb7684e3b54796f94d848e56f9b00e78d25d0db7c8fd0f5e47136`，仅应用区`[0x1000,0x48d00)`。与正常v2原ARM日志比较1161配置相同，DT29007B相同（SHA50892b164b117c966bc8ca86cf732e83b49f975e7c0fcb143c95fad9155ef01b）；USB HID count1，编译neutral shim而无gamepad runtime/USB模块。映像196B键鼠描述符2处、141B BLE描述符1处，无IPDIAG/metadata标记。用户刷测待验；最终文档skip-ci，不重复构建。
 - 原失败版、元数据候选、diag1及第一刀均用户实测失败；不把软件/构建通过当修复。先交本轮用户测键鼠，不再扩日志，未确认可用不继续二分。
 
 ## 更新和导出的最短流程

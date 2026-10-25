@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.4",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T19:28:33+08:00",
+  "updated": "2026-10-25T19:36:01+08:00",
   "source_commit": "48db7af991c99ff72ec6ef681915d033ed8bc0dc",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "互补候选48db7af：完整host/BLE扩展四组合/真实neutral shim及无外部调用/严格54基线配置逆投影PASS；本轮授权ARM构建，非实机通过，不含可玩手柄。",
+  "review_note": "互补版Run40189017323/1c60120成功，588288B UF2 a4ee8940932cb7684e3b54796f94d848e56f9b00e78d25d0db7c8fd0f5e47136核验PASS；与正常v2的1161配置/29007B DT相同，无GP runtime/USB，保留BLE枚举面+neutral shim。用户待测，未确认前停止后续二分。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "55eed9c4e14784f669945f527ddfaa25b1e23431ce503792ff7e6b8e229ef048",
+  "manual_sha256": "d74169034757cc07a9c3152d3fca8451595b200592638ccbc09ed8e2a6f8845b",
   "source_sha256": {
     "config/bbp9981.conf": "062edef0c41ea37a5df08d9e7b7877d3cc7633b70854561a9af3c1385d4254f3",
     "config/bbp9981.keymap": "12dce7e4a191dca58958200ba1939a7136e89ebe2a833e756da23f49665f7ca0",
