@@ -45,6 +45,8 @@ python3 -B capture_ipdiag.py \
 | 5 | HOG读取 | 1 Map或2 ReportRef / handle / offset / requested length / 实际返回值 / 总长337或id|(type<<8) |
 | 6 | 通知抽样 | ID / value handle / length / 原API返回值 / 本epoch调用累计 / security |
 
+新IPDIAG使用严格行格式与seq检查，不含旧MDIAG CRC；采集器不声称验证了原始串口字节完整性。序号缺口、ring dropped及时间推进应一并分析。
+
 calls是已返回的notify API累计次数，不是主机收包数；跨epoch返回不会计入新epoch，k1.d同时包含这类省略和正常TX节流省略。周期快照由多次只读查询组成，并非所有字段的原子快照。
 
 CCC mask bit0..3分别对应ID1键盘、ID2消费者键、ID3鼠标、ID4手柄。selected transport 0=USB、1=BLE。c=255表示无连接；索引不是地址，也不是iPad身份认证。ReportRef type1=Input，type2=Output。各连接日志应按(c,ep)组合分析，重启后不能直接沿用epoch。
