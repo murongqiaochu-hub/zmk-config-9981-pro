@@ -36,7 +36,10 @@ for p in paths:
         assert a == b, p
     if a == b:
         protected[p] = hashlib.sha256(b).hexdigest()
-current = {str(p.relative_to(ROOT)) for p in (ROOT / 'config').rglob('*') if p.is_file()}
+from ipad_diag_scope import project_config
+# Validate exact diagnostic bytes before applying the unchanged legacy path oracle.
+current = set(project_config({p.relative_to(ROOT).as_posix(): p.read_bytes()
+                              for p in (ROOT / 'config').rglob('*') if p.is_file()}))
 assert current - set(paths) == NEW, sorted(current - set(paths))
 assert len(protected) >= 46
 
