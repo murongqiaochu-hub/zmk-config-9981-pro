@@ -3,6 +3,9 @@
 from pathlib import Path
 import hashlib,re,subprocess
 ROOT=Path(__file__).resolve().parents[1]
+from check_usb_enumeration_scope import project_config
+# Validate exact full-tree projection FIRST; run the unchanged legacy oracle on it.
+PROJECTED=project_config()
 BASE='7fce2be906f8f54517226bcd229fab6aa9c8e979'
 PREFIX='config/boards/arm/bbp9981/custom_driver/'
 ALLOWED={PREFIX+n for n in ['trackpad_microtap.h','trackpad_microtap_runtime.c','trackpad_microtap_runtime.h']}
@@ -11,16 +14,16 @@ def old(p):return subprocess.check_output(['git','show',BASE+':'+p],cwd=ROOT)
 def clean(s):return re.sub(r'\s+','',re.sub(r'/\*.*?\*/|//[^\n]*','',s,flags=re.S))
 protected={}
 for p in paths:
- a=old(p);b=(ROOT/p).read_bytes()
+ a=old(p);b=PROJECTED[p]
  if p not in ALLOWED:assert a==b,p
  if a==b:protected[p]=hashlib.sha256(b).hexdigest()
-core=clean((ROOT/(PREFIX+'trackpad_microtap.h')).read_text())
+core=clean(PROJECTED[PREFIX+'trackpad_microtap.h'].decode())
 for name,value in [('MIN_FRAMES',1),('MAX_FRAMES',8),('MIN_CURSOR_DISTANCE_PX',3),('MAX_CURSOR_DISTANCE_PX',50),('QUIET_MS',120),('MAX_CANDIDATE_MS',360),('NAV_QUIET_MS',200),('SWIPE_QUIET_MS',300),('MAX_MOTION_SPAN_MS',120),('CLICK_INTERVAL_MS',300),('MAX_PATH',8192),('MAX_OFFSET',4096)]:
  assert f'#defineTP_MICROTAP_{name}{value}U' in core,name
 assert 'TP_MICROTAP_MIN_PATH' not in core,'Do not use raw path as click threshold'
 assert 'tp_pointer_motion(&s->measure_pointer' in core,'Eligibility must use the same scaled cursor pipeline'
 assert 'tp_microtap_cursor_distance_in_range(s)' in core,'Require the inferred screen-space 3..50px window'
-runtime=(ROOT/(PREFIX+'trackpad_microtap_runtime.c')).read_text()
+runtime=PROJECTED[PREFIX+'trackpad_microtap_runtime.c'].decode()
 assert 'MICROTAP_POLICY px=3..50 quiet=120 gap=300 native=600 nav=200 swipequiet=300 range=8192/4096 frames=1..8 span=120 age=360 gain=480/400;slow=240/400' in runtime
 workflow=(ROOT/'.github/workflows/main.yml').read_text()
 branch='codex/tap-window-widen-20261017'

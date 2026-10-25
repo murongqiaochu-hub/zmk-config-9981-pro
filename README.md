@@ -1,7 +1,11 @@
 # zmk-config-9981-pro
 This page contains zmk firmware config for 9981 keyboard with trackpad(pro version)
 
-## 当前使用说明书与维护约定
+## 当前：USB枚举单变量（2026-10-25）
+
+原始v2.0用户复测正常，当前构建链原样重编与旧UF2逐字节相同。本轮从该正常底座只增加USB HID_1枚举与中立GET_REPORT响应；无BLE手柄扩展、无游戏worker、无MEDIA手柄键图、无触板接管。BLE仍旧196B键鼠Map；本轮不是可玩手柄版。必要定位构建已授权无需逐次确认，不自动刷机或清配对。当前[手册](<docs/9981Pro_使用说明书.md>)v2.2.1.5，完整host/ARM及用户刷测分别记录。
+
+## v2.0基线说明与维护约定（历史）
 
 - 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（v2.0，2026-10-19，基于功能源 `28f6c86`）。默认键图、物理监听与用户实际 Studio 覆盖须分别核对。
 - 用户新增规则：**以后每次更新功能或默认键位，必须在同批次同步说明书、四层键图及版本/验证状态。** 维护流程见 [AGENTS.md](<AGENTS.md>)；完整主机回归已包含[说明书同步检查](<tests/check_manual_sync.py>)。

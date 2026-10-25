@@ -19,6 +19,14 @@
 6. 每批次都运行 `python3 tests/check_manual_sync.py`；完整主机回归已经包含此检查。`config/` 任一受跟踪文件增加、删除或内容变化而未同步清单会失败。同步检查只是防遗漏，不替代人工核对说明是否真实。
 7. 仅写说明书不授权改固件功能、自动触发新 ARM 构建、推送、刷写、清配对或主机设置。本轮为说明书任务，轻拍继续暂停调优。
 
+## 当前定位授权及USB单变量（2026-10-25）
+
+- 用户已重新刷入原始v2.0 `28f6c86`确认“一切正常”；原UF2 SHA256 `e0c20d4dc2d35d5fe6395e4574ad7bb4272d92d3269b6452af95e2d87dcbb94d`、586752B。原样重编Run40190509334/124c073与原文件逐字节相同，1161配置及容器digest相同，不需重复刷控制。
+- 用户明确后续定位构建不必逐次确认；允许必要测试源码/专属分支HTTPS推送/Actions/校验交付，不含自动刷机、清配对/settings、主机设置、稳定发布或v2.3.3改动。
+- 原失败版、元数据/diag1、第一刀8f56e28、BLE枚举1c60120均失败。第一刀混合USB+runtime；互补版使用neutral shim不是严格补集，不据此断言两独立根因。只读审计未发现never-MEDIA+BLE时第一刀显式清键鼠/切目标/请求安全路径，不排除底层/时序。
+- 当前从正常v2基线72c0cee（config同28f6c86）只加USB枚举面：conf两值HID_COUNT2/REPORTS4，原USB TU/6原头及源保持1c61字节，新增中立shim，无主动worker/游戏输入；GET_REPORT10B中立响应。无BLE扩展，无游戏键图/触板接管，无metadata/IPDIAG。HID_0/原BLE Map196保持，新增HID_1 Map141。不是可玩手柄版。
+- 分支codex/ipad-usb-enum-only-20261025，仅推https://github.com/murongqiaochu-hub/zmk-config-9981-pro.git；不扩大继承的auto-deliver旧分支窄门。先交本轮测试，再按反馈选下一最小变量。
+
 ## 更新和导出的最短流程
 
 ```bash
