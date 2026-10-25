@@ -1,14 +1,14 @@
 {
   "manual_version": "2.2.1.2",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T18:19:45+08:00",
+  "updated": "2026-10-25T18:27:28+08:00",
   "source_commit": "cb20e1473931fcc5c829f4ecfe385497d498f048",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "功能源cb20e14，仅修云容器精确仓库git身份读取，不改诊断运行行为。首Run40183946346因dubious ownership止于CMake；命令级safe.directory限定root，非global。完整host再验证后重建；未设备验收。",
+  "review_note": "最终诊断构建b929f2f / Run40184337014 / artifact12595661599成功；完整host/云回归/ARM/UF2/CD C映射PASS；原生仅IPAD_DIAG=y，DT29300B相同；UF2 b8d8e74d079cc3f94380360203d80c3cbaf60a329eb58ce6969340e6320f8f4e，609792B。仅诊断，未设备验收。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "739fd80960c031a6efbe60a00a6c428df96caa7b2775eb1fa74515cf8d04c285",
+  "manual_sha256": "fd5edb9167a62b4dfd77420221fa778d08f5061cef68e845c58824ad82b89c54",
   "source_sha256": {
     "config/bbp9981.conf": "975daa27e9a86b5b8d7fa93f2ff4e4578e1e500fb6504543edffb172129a3525",
     "config/bbp9981.keymap": "454f2aee5d3c31c8d41bacca63f18119c72d4c1df45ed62c2e28b9f50caf6b7b",

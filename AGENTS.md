@@ -26,6 +26,9 @@
 - Mac两轮实测95条路由心跳均BLE，三组鼠标实际notify ret0。候选 `CONFIG_BT_GATT_ENFORCE_SUBSCRIPTION=y`，故支持当时固件鼠标订阅检查通过；可能是旧bond恢复，不能外推本次订阅写入、键盘CCC或iPad识别。
 - 新诊断独立于旧30秒输入诊断门；仅匿名连接、security/MTU/CCC、读取offset/长度/返回值、notify句柄/长度/返回值与计数，不输出键码、输入payload、地址、序列号或密钥。不得通过开启全局BT DEBUG泄露隐私。构建通过不是iPad修复。
 
+- 本轮交付：功能源 `cb20e1473931fcc5c829f4ecfe385497d498f048`，实际构建 `b929f2fe20702c47fd6b4423bae22fe8c94eff98` / Run `40184337014` / artifact `12595661599` 成功。UF2 609792B，SHA256 `b8d8e74d079cc3f94380360203d80c3cbaf60a329eb58ce6969340e6320f8f4e`；仅应用分区 `[0x1000,0x4b700)`。原生配置仅新增IPAD_DIAG=y，DT29300B完全相同；旧196B及手柄141B描述符各两处保持。完整host与云端regression/ARM PASS，新映像CDC debug3/4、Studio0/1离线核验PASS；未自动刷机，等待用户反馈。
+- 首次Run `40183946346` 因云容器Git ownership检查止于CMake，无UF2；已仅用命令级精确仓库safe.directory修复，不改全局配置。后续文档提交使用skip-ci，不重复构建或自动归档。
+
 ## 最新实机反馈（2026-10-25）
 
 - 用户确认唯一元数据候选（实际构建 `17192e6` / Run `40082379873` / UF2 SHA256 `9dd7bbf5e33ef2a414e7725994c710131c9036e751f322f7009783e08e4691fe`）仍失败：iPad显示蓝牙已连接但键鼠无反应，且设置未出现硬件键盘选项。不得继续称“未实测”或把旧软件/ARM PASS写成iPad成功；尚无设备端固件哈希回读，候选对应关系来自本轮交付后的直接反馈。

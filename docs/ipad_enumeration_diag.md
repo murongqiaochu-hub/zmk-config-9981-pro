@@ -13,7 +13,7 @@
 1. 只刷本轮最终校验交付的普通应用UF2，不刷settings_reset，不清配对，不使用任何旧包冒充新构建。用户自行决定并执行刷写。
 2. 刷完可以先测原iPad键鼠，告知“正常／仍无输入／其他现象”。**诊断版未针对功能修复，因此仍失败并不意外。**
 3. 如仍失败，让Mac agent读取本页和新采集脚本；旧采集器只保留MDIAG，会丢掉本轮IPDIAG，不能原样复用。
-4. Mac agent先只读重新识别新映像debug CDC，再核对cu/tty占用。旧候选是control3/data4，但新映像须根据最终产物确认，不能仅套用串口后缀。不要打开Studio RPC。
+4. Mac agent先只读重新识别新映像debug CDC，再核对cu/tty占用。本轮最终b929f2f映像已离线核验debug=control3/data4、Studio=control0/data1；Mac仍须按当前IORegistry将data4对应到实际端口，不能仅套用串口后缀。不要打开Studio RPC。
 5. 每轮临时termios/DTR操作仍须单独取得用户确认：保存termios、DTR低、115200/8N1/raw、DTR高；结束尝试恢复termios、DTR低、关闭。不是恢复原DTR状态；不发送串口协议数据，不用1200、不TIOCEXCL。
 6. 取得确认后先开始120秒监听，看到持续推进的IPDIAG状态后再让用户右aA+Q，确认active连接selected=BLE；在空白页面少量固定键、滑动、机械点击。
 7. 需要观察连接过程时，Mac agent应另外说明并让用户确认手动断开/重连这一个已配对设备；不忘记设备、不清槽。先启动监听，后重连。重连也不保证iPad重读缓存的Map，缺读取不能直接当故障。
