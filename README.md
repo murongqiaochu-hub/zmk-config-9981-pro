@@ -1,7 +1,11 @@
 # zmk-config-9981-pro
 This page contains zmk firmware config for 9981 keyboard with trackpad(pro version)
 
-## 当前：USB枚举单变量（2026-10-25）
+## 当前：运行时单变量（2026-10-25）
+
+USB-only 266c27b已获用户实测通过。本轮在其上仅接回原手柄runtime/worker及BLE ENOTSUP出口，Kconfig/默认键图/触板/轻拍源码不改，不加BLE手柄描述或服务。原neutral shim不再编译；线程和USB初始中立报告恢复，但无游戏输入绑定，仍非可玩手柄。只测普通层且启动后不进MEDIA；runtime保留原进出MEDIA取消轻拍回调。当前[手册](<docs/9981Pro_使用说明书.md>)v2.2.1.6；必要构建已授权，无自动刷写或清配对。
+
+## 已通过USB枚举单变量（历史，2026-10-25）
 
 原始v2.0用户复测正常，当前构建链原样重编与旧UF2逐字节相同。本轮从该正常底座只增加USB HID_1枚举与中立GET_REPORT响应；无BLE手柄扩展、无游戏worker、无MEDIA手柄键图、无触板接管。BLE仍旧196B键鼠Map；本轮不是可玩手柄版。必要定位构建已授权无需逐次确认，不自动刷机或清配对。当前[手册](<docs/9981Pro_使用说明书.md>)v2.2.1.5，完整host/ARM及用户刷测分别记录。
 

@@ -38,19 +38,20 @@ def digest(data):
 
 def project_config():
     """Validate the WHOLE tree, then return its byte-exact v2.0 projection."""
+    # Only a fully validated, byte-exact runtime inverse may reach this oracle.
+    from check_gamepad_runtime_scope import project_config as project_runtime
+    source = project_runtime(ROOT, git)
     base = git('ls-tree', '-r', '--name-only', BASE, 'config').decode().splitlines()
     new = {PREFIX + name for name in ORIGINAL_NAMES} | {SHIM}
-    files = list((ROOT / 'config').rglob('*'))
-    assert not any(p.is_symlink() for p in files), 'config symlinks forbidden'
-    actual = {p.relative_to(ROOT).as_posix() for p in files if p.is_file()}
+    actual = set(source)
     assert actual == set(base) | new, ('config path drift', sorted(actual ^ (set(base) | new)))
     for name in ORIGINAL_NAMES:
         path = PREFIX + name
-        assert (ROOT / path).read_bytes() == blob(ORIGINAL, path), 'original USB byte drift: ' + path
-    assert digest((ROOT / SHIM).read_bytes()) == SHIM_SHA256, 'neutral shim drift'
+        assert source[path] == blob(ORIGINAL, path), 'original USB byte drift: ' + path
+    assert digest(source[SHIM]) == SHIM_SHA256, 'neutral shim drift'
     projected = {}
     for path in base:
-        data = (ROOT / path).read_bytes()
+        data = source[path]
         if path == CONF:
             assert data.count(CONF_ADD) == 1, 'conf insertion must occur exactly once'
             data = data.replace(CONF_ADD, b'', 1)

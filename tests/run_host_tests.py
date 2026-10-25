@@ -8,6 +8,9 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 # Fail closed on the complete config before running either old or new oracles.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_gamepad_runtime_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_gamepad_runtime_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_runtime_tests.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_usb_enumeration_scope.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_usb_enumeration_scope.py')], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_usb_enumeration_tests.py')], check=True)

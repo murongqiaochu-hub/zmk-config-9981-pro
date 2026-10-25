@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Original USB transport matrix plus production neutral shim (host only)."""
+"""Original USB transport matrix plus archived neutral shim (host only).
+The shim is NOT compiled in firmware; current runtime has its own strict suite.
+"""
 from pathlib import Path
 import os
 import subprocess
