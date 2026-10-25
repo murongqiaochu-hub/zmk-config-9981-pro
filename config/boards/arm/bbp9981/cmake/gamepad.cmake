@@ -17,9 +17,7 @@ if(CONFIG_BBP9981_GAMEPAD)
             "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_usb_lifecycle.h")
     endif()
     if(CONFIG_ZMK_BLE)
-        # AFTER the existing mouse snapshot prefix. Tail attrs keep5/9/13.
-        set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/hog.c"
-            DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
-            "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_ble_extension.h")
+        # A separate HIDS instance; never rewrite the stock keyboard/mouse HOG.
+        zephyr_library_sources(custom_driver/gamepad_ble_service.c)
     endif()
 endif()
