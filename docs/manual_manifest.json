@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.2",
   "manual_date": "2026-10-25",
-  "updated": "2026-10-25T23:56:02+08:00",
+  "updated": "2026-10-26T00:01:29+08:00",
   "source_commit": "15d0281625773f987363b649420d0d0a29aaeb37",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.3.2：唯一代码改动为MEDIA层身份(index→stable ID)；BLE回到同一HOG服务追加手柄集合(ID4)，不建第二HID服务；新增真196+141合成Map解析与层重排身份及旧代码必败反事实。完整host PASS。iPad键鼠已实测通过，手柄待验。",
+  "review_note": "v2.3.3.2最终：Run40209283076/0603a22构建成功，618496B，SHA5f17b1d2…；原生1170配置与DT同原v2.3.3，单HID服务26属性(28–53)，键鼠前22属性不变。host/CMake32/反事实/合成Map均PASS；iPad键鼠已实测，手柄待验。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "c17a1b9a00463fb5396ed545765cf8a54e978bfd00deb9f703994a56013f3108",
+  "manual_sha256": "45f5196a593f815f038b2acc66be5b7dae01b75b0ca58acb000c8515c657daf0",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
