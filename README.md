@@ -3,6 +3,8 @@ This page contains zmk firmware config for 9981 keyboard with trackpad(pro versi
 
 ## 当前使用说明书与维护约定
 
+**2026-10-25 晚当前：v2.3.3 完整功能＋手柄单HID服务修正候选（手册v2.3.3.2）。** 分支 `codex/ipad-v233-composite-20261026`，基线原v2.3.3 `432d6c8`（原分支不动），功能源 `15d0281625773f987363b649420d0d0a29aaeb37`。代码只改一处：MEDIA 判断由层 index 改为 stable ID。BLE 不再新增第二个 HID 服务——实测 iPad 与安卓都不认第二实例，手柄集合改回追加在原 HOG Map 之后（Report ID 4，body9 无 ID），键鼠与手柄共用同一服务、同一蓝牙身份。新增真 196B＋141B 合成 Map 解析检查（ID 1/2/3/4 唯一、手柄 9 字节、集合闭合）与层重排身份测试；旧代码在重排下必败的反事实同样纳入 host。iPad 键鼠已于 2026-10-25 实测通过，手柄与各 App 仍待用户实测；不刷写、不清配对/settings。详见[本轮记录](<docs/ipad_composite_hid.md>)。
+
 **2026-10-22当前：v2.3.3指针五档记忆/MEDIA慢呼吸候选。** 用户已刷v2.3.2，反馈改善有限，随后明确要求Z循环调速、重启保留及MEDIA键盘灯改慢呼吸。仅UPPER Z/P28循环0.6→0.9→1.2→1.5→1.8，首次1.2、Ctrl为所选档半速；独立设置键在末次操作1秒后合并保存。普通Z/手柄Z↓不变，不冒称硬件DPI。MEDIA键盘背光改约3.6秒10..100..10%慢呼吸，乘用户上限且尊重关灯/idle；其他层、触板灯和两灯保存语义不改。保留v2.3.2防抖/削峰/BLE屏障及原轻拍资格结构；新帧锁存保证影子与实际运动同档，切档清旧状态。范围、软件验证及未验证项见[本轮说明](<docs/cursor_preferences.md>)、[当前交付](<firmware-delivery/XBOX_CURRENT.md>)。修正后Run39743108339回归/ARM与实际DTS、UF2校验通过（604KiB，未删功能）；首次缺Z构建已拒交隔离，最终件见交付记录；不刷写、不清配对/settings、不改主机、不推稳定/发布或归档，不以600KB删功能。v2.3.2 Run39725910232与下方旧版均是历史构建证据。
 
 - **以下是v2.3.1加固阶段的构建证据**，源码 `7d6ab94e57653deb8e20d142665eee351736f297`，分支 `codex/firmware-stability-v2.3.1-20261021`。只修USB轻拍快照的异步栈源寿命、等待期间切BOOT协议两处已复现缺陷；79/80配置逐字节相同，键位/参数/灯效/存储均不变。旧失败/新通过ASan、连续模拟、完整host、Run39614649971 ARM/CI32配置9负例及UF2校验PASS，见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)；非实机长测认证。原生HID_0全局DMA/信号量限制未全修，具体范围见[稳定性说明](<docs/firmware_stability.md>)、[可选排错资料](<docs/long_term_acceptance.md>)。下方v2.3.0为历史重构记录，不是本版构建结果。
