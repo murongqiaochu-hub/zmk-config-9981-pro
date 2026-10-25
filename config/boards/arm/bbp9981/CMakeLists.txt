@@ -49,6 +49,38 @@ if(CONFIG_BOARD_BBP9981)
                 "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_usb_snapshot.h")
         endif()
     endif()
+    # BLE_ENUM_ONLY_BEGIN: v2 keyboard/mouse plus original BLE enumeration surface.
+    if(CONFIG_ZMK_BLE)
+        if(CMAKE_VERSION VERSION_LESS 3.18)
+            message(FATAL_ERROR "BLE enumeration extension requires CMake >= 3.18")
+        endif()
+        if(NOT _iso_zephyr_rev STREQUAL "dacab4875df72109b96cc8977547a0dc04875bcd")
+            message(FATAL_ERROR "BLE enumeration requires reviewed Zephyr GATT ABI")
+        endif()
+        execute_process(COMMAND git -C "${ZEPHYR_BASE}" diff --quiet HEAD --
+            include/zephyr/bluetooth/gatt.h subsys/bluetooth/host/gatt.c
+            RESULT_VARIABLE _ble_enum_sdk_dirty)
+        if(NOT _ble_enum_sdk_dirty EQUAL 0)
+            message(FATAL_ERROR "BLE enumeration reviewed Zephyr GATT files must be clean")
+        endif()
+        foreach(_fixture IN ITEMS "src/hog.c" "include/zmk/hid.h")
+            file(SHA256 "${APPLICATION_SOURCE_DIR}/${_fixture}" _actual_sha)
+            if(_fixture STREQUAL "src/hog.c")
+                set(_expected_sha "2e8c12bb4197173d238a6be1e33abf2db5dedbd4a6cf29a83d5e2f6c79d4919b")
+            else()
+                set(_expected_sha "dd161a6631a9dad59f320389a0c146712b2c953215f4a97a8d0d64b0b3ffdee7")
+            endif()
+            if(NOT _actual_sha STREQUAL _expected_sha)
+                message(FATAL_ERROR "BLE enumeration pinned ZMK source changed: ${_fixture}")
+            endif()
+        endforeach()
+        zephyr_library_sources(custom_driver/gamepad_neutral_shim.c)
+        # AFTER trackpad_hog_snapshot.h; only hog.c gets this prefix.
+        set_property(SOURCE "${APPLICATION_SOURCE_DIR}/src/hog.c"
+            DIRECTORY "${APPLICATION_SOURCE_DIR}" APPEND PROPERTY COMPILE_OPTIONS
+            "-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_ble_extension.h")
+    endif()
+    # BLE_ENUM_ONLY_END
     if(CONFIG_BBP9981_MENU_DIAG)
         zephyr_library_sources(custom_driver/menu_click_diag.c)
         if(CMAKE_VERSION VERSION_LESS 3.18)
