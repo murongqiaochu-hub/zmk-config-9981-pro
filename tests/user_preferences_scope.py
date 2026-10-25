@@ -21,6 +21,21 @@ CHANGED=KEYMAPS | {'config/bbp9981.conf','config/boards/arm/bbp9981/Kconfig.boar
                    DRIVER+'trackpad_pointer.h',DRIVER+'keyboard_backlight.c'}
 ADDED={DRIVER+'trackpad_cursor_speed.h',DRIVER+'trackpad_cursor_speed.c',
        DRIVER+'behavior_cursor_speed.c','config/dts/bindings/behaviors/zmk,behavior-cursor-speed.yaml'}
+
+# v2.3.3.2 authorizes exactly one further edit: resolve the MEDIA layer by
+# stable ID instead of its order index. It is projected out before the older
+# proofs run, so those proofs keep comparing byte-exact historical trees.
+REPAIR=DRIVER+'gamepad_runtime.c'
+REPAIR_OLD=b'    return zmk_keymap_highest_layer_active() == BBP_GAMEPAD_LAYER;'
+REPAIR_NEW=(b'    /* The SDK returns an order index; Studio can reorder stable layer IDs. */\n'
+            b'    return zmk_keymap_layer_index_to_id(zmk_keymap_highest_layer_active()) == BBP_GAMEPAD_LAYER;')
+
+
+def project(path,data):
+    """Reverse the single layer-identity fix; every other byte stays as-is."""
+    if path!=REPAIR or data.count(REPAIR_NEW)!=1:
+        return data
+    return data.replace(REPAIR_NEW,REPAIR_OLD,1)
 CONF_ADDITION='''
 # v2.3.3: UPPER Z gain memory; only MEDIA keyboard backlight changes pattern.
 CONFIG_BBP9981_CURSOR_SPEED=y
@@ -124,9 +139,11 @@ def verified_v232_view():
     paths=subprocess.check_output(['git','ls-tree','-r','--name-only',BASE,'config'],cwd=ROOT,text=True).splitlines()
     actual={str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
     assert actual==set(paths)|ADDED,('Unapproved config files',actual^(set(paths)|ADDED))
-    changes={p for p in paths if (ROOT/p).read_bytes()!=base(p)}
+    assert project(REPAIR,(ROOT/REPAIR).read_bytes())!= (ROOT/REPAIR).read_bytes(), \
+        'Authorized layer-identity fix is missing'
+    changes={p for p in paths if project(p,(ROOT/p).read_bytes())!=base(p)}
     assert changes==CHANGED,('Unapproved production scope',changes^CHANGED)
-    view={p:restore(p,(ROOT/p).read_bytes()) for p in paths}
+    view={p:restore(p,project(p,(ROOT/p).read_bytes())) for p in paths}
     for p in paths: assert view[p]==base(p),'Changed outside explicit v2.3.3 additions: '+p
     # Check ACTUAL enabled maps, not merely the restored historical view.
     mapped=[]

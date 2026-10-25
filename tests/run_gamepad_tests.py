@@ -5,7 +5,9 @@ No compiler output or SDK acceptance here is an Android/USB/radio test.
 from pathlib import Path
 import hashlib
 import os
+import resource
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / '.host-test-build'
@@ -64,6 +66,34 @@ def descriptor_checks(exe):
     assert triggers['bits'] == 16 and triggers['lo'] == 0 and triggers['hi'] == 255 and not triggers['flags'] & 4
     print('PASS Xbox-layout HID descriptor: ID4, 72body bits, 13 real Button usages, null hat8, four active signed axes and Brake/Gas triggers')
 
+
+def counterfactual(identity_exe, includes):
+    """Rebuild the identity test against the OLD predicate; it must fail."""
+    with tempfile.TemporaryDirectory(prefix='gp-identity-') as directory:
+        temp = Path(directory)
+        runtime = ROOT / 'config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c'
+        patched = temp / 'gamepad_runtime.c'
+        new = 'zmk_keymap_layer_index_to_id(zmk_keymap_highest_layer_active())'
+        data = runtime.read_text()
+        assert data.count(new) == 1
+        patched.write_text(data.replace(new, 'zmk_keymap_highest_layer_active()', 1))
+        source = (ROOT / 'tests/test_gamepad_layer_identity.c').read_text()
+        marker = '../config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c'
+        assert source.count(marker) == 1
+        source = source.replace(marker, str(patched), 1)
+        (temp / 'identity_old.c').write_text(source)
+        exe = temp / 'identity_old'
+        compiled = subprocess.run([CC, *COMMON, '-Wno-unused-function', '-Wno-unused-variable',
+                                   '-I' + str(ROOT / 'tests'), '-I' + str(ROOT / includes),
+                                   '-I' + str(ROOT / 'config/boards/arm/bbp9981/custom_driver'),
+                                   str(temp / 'identity_old.c'), '-o', str(exe)],
+                                  cwd=ROOT, capture_output=True, text=True)
+        assert compiled.returncode == 0, compiled.stderr
+        result = subprocess.run([str(exe)], cwd=ROOT, capture_output=True, text=True,
+                                preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+        assert result.returncode != 0, 'old index comparison wrongly passed the reordering test'
+        print('PASS counterfactual: previous index comparison fails once layers are reordered')
+
 def main():
     BUILD.mkdir(exist_ok=True)
     fixtures = {
@@ -91,9 +121,23 @@ def main():
                  'zephyr/dt-bindings/input/input-event-codes.h', 'dt-bindings/zmk/keys.h',
                  'zmk/events/position_state_changed.h', 'zmk/hid.h']:
         p = includes/name; p.parent.mkdir(parents=True, exist_ok=True)
-        if not p.exists(): p.write_text('/* declarations from gamepad_runtime_env.h */\n')
+        if name == 'zmk/keymap.h':
+            # SDK order index -> stable layer ID. Mutable so the identity test
+            # can exercise a reordered keymap without touching the frozen env.
+            p.write_text('#pragma once\n#include <stdint.h>\n'
+                         'static uint8_t bbp_test_layer_order[4] = {0, 1, 2, 3};\n'
+                         'static inline uint8_t zmk_keymap_layer_index_to_id(uint8_t index) {\n'
+                         '    return index < 4U ? bbp_test_layer_order[index] : (uint8_t)255;\n'
+                         '}\n')
+        elif not p.exists(): p.write_text('/* declarations from gamepad_runtime_env.h */\n')
     runtime = build('test_gamepad_runtime', includes=[includes], flags=['-Wno-unused-function'])
     run([str(runtime)])
+    # MEDIA must resolve through the stable layer ID; the same test must reject
+    # the previous index comparison compiled from the same pinned oracle.
+    identity = build('test_gamepad_layer_identity', includes=[includes],
+                     flags=['-Wno-unused-function', '-Wno-unused-variable'])
+    run([str(identity)])
+    counterfactual(identity, includes)
     run([os.sys.executable, '-B', str(ROOT/'tests/test_gamepad_refactor_structure.py')])
     api = build('test_gamepad_refactor_api', includes=[includes], flags=['-Wno-unused-function'])
     run([str(api)])

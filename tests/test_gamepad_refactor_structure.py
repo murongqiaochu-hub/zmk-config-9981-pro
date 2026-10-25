@@ -69,7 +69,15 @@ def main():
     for adapter_only in ['#define DT_DRV_COMPAT zmk_behavior_gamepad\n',
                          '#include <drivers/behavior.h>\n', '#include <zmk/behavior.h>\n']:
         expected_runtime = expected_runtime.replace(adapter_only, '', 1)
-    identical(runtime, expected_runtime, 'gamepad_runtime.c')
+    # One authorized post-refactor edit: MEDIA resolves the stable layer ID.
+    # Project it back out so the mechanical split proof stays byte-exact.
+    identity_new = ("    /* The SDK returns an order index; Studio can reorder stable layer IDs. */\n"
+                    "    return zmk_keymap_layer_index_to_id(zmk_keymap_highest_layer_active()) "
+                    "== BBP_GAMEPAD_LAYER;")
+    identity_old = "    return zmk_keymap_highest_layer_active() == BBP_GAMEPAD_LAYER;"
+    assert runtime.count(identity_new) == 1, 'authorized layer-identity fix missing'
+    identical(runtime.replace(identity_new, identity_old, 1), expected_runtime,
+              'gamepad_runtime.c')
     expected_adapter = '''/* SPDX-License-Identifier: MIT
  * Thin ZMK behavior adapter; runtime owns state, FIFO and transport work.
  */
@@ -89,6 +97,8 @@ static int binding_key(struct zmk_behavior_binding *binding,
     identical(adapter, expected_adapter + callbacks + registration, 'behavior_gamepad.c')
     original_functions = functions(original)
     moved_functions = functions(runtime)
+    moved_functions['bbp_gamepad_layer_active'] = functions(
+        runtime.replace(identity_new, identity_old, 1))['bbp_gamepad_layer_active']
     unchanged = sorted(set(original_functions) - {'binding_key', 'pressed', 'released'})
     for name in unchanged:
         identical(moved_functions[name], original_functions[name], name)

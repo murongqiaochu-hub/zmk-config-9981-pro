@@ -27,7 +27,15 @@ HEADERS = [
 for relative in HEADERS:
     p = STUBS / relative
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text('/* Test mock declarations come from test_env.h. */\n')
+    if relative == 'zmk/keymap.h':
+        # SDK order index -> stable layer ID; identity here, varied by the
+        # dedicated reordering test that owns its own include directory.
+        p.write_text('#pragma once\n#include <stdint.h>\n'
+                     'static inline uint8_t zmk_keymap_layer_index_to_id(uint8_t index) {\n'
+                     '    return index;\n'
+                     '}\n')
+    else:
+        p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
 # Byte-exact ZMK v0.3.0 sticky/mo/to sources: never silently test a rewritten SDK.
 for path, size, expected in [
