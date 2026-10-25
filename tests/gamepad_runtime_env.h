@@ -53,11 +53,23 @@ struct zmk_behavior_binding_event {uint32_t position;int64_t timestamp;};
 enum zmk_transport {ZMK_TRANSPORT_USB,ZMK_TRANSPORT_BLE};
 struct zmk_endpoint_instance {enum zmk_transport transport;struct {uint8_t profile_index;} ble;};
 static struct zmk_endpoint_instance selected;
-static uint8_t highest_layer;
+/* Fixed SDK contract: IDs are stable, indices are positions in layer order. */
+typedef uint8_t zmk_keymap_layer_id_t;
+#define ZMK_KEYMAP_LAYER_ID_INVAL UINT8_MAX
+typedef uint8_t zmk_keymap_layer_index_t;
+static zmk_keymap_layer_index_t highest_layer;
+static zmk_keymap_layer_id_t layer_order[] = {0, 1, 2, 3};
+static inline void reset_layer_order(void){
+    for(size_t i=0;i<sizeof(layer_order)/sizeof(layer_order[0]);i++)layer_order[i]=(uint8_t)i;
+}
 static bool usb_ready;
 static uint32_t usb_epoch;
 static inline struct zmk_endpoint_instance zmk_endpoints_selected(void){assert(!lock_depth);return selected;}
-static inline uint8_t zmk_keymap_highest_layer_active(void){assert(!lock_depth);return highest_layer;}
+static inline zmk_keymap_layer_index_t zmk_keymap_highest_layer_active(void){assert(!lock_depth);return highest_layer;}
+static inline zmk_keymap_layer_id_t zmk_keymap_layer_index_to_id(zmk_keymap_layer_index_t index){
+    assert(!lock_depth);
+    return index<sizeof(layer_order)/sizeof(layer_order[0])?layer_order[index]:ZMK_KEYMAP_LAYER_ID_INVAL;
+}
 static inline bool zmk_usb_is_hid_ready(void){assert(!lock_depth);return usb_ready;}
 struct bt_conn {int id,refs;bool connected,subscribed,secure;};
 static struct bt_conn peer_a,peer_b,*active_peer;

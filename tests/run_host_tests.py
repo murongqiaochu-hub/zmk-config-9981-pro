@@ -7,13 +7,10 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-# Fail closed on the complete config before running either old or new oracles.
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_gamepad_runtime_scope.py')], check=True)
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_gamepad_runtime_scope.py')], check=True)
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_runtime_tests.py')], check=True)
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_usb_enumeration_scope.py')], check=True)
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_usb_enumeration_scope.py')], check=True)
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_usb_enumeration_tests.py')], check=True)
+# Current whole-tree exact oracle replaces archived single-cut assumptions.
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_full_repair_scope.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_full_repair_tests.py')], check=True)
 # User contract: every functionality/keymap update also updates the manual.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_manual_sync.py')], check=True)
 BUILD = ROOT / '.host-test-build'
@@ -62,6 +59,7 @@ subprocess.run([str(exe)], check=True)
 BASE = 'd7e535e'
 paths = ['config/bbp9981.keymap', 'config/boards/arm/bbp9981/bbp9981.keymap']
 def layers(text):
+    text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
     result = {}
     for name in ['default_layer', 'sym_layer', 'upper_layer', 'media_layer']:
         body = re.search(r'\b' + name + r'\s*\{\s*bindings\s*=\s*<(.*?)>;', text, re.S).group(1)
@@ -78,10 +76,15 @@ for relative in paths:
     before['default_layer'][0] = '&microtap_shoulder'
     assert before['upper_layer'][7] == '&none'
     before['upper_layer'][7] = '&out OUT_BLE'
+    gamepad = {0: 10, 1: 11, 2: 8, 3: 17, 4: 18, 6: 9, 8: 0, 11: 12, 12: 13,
+               14: 7, 17: 2, 18: 1, 19: 3, 23: 6, 25: 5, 34: 4, 39: 14}
+    for position, action in gamepad.items():
+        assert before['media_layer'][position] == '&none'
+        before['media_layer'][position] = f'&gamepad {action}'
     assert before == after, relative
     updated.append(after)
 assert updated[0] == updated[1]
-print('PASS Keymaps: only left shoulder, SYM Ctrl and unused UPPER-Q explicit OUT_BLE differ from original; all other bindings preserved')
+print('PASS Keymaps: accepted shoulder/Ctrl/UPPER-Q preserved; exact original 17 MEDIA gamepad actions and three exits; all other bindings unchanged')
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/run_diag_hid.py')], check=True)
@@ -115,6 +118,7 @@ assert negative.returncode != 0 and 'bbp_menu_diag_endpoints_snapshot' in negati
 cmake = (ROOT / 'config/boards/arm/bbp9981/CMakeLists.txt').read_text()
 assert '"${APPLICATION_SOURCE_DIR}/src/endpoints.c"' in cmake and cmake.count('menu_diag_endpoints.h') == 1
 print('PASS endpoint diagnostics: four unchanged SDK fixtures, actual preinclude across USB/BLE variants, settings-off/fault-mock, missing-snapshot negative link, source-specific CMake target')
-subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_tap_successor_scope.py')], check=True)
+# Historical tap/USB-only scope assumes no gamepad input integration; current full
+# config is pinned byte-for-byte by check_full_repair_scope.py above instead.
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_matrix_isolation.py'), '-v'], check=True)
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/test_micro_source_contrast.py')], check=True)

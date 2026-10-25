@@ -39,6 +39,7 @@ static void fixture(bool ble){
     state_conn_token=0;context_was_game=pointer_mode_epoch=0;work_pending=false;tap_bridge_cancels=0;
     context_epoch=1;ready=0;initialized_epoch=idle_init_epoch=UINT32_MAX;
     idle_init_attempts=0;idle_security_requested=false;idle_rearm=0;idle_next_probe=0;
+    reset_layer_order();
     now_ms=100;highest_layer=3;usb_ready=true;usb_epoch=1;
     peer_a=(struct bt_conn){.id=10,.refs=1,.connected=true,.subscribed=true,.secure=true};
     peer_b=(struct bt_conn){.id=20,.refs=1,.connected=true,.subscribed=true,.secure=true};

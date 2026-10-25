@@ -1,5 +1,14 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
+## 当前：完整修复候选（2026-10-25）
+
+- 用户已确认原 v2、USB-only `266c27b`、runtime-only `7eeca50` 实机通过。当前分支 `codex/ipad-full-repair-20261025`，功能源 `85893971ddecfa32bd21a2309ff16e7925940c9b`；恢复二分前原 `1c61b81` 完整功能 / v2.2.1 旧映射，不混 v2.3.3。
+- 普通 / SYM / aA 三层和原参数保持；恢复 MEDIA 输入、WASD D-pad、黑莓切杆、机械点击 DOWN 捕获 L3/R3。可完整验收，不再沿用 runtime-only 的“只测普通层、不进 MEDIA”限制。
+- 两项修正：runtime 先将最高活动层 INDEX 转 stable ID 再判 MEDIA；BLE 第二独立 0x1812 gamepad HIDS，stock HOG 不改，196B 键鼠 Map 与 141B GP Map 分开。Input9 无 ID；Control Point 每 peer 独立，Suspend 只 gate 该 peer GP，Exit Suspend 先 neutral，无 remote wake。
+- 原完整 gamepad suite、独立真 196+141 服务、重排反事实旧代码失败 / 新代码通过、12 项负向专项 PASS。本轮完整 host 已PASS；ARM / UF2 / 实机待验；设备实际重排未证，不能称 INDEX bug 已确定为 iPad 故障根因，不能预先宣称新 ARM 原生 GATT 布局已核验。
+- 同一 BLE 身份仍共享 cache / 连接，多 HIDS 不保证 iPad 或游戏支持。定位构建按已授窄门执行；绝不自动刷写、清配对 / settings、改主机或稳定发布，不动 v2.3.3。下方二分记录均为历史，不覆盖本节。
+- [手册](<docs/9981Pro_使用说明书.md>) v2.2.1.7 恢复完整 27 章；导出工具恢复 gamepad 标签与 27 章版式 / 预览支持。manifest、PDF / DOCX / HTML 及 QA 由父会话生成并核验。
+
 ## 当前说明书入口
 
 - 面向用户的可维护正文：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)。
@@ -19,7 +28,7 @@
 6. 每批次都运行 `python3 tests/check_manual_sync.py`；完整主机回归已经包含此检查。`config/` 任一受跟踪文件增加、删除或内容变化而未同步清单会失败。同步检查只是防遗漏，不替代人工核对说明是否真实。
 7. 仅写说明书不授权改固件功能、自动触发新 ARM 构建、推送、刷写、清配对或主机设置。本轮为说明书任务，轻拍继续暂停调优。
 
-## 当前：运行时单变量（2026-10-25）
+## 已通过运行时单变量的历史记录（2026-10-25）
 
 - 用户确认USB-only 266c27b“这个版本能用”，并20:26要求继续。定位构建无需逐次确认，不自动刷机/清配对/settings/改主机/稳定发布或动v2.3.3。
 - 从已通过1014c94文档头（config同266c27b）建立分支codex/ipad-runtime-only-20261025；只改CMake编译列表，将neutral shim替换为原1c61b81 behavior_gamepad.c和第一刀d05c9e1 gamepad_ble_disabled.c。原neutral文件保留但不编译，二原件逐字节不修改。Kconfig/conf/DT/两键图/触板/轻拍/USB及BLE HOG均保持上一通过版。
