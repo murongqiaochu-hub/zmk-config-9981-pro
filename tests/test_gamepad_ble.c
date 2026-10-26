@@ -466,21 +466,27 @@ static void test_tail_contract_fails_closed(void) {
 
 static void test_report_map_all_offsets_crossing_and_end(void) {
     reset_case();
-    /* One compact composite map replaces the stock one for this read. */
-    uint8_t expected[sizeof(bbp_composite_report_map)];
-    memcpy(expected, bbp_composite_report_map, sizeof(expected));
+    /* Two maps exist; the connected profile decides which one is served. */
+    const struct { int profile; const uint8_t *map; size_t len; } variants[] = {
+        {0, bbp_map_safe, sizeof(bbp_map_safe)},
+        {BBP_GAMEPAD_PROFILE, bbp_map_gamepad, sizeof(bbp_map_gamepad)},
+    };
+    for (size_t v = 0; v < ARRAY_SIZE(variants); ++v) {
+    active_profile = variants[v].profile;
+    const uint8_t *expected = variants[v].map;
+    const size_t expected_len = variants[v].len;
     const uint16_t lengths[] = {0U,1U,2U,7U,22U,45U,255U};
     uint8_t out[512];
-    for (size_t offset = 0; offset <= sizeof(expected) + 1U; ++offset) {
+    for (size_t offset = 0; offset <= expected_len + 1U; ++offset) {
         for (size_t l = 0; l < ARRAY_SIZE(lengths); ++l) {
             memset(out, 0xa5, sizeof(out));
             ssize_t got = hog_svc.attrs[4].read(&peers[0], &hog_svc.attrs[4], out,
                                                lengths[l], (uint16_t)offset);
-            if (offset > sizeof(expected)) {
+            if (offset > expected_len) {
                 assert(got == BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
                 assert(out[0] == 0xa5U);
             } else {
-                size_t count = sizeof(expected) - offset;
+                size_t count = expected_len - offset;
                 if (count > lengths[l]) { count = lengths[l]; }
                 assert(got == (ssize_t)count && memcmp(out, expected + offset, count) == 0);
                 assert(out[count] == 0xa5U);
@@ -493,9 +499,12 @@ static void test_report_map_all_offsets_crossing_and_end(void) {
      * offset/error semantics), so the passthrough is expected here; what
      * matters is that no OTHER attribute lost its original read. */
     assert(raw_reads > 0U);
-    assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, sizeof(out), 0) == sizeof(expected));
-    assert(memcmp(out, bbp_composite_report_map, sizeof(expected)) == 0);
-    assert(sizeof(expected) <= 244U);
+    assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, sizeof(out), 0) ==
+           (ssize_t)expected_len);
+    assert(memcmp(out, expected, expected_len) == 0);
+    assert(expected_len <= 244U);
+    }
+    active_profile = 0;
 }
 
 static void test_map_identity_and_stock_reads_passthrough(void) {

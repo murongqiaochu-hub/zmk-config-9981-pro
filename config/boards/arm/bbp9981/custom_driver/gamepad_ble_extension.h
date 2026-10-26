@@ -30,8 +30,14 @@ static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_g
     if (value != (const void *)zmk_hid_report_desc || value_len != sizeof(zmk_hid_report_desc)) {
         return bt_gatt_attr_read(conn, attr, buf, len, offset, value, value_len);
     }
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, bbp_composite_report_map,
-                             sizeof(bbp_composite_report_map));
+    /* Apple invalidates the device when a Game Pad collection shares the HID
+     * service with a keyboard, so only the dedicated gamepad profile gets one.
+     * Every other profile receives the vendor-ID4 map that iPad accepts.
+     */
+    const bool gamepad_profile = zmk_ble_active_profile_index() == BBP_GAMEPAD_PROFILE;
+    const uint8_t *map = gamepad_profile ? bbp_map_gamepad : bbp_map_safe;
+    const size_t map_len = gamepad_profile ? sizeof(bbp_map_gamepad) : sizeof(bbp_map_safe);
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, map, map_len);
 }
 
 static bool bbp_gamepad_ble_connected(const struct bt_conn *conn) {

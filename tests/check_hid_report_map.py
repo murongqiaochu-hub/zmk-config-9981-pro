@@ -81,36 +81,44 @@ def parse(data):
              for rid, v in reports.items()}, apps)
 
 
-def composite_bytes():
+def parse_arrays():
     text = MAP_H.read_text()
-    # Start after both braces in " = {", stop at the closing "};".
-    body = text[text.index('= {') + 3:text.index('};')]
-    out = [int(tok.strip(), 16) for tok in body.replace('\n', ' ').split(',')
-           if tok.strip().startswith('0x')]
-    return bytes(out)
+    out = {}
+    for name in ('bbp_map_safe', 'bbp_map_gamepad'):
+        marker = f'static const uint8_t {name}[] = {{'
+        body = text[text.index(marker) + len(marker):]
+        body = body[:body.index('};')]
+        out[name] = bytes(int(tok.strip(), 16) for tok in body.replace('\n', ' ').split(',')
+                          if tok.strip().startswith('0x'))
+    return out
 
 
 def main():
     stock = bytes.fromhex(STOCK.read_text().strip())
-    composite = composite_bytes()
+    maps = parse_arrays()
+    safe, pad = maps['bbp_map_safe'], maps['bbp_map_gamepad']
     assert len(stock) == 196, len(stock)
-    assert len(composite) == 209, len(composite)  # minimal gamepad build
-    assert len(composite) <= 244, 'must fit one 247-byte ATT MTU read'
+    assert len(safe) == 172 and len(pad) == 209, (len(safe), len(pad))
+    assert max(len(safe), len(pad)) <= 244, 'must fit one 247-byte ATT MTU read'
 
     stock_reports, stock_apps = parse(stock)
-    reports, apps = parse(composite)
     assert stock_apps == [(0x01, 0x06), (0x0C, 0x01), (0x01, 0x02)], stock_apps
-    assert apps == [(0x01, 0x05)] + stock_apps, apps  # Game Pad first
-    # Report bodies must stay byte-identical to what ZMK actually sends.
     assert stock_reports == {1: {'input': 8, 'output': 1},
                              2: {'input': 12, 'output': 0},
                              3: {'input': 9, 'output': 0}}, stock_reports
-    assert reports == {1: {'input': 8, 'output': 0},
-                       2: {'input': 12, 'output': 0},
-                       3: {'input': 9, 'output': 0},
-                       4: {'input': 9, 'output': 0}}, reports
-    print('PASS minimal map: 209B single read, IDs 1/2/3/4 unique, '
-          'bodies 8/12/9/9 bytes, standard Game Pad, all collections balanced; HOST PARSER ONLY')
+
+    safe_reports, safe_apps = parse(safe)
+    assert safe_apps == stock_apps + [(0xFF00, 0x01)], safe_apps
+    assert safe_reports == {1: {'input': 8, 'output': 0},
+                            2: {'input': 12, 'output': 0},
+                            3: {'input': 9, 'output': 0},
+                            4: {'input': 9, 'output': 0}}, safe_reports
+
+    pad_reports, pad_apps = parse(pad)
+    assert pad_apps == stock_apps + [(0x01, 0x05)], pad_apps
+    assert pad_reports == safe_reports, pad_reports
+    print('PASS dual maps: safe 172B (vendor ID4) and gamepad 209B (Game Pad ID4), '
+          'IDs 1/2/3/4 unique, bodies 8/12/9/9 bytes, all collections balanced; HOST PARSER ONLY')
 
 
 if __name__ == '__main__':
