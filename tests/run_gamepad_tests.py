@@ -166,6 +166,7 @@ def main():
         preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
     assert aggregate_only.returncode != 0 and 'epoch!=old_epoch' in aggregate_only.stderr, aggregate_only.stderr
     print('PASS CCC counterfactual: aggregate-only hook misses per-peer off/on cancellation and is rejected')
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_pure_profile_tests.py')])
     for boot in [0, 1]:
         exe = build('test_gamepad_usb_case' + str(boot),
                     ['tests/gamepad_usb_mocks', 'tests/hid_snapshot_mocks', 'tests/sdk_snapshot_mocks'],

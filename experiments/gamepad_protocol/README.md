@@ -1,4 +1,4 @@
-# 纯手柄协议实验（未接入固件）
+# 纯手柄协议实验与显式诊断候选（未ARM构建）
 
 更新：2026-10-26。目标设备：iPad Air 6 / iPadOS 26.2 / 官方 Moonlight。用户接受先分模式验证，再推进键鼠共存。
 
@@ -53,18 +53,37 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B tests/run_map_stability_counterfactual.py
 
 固定SDK证据：<https://github.com/zephyrproject-rtos/zephyr/blob/dacab4875df72109b96cc8977547a0dc04875bcd/subsys/bluetooth/host/gatt.c>。`gatt_ccc_changed`仅在聚合最大值变化时通知；`cfg_write`返回1/2才提交；`gatt_notify`先检查链路加密，再复制载荷到PDU；再次强制订阅取决 `CONFIG_BT_GATT_ENFORCE_SUBSCRIPTION`，不能默认假定始终开启。
 
+## 显式候选接线（第四个本地里程碑）
+
+默认 `config` 仍未改。新增 [候选生成器](<../../tools/stage_pure_gamepad.py>)，仅在新目录复制源码后机械修改两份CMake：
+
+1. tap的stock HOG prefix替换为 [pure_hog_guard.h](<pure_hog_guard.h>)：旧HID表变为普通const对象，不进入GATT iterable表；蓝牙键盘/consumer/鼠标公共发送与mouse snapshot API返回ENOTSUP，不排队、不清除调用方鼠标数据。旧SDK TU保持原字节、旧实现改名但不从公共入口调用。
+2. gamepad BLE extension替换为独立TU [pure_runtime.c](<pure_runtime.c>)：注册纯HIDS和连接/断开回调，导出既有 `bbp_gamepad_ble_send` ABI接到实验transport，并导出有限诊断快照getter。
+
+生成候选不改变USB源码/配置、设备身份、键图、设置项或板定义；不是一个自动切换模式的新UI。必须使用已有控制选择BLE输出与MEDIA层。这个诊断profile的**蓝牙键鼠不可用**，USB源码/接口保留但仍需ARM和设备回归；不可直接作为全端三合一交付。
+
+```bash
+python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pure-stage --accept-ble-keymouse-disabled
+```
+
+目标必须是源码树之外的新目录，已有目录拒绝覆盖。生成前验证精确源片段和182字节描述符哈希；生成后manifest记录每个文件哈希、两项修改前后hash、source commit/dirty状态，build/flashed/hardware均为false。不运行west、Actions或设备命令。
+
+新增验证：未修改的固定SDK hog.c在5种host配置下编译，公共键鼠接口均拒发；native ELF iterable marker证实旧service不注册、新service使用注册宏，恢复旧service注册的反例可检测。实际wrapper/callback函数已执行，但生产worker本体在该测试中仍是mock边界，**不是三个真实TU独立链接证明**。
+
+本轮临时准备CMake 3.31.6（仅 `/dev/shm` 测试目录，没有全局安装或PATH配置）。真实CMake解释器执行生成后board逻辑：16组前置条件、唯一guard/source接线、USB属性轨迹不变、5类SDK身份与4类SHA失败闸；原32组回归矩阵也执行而非SKIP。这里Zephyr函数与git身份探测仍为recording/stub harness，**不是完整Zephyr configure/ARM构建**。完整host日志12 exit0。
+
 ## 明确未完成
 
 - 不改变9981厂商/产品身份；没有复制Google/Microsoft VID/PID。
-- 无广播/身份切换、BT回调注册、生产worker接线、模式选择及持久化。新增桥接的SDK/runtime仍在测试中替身化，尚非完整生产运行链。
+- 显式候选已有BT回调和生产send ABI接线；没有ARM真实头/三TU独立链接验证、实际广播/连接验收、身份切换、运行时模式选择及持久化。新增桥接的SDK/runtime仍在host测试中替身化，尚非已验证的完整生产运行链。
 - Control Point已接实验中的每peer挂起状态，但真实ATT派发、suspend抑制通知及重连行为仍待集成/实机验证。
 - 未做ARM编译、空口测试、GCController枚举或Moonlight验收。
 - 本目录不是可刷固件，不能称Stadia认证、Xbox原生兼容或iPad手柄已恢复。
-- 原型没有用户功能变更，因此未修改正式使用说明书或生成新固件手册；进入生产候选时必须同批更新。
+- 尚未构建或交付可刷候选，正式使用说明书仍对应原版；进入构建/交付批次须同步纯BLE限制、操作与回退说明及同批导出文档，不能拿原版手册冒充新模式说明。
 
 ## 下一阶段闸门
 
-1. 将已验证的实验桥接接到真实生产worker及BT生命周期回调，继续验证旧peer释放、断开/重连、订阅变化、suspend/resume及发送失败；不能用当前边界mock替代这一步。
+1. 用固定SDK进行真实独立TU链接/ARM构建，查compile_commands确保hog只有guard且pure_runtime只编译一次、未继承guard；解析最终ELF iterable表（非仅搜符号）确认唯一HIDS/16属性。继续验证真实worker的旧peer释放、断开/重连、订阅变化、suspend/resume及发送失败；不能用当前边界mock替代。
 2. 服务呈现只能在建立连接前确定，不能在同一Read Blob过程中或仅随活动槽切换；不自动清配对，不在后台更换身份。
 3. 新模式保留现有键位、灯光、速度与键鼠回退，不以全局重构冒险。先确定纯手柄的固定构建/模式隔离，再做三合一。
 4. 与参照协议一致的数据不保证系统驱动匹配；如需改变厂商身份，必须先说明原因并取得用户明确选择，不能偷偷替换。

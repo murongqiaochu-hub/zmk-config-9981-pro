@@ -70,6 +70,16 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 
 固定Zephyr源码还核实notify载荷在函数返回前复制进ATT PDU，但加密/订阅/缓存仍需真实协议栈验收。下一步是把实验adapter与真实生产worker、GATT服务选择及BT回调接线，并补真实连接层验证；不能把已写实验代码直接称作可刷模式。
 
+### 第四个本地里程碑：可生成的显式诊断profile
+
+新增 `tools/stage_pure_gamepad.py`，默认源码不变，目标为新的外部目录；候选只机械替换两份CMake。stock hog.c保持原字节，prefix改为不注册旧HID、公共蓝牙键鼠API拒发的guard；独立pure_runtime TU提供既有send ABI及BT连接/断开回调。除两项CMake外所有config字节一致，不更改USB、键位或身份设置。此profile是**纯BLE手柄诊断候选，蓝牙键鼠不可用**，不是最终三合一。
+
+生成器拒绝覆盖/源树目标/源子项symlink/未知片段；解析并校验描述符实际字节哈希后才生成manifest，避免写死哈希漂移。host验证完整固定SDK hog.c的5种配置、公共键鼠拒发、native iterable注册marker及恢复旧服务注册的反事实；实际wrapper/callback函数也被测试。独立只读审查未发现确定的宏顺序或双注册问题，明确指出还缺真实三TU链接及ARM iterable表验收。
+
+本机初无CMake；核对记忆/进程/已知路径后，仅在临时测试目录准备3.31.6，无全局安装/配置变更。实际CMake解释器运行候选16组前置条件、唯一prefix/source轨迹、USB轨迹比较和SDK失败闸；同时原32组CMake矩阵不再SKIP。Zephyr API与身份探测仍为测试harness，不冒充完整SDK configure。完整host日志11和含CMake矩阵日志12均exit0。
+
+下一步为真实固定SDK/ARM候选构建，检查compile_commands、符号唯一、最终ELF iterable表只有一个HIDS/16属性、DTS/config/UF2与manifest，然后才讨论受控实机验证。进入构建交付批次须同步候选说明书；当前未推送或运行Actions。
+
 ## 下一道决策与验收
 
 用户本轮已确认：iPad Air 6、iPadOS 26.2、官方Moonlight（具体App版本未提供）；接受先验证明确键鼠模式／纯手柄模式，再推进合并。此方案不是已完成的三合一，也不等于授权更改厂商身份、刷写或清配对。

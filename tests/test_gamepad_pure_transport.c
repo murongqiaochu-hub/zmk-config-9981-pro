@@ -3,7 +3,21 @@
 #include <stdio.h>
 #include <string.h>
 #define CONFIG_BT_MAX_CONN 2
+#ifdef BBP_EXP_TEST_REAL_WIRING
+#define BBP9981_PURE_BLE_CANDIDATE 1
+#include <zephyr/bluetooth/conn.h>
+/* The relevant pinned bt_conn_cb public ABI subset, not real SDK dispatch. */
+struct bt_conn_cb {
+    void (*connected)(struct bt_conn *,uint8_t);
+    void (*disconnected)(struct bt_conn *,uint8_t);
+};
+#define BT_CONN_CB_DEFINE(name) struct bt_conn_cb name
+#include "../experiments/gamepad_protocol/pure_runtime.c"
+/* All subsequent test sends exercise the exported production-runtime symbol. */
+#define bbp_exp_transport_send bbp_gamepad_ble_send
+#else
 #include "../experiments/gamepad_protocol/pure_transport.h"
+#endif
 
 static struct bt_conn peers[3], *active;
 static struct zmk_endpoint_instance endpoint;
@@ -86,8 +100,15 @@ static void init(void) {
         peers[i].dst.a.val[0]=(uint8_t)i;
     }
     select_peer(0);
+#ifdef BBP_EXP_TEST_REAL_WIRING
+    bbp_exp_connection.connected(&peers[0],0);
+    bbp_exp_connection.connected(&peers[1],0);
+    uint32_t ticket;
+    assert(!bbp_exp_peer_ticket(&peers[0],&ticket) && !bbp_exp_peer_ticket(&peers[1],&ticket));
+#else
     assert(bbp_exp_transport_connected(&peers[0],0)==0);
     assert(bbp_exp_transport_connected(&peers[1],0)==0);
+#endif
 }
 static void current_button(void) { current=bbp_gamepad_neutral();current.buttons_lo=1;current.x=127;current.lt=255; }
 static void suspend_primary(void) { bbp_exp_set_suspended(&peers[0],true); }
@@ -228,7 +249,20 @@ int main(int argc,char **argv) {
         ccc->cfg_write=NULL;test_ccc_cycles();return 0;
     }
     test_capture();test_send();test_ccc_cycles();test_lifecycle();
-    for(unsigned int i=0;i<3;++i) { bbp_exp_transport_disconnected(&peers[i]);assert(peers[i].refs==1); }
+    for(unsigned int i=0;i<3;++i) {
+#ifdef BBP_EXP_TEST_REAL_WIRING
+        bbp_exp_connection.disconnected(&peers[i],0x13);
+#else
+        bbp_exp_transport_disconnected(&peers[i]);
+#endif
+        assert(peers[i].refs==1);
+    }
+#ifdef BBP_EXP_TEST_REAL_WIRING
+    struct bbp_exp_diagnostics exported;
+    bbp9981_pure_gamepad_diagnostics(&exported);
+    assert(exported.counts[BBP_EXP_SEND_RESULT]>0);
+    puts("PASS staged runtime wiring: exported gamepad send ABI, registered callback functions and diagnostic getter; mock SDK/runtime dispatch only");
+#endif
     assert(ref_calls==unref_calls && !lock_depth);
     puts("PASS pure transport adapter: peer refs balanced; capture/send races; suspend/resume; old-peer neutral release; reconnect/cross-slot generation; bounded metadata diagnostics; 10000 lifecycles; HOST ONLY");
     return 0;
