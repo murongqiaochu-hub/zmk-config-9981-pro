@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T11:39:36+08:00",
-  "source_commit": "5c6e514bf5b9d042da8dff9fbbacadd57e13a139",
+  "updated": "2026-10-26T11:40:54+08:00",
+  "source_commit": "bb41ea8fc9bb78ac45afc110823d4a278054cba9",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "隔离实验版：同一HOG服务、同样26属性、同样9字节ID4报告，但ID4改为厂商自定义集合（172B Map），用于判断iPad拒绝的是结构还是手柄集合内容。",
+  "review_note": "隔离实验版（172B Map，ID4厂商自定义）：判断iPad拒绝的是结构还是手柄集合内容。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "70ea9fe6b4732ea57604f79ed364914a65337d96c7b5314b6b92bf9a086fbb0b",
+  "manual_sha256": "ada5c3c86b9aa2ebb43268f6179a5195403b35b9abb8fa1fc276a19a88bf8ba7",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
