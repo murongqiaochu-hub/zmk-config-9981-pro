@@ -57,7 +57,18 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 
 新增原型后的完整host在标准权限Git归档快照exit0（07日志），审查补强专项exit0（08日志）。CMake执行矩阵仍SKIP；没有ARM/空口/GCController/Moonlight结果。上游仅输入GATT与其含Output描述符不一致的细节被记录，不推定它是苹果不识别的根因。
 
-下一步是实际conn/epoch/suspend/订阅/notify生命周期桥接，不能把当前外部snapshot/suspend接口的mock当作已实现的设备功能。
+### 第三个本地里程碑：连接/发送桥接
+
+新增实验 `pure_transport.h`，对齐既有worker的captured_conn/body/context_epoch接口，不新建队列。完成按连接持有引用、有界状态表、挂起与重连代次、当前peer/路由/runtime epoch检查、旧peer neutral释放、10字节编码notify调用及固定RAM诊断。尚未在生产CMake中链接，也未将生命周期接口注册到实际BT回调；SDK/runtime在该专项中仍是替身。
+
+独立审查找到并修复两项真实模型缺口：
+
+- 聚合CCC回调不足以观察某个peer的off/on，改为managed cfg_write逐peer推进代次并取消旧epoch；双peer聚合保持1时的反例必须失败。同值写也保守取消，未知连接映射为有效ATT错误而不泄漏内部errno。
+- connect检查与登记间插入disconnect可能保留引用，改为登记后复核、仅按本次registration清理；回调内注入断开证明refs回到初值。
+
+此外将最后info检查后的ticket/runtime epoch/route再次核对，并明确最终闸门之后允许单worker的一帧在途SDK提交，不宣称检查与空口原子。10000次生命周期、跨槽重连、旧peer释放、挂起/订阅取消、有限诊断与反事实已验证。完整host回归exit0见09日志；最后ATT错误映射补强后的手柄专项另见10日志。复核者已只读确认上述三处落实，不将其当作独立运行结果。
+
+固定Zephyr源码还核实notify载荷在函数返回前复制进ATT PDU，但加密/订阅/缓存仍需真实协议栈验收。下一步是把实验adapter与真实生产worker、GATT服务选择及BT回调接线，并补真实连接层验证；不能把已写实验代码直接称作可刷模式。
 
 ## 下一道决策与验收
 

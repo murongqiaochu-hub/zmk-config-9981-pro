@@ -7,10 +7,10 @@
 static struct bt_conn peer[2];
 static bool snapshot_ok, suspended[2];
 static struct bbp_gamepad_report_body current;
-static unsigned int events[6], suspend_calls;
+static unsigned int events[BBP_EXP_EVENT_COUNT], suspend_calls;
 static struct { enum bbp_exp_event event; uint16_t offset; int result; } last_event;
 void bbp_exp_observe(enum bbp_exp_event event, uint16_t offset, int result) {
-    assert((unsigned int)event < 6U); events[event]++;
+    assert((unsigned int)event < BBP_EXP_EVENT_COUNT); events[event]++;
     last_event.event=event; last_event.offset=offset; last_event.result=result;
 }
 bool bbp_exp_capture_report(struct bt_conn *conn, struct bbp_gamepad_report_body *out) {
@@ -21,6 +21,9 @@ bool bbp_exp_capture_report(struct bt_conn *conn, struct bbp_gamepad_report_body
 void bbp_exp_set_suspended(struct bt_conn *conn, bool value) {
     assert(conn == &peer[0] || conn == &peer[1]);
     suspended[conn == &peer[1]] = value; suspend_calls++;
+}
+int bbp_exp_subscription_write(struct bt_conn *conn, uint16_t value) {
+    assert(conn && value<=1); return 0;
 }
 ssize_t bt_gatt_attr_read(struct bt_conn *c, const struct bt_gatt_attr *a, void *buf,
                           uint16_t len, uint16_t off, const void *value, uint16_t size) {

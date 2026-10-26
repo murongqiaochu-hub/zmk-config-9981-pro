@@ -159,6 +159,13 @@ def main():
     stadia_codec = build('test_gamepad_stadia_codec')
     run([str(stadia_codec)])
     run([os.sys.executable, '-B', str(ROOT/'tests/run_pure_hids_tests.py')])
+    pure_transport = build('test_gamepad_pure_transport', ['tests/gamepad_ble_mocks'])
+    run([str(pure_transport)])
+    aggregate_only = subprocess.run([str(pure_transport), '--aggregate-only'],
+        capture_output=True, text=True,
+        preexec_fn=lambda: resource.setrlimit(resource.RLIMIT_CORE, (0, 0)))
+    assert aggregate_only.returncode != 0 and 'epoch!=old_epoch' in aggregate_only.stderr, aggregate_only.stderr
+    print('PASS CCC counterfactual: aggregate-only hook misses per-peer off/on cancellation and is rejected')
     for boot in [0, 1]:
         exe = build('test_gamepad_usb_case' + str(boot),
                     ['tests/gamepad_usb_mocks', 'tests/hid_snapshot_mocks', 'tests/sdk_snapshot_mocks'],

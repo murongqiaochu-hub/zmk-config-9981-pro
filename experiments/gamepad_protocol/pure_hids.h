@@ -16,11 +16,13 @@
  */
 enum bbp_exp_event {
     BBP_EXP_MAP_READ, BBP_EXP_INPUT_READ, BBP_EXP_OUTPUT_WRITE,
-    BBP_EXP_CONTROL_WRITE, BBP_EXP_PROTOCOL_WRITE, BBP_EXP_CCC_AGGREGATE
+    BBP_EXP_CONTROL_WRITE, BBP_EXP_PROTOCOL_WRITE, BBP_EXP_CCC_AGGREGATE,
+    BBP_EXP_SEND_RESULT, BBP_EXP_LIFECYCLE, BBP_EXP_CCC_WRITE, BBP_EXP_EVENT_COUNT
 };
 void bbp_exp_observe(enum bbp_exp_event event, uint16_t offset, int result);
 bool bbp_exp_capture_report(struct bt_conn *conn, struct bbp_gamepad_report_body *out);
 void bbp_exp_set_suspended(struct bt_conn *conn, bool suspended);
+int bbp_exp_subscription_write(struct bt_conn *conn, uint16_t value);
 
 static uint8_t bbp_exp_input_ref[] = {BBP_EXP_INPUT_ID, 1U};
 static uint8_t bbp_exp_output_ref[] = {BBP_EXP_OUTPUT_ID, 2U};
@@ -103,6 +105,21 @@ static void bbp_exp_ccc_changed(const struct bt_gatt_attr *a, uint16_t value) {
     bbp_exp_observe(BBP_EXP_CCC_AGGREGATE, 0U, value);
 }
 
+static ssize_t bbp_exp_ccc_write(struct bt_conn *conn, const struct bt_gatt_attr *a,
+                                 uint16_t value) {
+    (void)a;
+    int ret;
+    if (!conn) { ret = BT_GATT_ERR(BT_ATT_ERR_UNLIKELY); }
+    else if (value > BT_GATT_CCC_NOTIFY) { ret = BT_GATT_ERR(0x13); }
+    else {
+        /* Internal errno values are not ATT error codes. */
+        ret = bbp_exp_subscription_write(conn, value) ?
+              BT_GATT_ERR(BT_ATT_ERR_UNLIKELY) : (int)sizeof(uint16_t);
+    }
+    bbp_exp_observe(BBP_EXP_CCC_WRITE, 0U, ret);
+    return ret;
+}
+
 BT_GATT_SERVICE_DEFINE(bbp_exp_hids,
     BT_GATT_PRIMARY_SERVICE(BT_UUID_HIDS),
     BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_16(0x2a4e),
@@ -115,7 +132,9 @@ BT_GATT_SERVICE_DEFINE(bbp_exp_hids,
         BT_GATT_PERM_READ_ENCRYPT, bbp_exp_read_map, NULL, NULL),
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT, BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
         BT_GATT_PERM_READ_ENCRYPT, bbp_exp_read_input, NULL, NULL),
-    BT_GATT_CCC(bbp_exp_ccc_changed, BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
+    BT_GATT_CCC_MANAGED(((struct _bt_gatt_ccc[]) {
+        BT_GATT_CCC_INITIALIZER(bbp_exp_ccc_changed, bbp_exp_ccc_write, NULL)}),
+        BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT,
         bbp_exp_read_ref, NULL, bbp_exp_input_ref),
     BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
