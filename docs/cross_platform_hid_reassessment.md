@@ -100,7 +100,9 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 - 指定11ee89e回退原件已只读核验：619520字节，SHA-256 `1e277b08428984a6120c42310c34a6ad40eaaecdf491cbfb1d706e58c3359264`；原件未改。
 - 现有main工作流新增手动profile输入，默认仍standard；pure-ble仅允许本授权repo/branch，令牌contents只读，旧build在pure时跳过，既有deliver分支/触发条件不放宽。以`[skip ci]`推送，再显式手动触发，避免顺带构建默认配置。
 - 验收器新增ARM32最终iterable表唯一HIDS/16属性、Map/ReportRef/权限/characteristic检查，三份编译命令唯一及prefix边界，UF2应用区与已验证ELF flash载荷逐字节对应。合成布局/编译命令反事实和完整host回归均exit0（日志14）；这还不是ARM通过。
-- **Actions计数：0/3，首次手动dispatch尚未提交。** 每次实际启动后追加run ID与来源SHA；不得因失败或自动续轮重置。
+- **Actions计数：1/3。** 第1次已于2026-10-26 16:29（Asia/Shanghai）手动触发：[Run 40292629930](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40292629930>)，来源 `7fcb0f07c8492e72507d2511140563daaa69da84`，profile=pure-ble，已失败：regression完整通过；容器中的source checkout触发Git dubious ownership，停在生成候选之前，未进入SDK初始化或ARM。推送含`[skip ci]`，没有另触发默认配置构建。最多还允许2次；不得因失败或自动续轮重置。
+- 修复限定在stage这一个CI步骤的命令环境：`GIT_CONFIG_COUNT=1`及`safe.directory=${{ github.workspace }}`，仅信任已授权checkout的精确路径；不使用通配符、全局Git配置或chown/chmod。已用Git的不同owner测试开关复现，证明授权目录可用、兄弟目录仍被拒绝。
+- 首次云前只读复核指出regression原先继承actions:write；现已显式收紧为contents:read并关闭凭证持久化。验收器另补Map读取回调指针、UF2额外尾块/非填充间隙检查；报表中的10/4字节明确属于描述符定义，真实空口长度仍未验证。
 
 ## 原始来源
 

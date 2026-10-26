@@ -47,6 +47,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Stage explicit diagnostic sources (no live config changes)
+        # Container UID differs from checkout owner. Trust only this authorized
+        # checkout for this step; no global config, wildcard, chmod or chown.
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: ${{ github.workspace }}
         shell: bash
         run: |
           set -euo pipefail
