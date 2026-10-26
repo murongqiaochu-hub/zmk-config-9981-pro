@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T12:33:19+08:00",
-  "source_commit": "98a25e0fd6d7333f52abc9c6f6d2db88e35a5592",
+  "updated": "2026-10-26T12:42:45+08:00",
+  "source_commit": "d89c8af48534a3ff93e3d72478bbec452952621d",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "手柄优先实验版：同一最小标准Game Pad集合置于Map首位，键盘/媒体/鼠标随后，总209B。判断iPad是否按首个集合绑定整台设备。",
+  "review_note": "蓝牙手柄结论版：iPadOS 26 拒绝键盘+手柄同一HID服务（172B厂商报告可、最小标准手柄不可；337B/238B/209B均失效，两种顺序与重新配对已试）。键鼠走蓝牙、手柄走USB。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "6c89e1ea1d24d87eb0c6d8b863fb24c3d6bb7cd461c9be847996a2ee59493e2d",
+  "manual_sha256": "c309524dc7ed73b5bd28f494fb52f1b382a65b22a0a97ed804efb6a13f56b963",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
