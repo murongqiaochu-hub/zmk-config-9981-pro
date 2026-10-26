@@ -18,12 +18,29 @@ def require(condition,message):
     if not condition:
         raise ValueError(message)
 
+def file_backed_flash(elf):
+    # objcopy fills NOBITS/alignment holes with 0xff; raw PT_LOAD file padding
+    # can instead be zero. Compare actual allocated file-backed sections, using
+    # PT_LOAD only to translate each VMA to its flash load address (LMA).
+    loads=[s for s in elf.iter_segments() if s['p_type']=='PT_LOAD']
+    result=[]
+    for section in elf.iter_sections():
+        if not section['sh_flags']&2 or section['sh_type']=='SHT_NOBITS' or not section['sh_size']:
+            continue
+        address=section['sh_addr'];size=section['sh_size']
+        matches=[s for s in loads if s['p_vaddr']<=address and address+size<=s['p_vaddr']+s['p_filesz']]
+        require(len(matches)==1,'file-backed alloc section must map to one PT_LOAD')
+        segment=matches[0];physical=segment['p_paddr']+address-segment['p_vaddr']
+        require(0x1000<=physical and physical+size<=0xd4000,'ELF load section outside application flash')
+        data=section.data();require(len(data)==size,'section data size mismatch')
+        result.append((physical,data))
+    return result
+
 class Image:
     def __init__(self,elf):
         require(elf.elfclass==32 and elf.little_endian and elf['e_machine']=='EM_ARM','expected little-endian ARM32 ELF')
         self.segments=[(s['p_vaddr'],s.data()) for s in elf.iter_segments() if s['p_type']=='PT_LOAD']
-        self.flash=[(s['p_paddr'],s.data()) for s in elf.iter_segments()
-                    if s['p_type']=='PT_LOAD' and s['p_filesz'] and 0x1000<=s['p_paddr']<0xd4000]
+        self.flash=file_backed_flash(elf)
         table=elf.get_section_by_name('.symtab')
         require(table is not None,'unstripped ELF symbol table required')
         self.symbols={}
@@ -78,9 +95,23 @@ def check_elf(image):
     require(descriptor['st_size']==182,'wrong map size')
     require(hashlib.sha256(image.read(descriptor['st_value'],182)).hexdigest()==MAP_SHA,'wrong immutable Map')
     for name in ['bbp_gamepad_ble_send','zmk_hog_send_keyboard_report','zmk_hog_send_consumer_report',
-                 'zmk_hog_send_mouse_report','bbp_exp_connection','bbp_exp_ccc_write']:
+                 'zmk_hog_send_mouse_report','bbp_exp_ccc_write']:
         image.symbol(name)
+    # Pinned BT_CONN_CB_DEFINE prefixes the user name with bt_conn_cb_. Verify
+    # actual iterable membership and function pointers, not merely name presence.
+    cb_start=image.address('_bt_conn_cb_list_start');cb_end=image.address('_bt_conn_cb_list_end')
+    callback=image.symbol('bt_conn_cb_bbp_exp_connection')
+    address=callback['st_value'];size=callback['st_size']
+    require(size>=8 and size%4==0 and cb_end>cb_start and (cb_end-cb_start)%size==0,'invalid callback iterable layout')
+    for name in ['bt_conn_cb_bbp_exp_connection','bt_conn_cb_bbp_gamepad_connection']:
+        item=image.symbol(name);at=item['st_value']
+        require(item['st_size']==size and cb_start<=at and at+size<=cb_end and (at-cb_start)%size==0,'callback not registered: '+name)
+    connected,disconnected=struct.unpack('<II',image.read(address,8))
+    require(connected&~1==image.address('bbp_exp_on_connected')&~1,'wrong connected callback')
+    require(disconnected&~1==image.address('bbp_exp_on_disconnected')&~1,'wrong disconnected callback')
     return dict(services=services,hids_address=hex(position),hids_attributes=count,
+                connection_callback_address=hex(address),callback_record_bytes=size,
+                registered_connection_callbacks=(cb_end-cb_start)//size,
                 report_map_sha256=MAP_SHA,input_id=3,descriptor_input_bytes=10,output_id=5,
                 descriptor_output_bytes=4,live_report_lengths_verified=False)
 
@@ -111,6 +142,7 @@ def check_uf2_matches(image,data):
         verified+=len(segment)
     require(all(mark or value in (0,255) for mark,value in zip(covered,payload)),'UF2 contains non-padding data outside ELF flash segments')
     result['elf_flash_bytes_matched']=verified
+    result['comparison_basis']='allocated file-backed sections at flash LMA; only NOBITS/alignment/tail padding may be 00/ff'
     return result
 
 def main():

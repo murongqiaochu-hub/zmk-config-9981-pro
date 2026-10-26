@@ -7,7 +7,7 @@ import struct
 import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
-from verify_pure_candidate import Image, check_elf, check_commands, check_uf2_matches, UUIDS
+from verify_pure_candidate import Image, check_elf, check_commands, check_uf2_matches, file_backed_flash, UUIDS
 
 def fixture():
     image=Image.__new__(Image)
@@ -33,8 +33,13 @@ def fixture():
     data[0x600:0x600+len(descriptor)]=descriptor
     symbol('bbp_exp_report_map',0x1600,182)
     for name in ['bbp_gamepad_ble_send','zmk_hog_send_keyboard_report','zmk_hog_send_consumer_report',
-                 'zmk_hog_send_mouse_report','bbp_exp_connection','bbp_exp_ccc_write','bbp_exp_read_map']:
+                 'zmk_hog_send_mouse_report','bbp_exp_ccc_write','bbp_exp_read_map']:
         symbol(name,0x2001)
+    symbol('_bt_conn_cb_list_start',0x1700);symbol('_bt_conn_cb_list_end',0x1740)
+    symbol('bt_conn_cb_bbp_exp_connection',0x1700,32)
+    symbol('bt_conn_cb_bbp_gamepad_connection',0x1720,32)
+    symbol('bbp_exp_on_connected',0x2101);symbol('bbp_exp_on_disconnected',0x2201)
+    put(0x1700,'<II',0x2101,0x2201)
     return image,data,put
 
 def reject(call):
@@ -44,9 +49,27 @@ def reject(call):
         return
     raise AssertionError('malformed candidate accepted')
 
+def test_section_mapping():
+    from types import SimpleNamespace
+    class Section(dict):
+        def data(self):
+            assert self['sh_type']!='SHT_NOBITS'
+            return self['contents']
+    segments=[dict(p_type='PT_LOAD',p_vaddr=0x1000,p_paddr=0x1000,p_filesz=16),
+              dict(p_type='PT_LOAD',p_vaddr=0x20000000,p_paddr=0x1010,p_filesz=4)]
+    sections=[Section(sh_flags=2,sh_type='SHT_PROGBITS',sh_addr=0x1000,sh_size=4,contents=b'code'),
+              Section(sh_flags=2,sh_type='SHT_NOBITS',sh_addr=0x1004,sh_size=4,contents=b''),
+              Section(sh_flags=2,sh_type='SHT_PROGBITS',sh_addr=0x1008,sh_size=4,contents=b'more'),
+              Section(sh_flags=2,sh_type='SHT_PROGBITS',sh_addr=0x20000000,sh_size=4,contents=b'\0'*4),
+              Section(sh_flags=0,sh_type='SHT_PROGBITS',sh_addr=0,sh_size=4,contents=b'dbug')]
+    elf=SimpleNamespace(iter_segments=lambda:iter(segments),iter_sections=lambda:iter(sections))
+    assert file_backed_flash(elf)==[(0x1000,b'code'),(0x1008,b'more'),(0x1010,b'\0'*4)]
+    sections[0]['sh_addr']=0x9999;reject(lambda:file_backed_flash(elf))
+
 def main():
+    test_section_mapping()
     image,_,_=fixture();assert check_elf(image)['hids_attributes']==16
-    for mode in ['two_hids','no_hids','count','uuid','input_ref','output_ref','map','permissions','properties','duplicate_symbol','wrong_callback']:
+    for mode in ['two_hids','no_hids','count','uuid','input_ref','output_ref','map','permissions','properties','duplicate_symbol','wrong_callback','unregistered_connection','wrong_connected','wrong_disconnected']:
         image,data,put=fixture()
         if mode=='two_hids':
             image.symbols['_bt_gatt_service_static_list_end'][0]['st_value']=0x1110
@@ -60,6 +83,9 @@ def main():
         elif mode=='permissions': put(0x1200+8*20+18,'<H',0)
         elif mode=='properties': put(0x1526,'B',2)
         elif mode=='wrong_callback': put(0x1200+6*20+4,'<I',0x2201)
+        elif mode=='unregistered_connection': image.symbols['_bt_conn_cb_list_start'][0]['st_value']=0x1720
+        elif mode=='wrong_connected': put(0x1700,'<I',0x2201)
+        elif mode=='wrong_disconnected': put(0x1704,'<I',0x2101)
         else: image.symbols['bbp_gamepad_ble_send']*=2
         reject(lambda:check_elf(image))
     entries=[dict(file='/candidate/'+name,arguments=['cc','-DBBP9981_PURE_BLE_CANDIDATE=1']+
@@ -84,7 +110,7 @@ def main():
     assert "inputs.profile == 'pure-ble'" in workflow and "inputs.profile != 'pure-ble'" in workflow
     assert "github.ref == 'refs/heads/codex/cross-platform-hid-20261026'" in workflow
     assert 'persist-credentials: false' in workflow and 'tools/verify_pure_candidate.py' in workflow
-    print('PASS pure artifact gate model: 11 malformed ELF layouts, 4 compile-command errors and mismatched/extra-tail UF2 rejected; manual-only branch-scoped profile; NOT ARM/device evidence')
+    print('PASS pure artifact gate model: 14 malformed ELF layouts, 4 compile-command errors and mismatched/extra-tail UF2 rejected; manual-only branch-scoped profile; NOT ARM/device evidence')
 
 if __name__=='__main__':
     main()
