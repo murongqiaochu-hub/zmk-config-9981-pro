@@ -154,6 +154,10 @@ def main():
     for i, flags in enumerate(ble_cases):
         exe = build('test_gamepad_ble_case' + str(i), ['tests/gamepad_ble_mocks'], flags)
         run([str(exe)])
+    map_stability = build('test_gamepad_map_stability', ['tests/gamepad_ble_mocks'])
+    run([str(map_stability)])
+    stadia_codec = build('test_gamepad_stadia_codec')
+    run([str(stadia_codec)])
     for boot in [0, 1]:
         exe = build('test_gamepad_usb_case' + str(boot),
                     ['tests/gamepad_usb_mocks', 'tests/hid_snapshot_mocks', 'tests/sdk_snapshot_mocks'],
