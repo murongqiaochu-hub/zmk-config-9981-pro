@@ -466,45 +466,46 @@ static void test_tail_contract_fails_closed(void) {
 
 static void test_report_map_all_offsets_crossing_and_end(void) {
     reset_case();
-    /* Two maps exist; the connected profile decides which one is served. */
+    /* Safe profiles serve one compact map; the gamepad profile serves exactly
+     * the original stock map plus the 141-byte Game Pad collection. */
+    uint8_t appended[sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor)];
+    memcpy(appended, zmk_hid_report_desc, sizeof(zmk_hid_report_desc));
+    memcpy(appended + sizeof(zmk_hid_report_desc), bbp_gamepad_ble_descriptor,
+           sizeof(bbp_gamepad_ble_descriptor));
     const struct { int profile; const uint8_t *map; size_t len; } variants[] = {
         {0, bbp_map_safe, sizeof(bbp_map_safe)},
-        {BBP_GAMEPAD_PROFILE, bbp_map_gamepad, sizeof(bbp_map_gamepad)},
+        {BBP_GAMEPAD_PROFILE, appended, sizeof(appended)},
     };
-    for (size_t v = 0; v < ARRAY_SIZE(variants); ++v) {
-    active_profile = variants[v].profile;
-    const uint8_t *expected = variants[v].map;
-    const size_t expected_len = variants[v].len;
     const uint16_t lengths[] = {0U,1U,2U,7U,22U,45U,255U};
     uint8_t out[512];
-    for (size_t offset = 0; offset <= expected_len + 1U; ++offset) {
-        for (size_t l = 0; l < ARRAY_SIZE(lengths); ++l) {
-            memset(out, 0xa5, sizeof(out));
-            ssize_t got = hog_svc.attrs[4].read(&peers[0], &hog_svc.attrs[4], out,
-                                               lengths[l], (uint16_t)offset);
-            if (offset > expected_len) {
-                assert(got == BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
-                assert(out[0] == 0xa5U);
-            } else {
-                size_t count = expected_len - offset;
-                if (count > lengths[l]) { count = lengths[l]; }
-                assert(got == (ssize_t)count && memcmp(out, expected + offset, count) == 0);
-                assert(out[count] == 0xa5U);
+    for (size_t v = 0; v < ARRAY_SIZE(variants); ++v) {
+        active_profile = variants[v].profile;
+        const uint8_t *expected = variants[v].map;
+        const size_t expected_len = variants[v].len;
+        for (size_t offset = 0; offset <= expected_len + 1U; ++offset) {
+            for (size_t l = 0; l < ARRAY_SIZE(lengths); ++l) {
+                memset(out, 0xa5, sizeof(out));
+                ssize_t got = hog_svc.attrs[4].read(&peers[0], &hog_svc.attrs[4], out,
+                                                   lengths[l], (uint16_t)offset);
+                if (offset > expected_len) {
+                    assert(got == BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
+                    assert(out[0] == 0xa5U);
+                } else {
+                    size_t count = expected_len - offset;
+                    if (count > lengths[l]) { count = lengths[l]; }
+                    assert(got == (ssize_t)count && memcmp(out, expected + offset, count) == 0);
+                    assert(out[count] == 0xa5U);
+                }
             }
         }
-    }
-    assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, 10, UINT16_MAX) ==
-           BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
-    /* The replacement map is now served by the SDK helper itself (correct
-     * offset/error semantics), so the passthrough is expected here; what
-     * matters is that no OTHER attribute lost its original read. */
-    assert(raw_reads > 0U);
-    assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, sizeof(out), 0) ==
-           (ssize_t)expected_len);
-    assert(memcmp(out, expected, expected_len) == 0);
-    assert(expected_len <= 244U);
+        assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, 10, UINT16_MAX) ==
+               BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
+        assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, sizeof(out), 0) ==
+               (ssize_t)expected_len);
+        assert(memcmp(out, expected, expected_len) == 0);
     }
     active_profile = 0;
+    assert(raw_reads > 0U); /* Safe passthrough uses the SDK helper by design. */
 }
 
 static void test_map_identity_and_stock_reads_passthrough(void) {

@@ -15,6 +15,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 STOCK = ROOT / 'tests/hid_map_fixtures/stock_196.hex'
 MAP_H = ROOT / 'config/boards/arm/bbp9981/custom_driver/gamepad_ble_map.h'
+REPORT_H = ROOT / 'config/boards/arm/bbp9981/custom_driver/gamepad_report.h'
 
 MAIN, GLOBAL, LOCAL = 0, 1, 2
 
@@ -81,25 +82,44 @@ def parse(data):
              for rid, v in reports.items()}, apps)
 
 
-def parse_arrays():
+def map_arrays():
     text = MAP_H.read_text()
-    out = {}
-    for name in ('bbp_map_safe', 'bbp_map_gamepad'):
-        marker = f'static const uint8_t {name}[] = {{'
-        body = text[text.index(marker) + len(marker):]
-        body = body[:body.index('};')]
-        out[name] = bytes(int(tok.strip(), 16) for tok in body.replace('\n', ' ').split(',')
-                          if tok.strip().startswith('0x'))
-    return out
+    marker = 'static const uint8_t bbp_map_safe[] = {'
+    body = text[text.index(marker) + len(marker):]
+    body = body[:body.index('};')]
+    safe = bytes(int(tok.strip(), 16) for tok in body.replace('\n', ' ').split(',')
+                 if tok.strip().startswith('0x'))
+    gamepad = gamepad_bytes()
+    return safe, gamepad
+
+
+def gamepad_bytes():
+    """Expand BBP_GAMEPAD_DESCRIPTOR_BYTES from the product header."""
+    text = REPORT_H.read_text()
+    macro = re.search(r'#define BBP_GAMEPAD_DESCRIPTOR_BYTES(.*?)\n\n', text, re.S).group(1)
+    report_id = int(re.search(r'#define BBP_GAMEPAD_REPORT_ID\s+(\d+)', text).group(1))
+    out = []
+    for token in macro.replace('\\\n', ' ').split(','):
+        token = token.strip()
+        if not token:
+            continue
+        if token.startswith('0x'):
+            out.append(int(token, 16))
+        elif token.isdigit():
+            out.append(int(token))
+        elif token == 'BBP_GAMEPAD_REPORT_ID':
+            out.append(report_id)
+        else:
+            raise AssertionError(f'unexpected descriptor token {token!r}')
+    return bytes(out)
 
 
 def main():
     stock = bytes.fromhex(STOCK.read_text().strip())
-    maps = parse_arrays()
-    safe, pad = maps['bbp_map_safe'], maps['bbp_map_gamepad']
+    safe, gamepad = map_arrays()
     assert len(stock) == 196, len(stock)
-    assert len(safe) == 172 and len(pad) == 209, (len(safe), len(pad))
-    assert max(len(safe), len(pad)) <= 244, 'must fit one 247-byte ATT MTU read'
+    assert len(safe) == 172, len(safe)
+    assert len(gamepad) == 141, len(gamepad)
 
     stock_reports, stock_apps = parse(stock)
     assert stock_apps == [(0x01, 0x06), (0x0C, 0x01), (0x01, 0x02)], stock_apps
@@ -114,11 +134,16 @@ def main():
                             3: {'input': 9, 'output': 0},
                             4: {'input': 9, 'output': 0}}, safe_reports
 
-    pad_reports, pad_apps = parse(pad)
-    assert pad_apps == stock_apps + [(0x01, 0x05)], pad_apps
-    assert pad_reports == safe_reports, pad_reports
-    print('PASS dual maps: safe 172B (vendor ID4) and gamepad 209B (Game Pad ID4), '
-          'IDs 1/2/3/4 unique, bodies 8/12/9/9 bytes, all collections balanced; HOST PARSER ONLY')
+    # Gamepad slot serves exactly stock + the product's 141-byte collection.
+    composite = stock + gamepad
+    reports, apps = parse(composite)
+    assert apps == stock_apps + [(0x01, 0x05)], apps
+    assert reports == {1: {'input': 8, 'output': 1},
+                       2: {'input': 12, 'output': 0},
+                       3: {'input': 9, 'output': 0},
+                       4: {'input': 9, 'output': 0}}, reports
+    print('PASS maps: safe 172B (vendor ID4) and gamepad slot = stock196+141B, '
+          'IDs 1/2/3/4 unique, bodies 8/12/9/9 bytes, collections balanced; HOST PARSER ONLY')
 
 
 if __name__ == '__main__':

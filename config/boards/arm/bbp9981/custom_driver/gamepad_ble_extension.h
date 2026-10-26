@@ -17,27 +17,50 @@
 #include <zmk/endpoints.h>
 #include <zmk/hid.h>
 #include "gamepad_ble_map.h"
+#include "gamepad_report.h"
 #include "gamepad_runtime.h"
 
-/* Serve ONE compact composite map in place of the stock one. Apple invalidated
- * the entire HID device when this read returned stock196+appendix337; the
- * replacement is 238 bytes, under the ATT MTU, with identical report bodies.
- * Every other HOG read keeps the SDK helper's offset/error semantics.
+/* Two proven presentations, chosen by the connected Bluetooth profile:
+ *   profiles 0..2: the SAFE map (keyboard/consumer/mouse + vendor ID4) that
+ *                  iPad accepts -- no Game Pad collection at all.
+ *   profile 3    : exactly the original v2.3.3 behaviour, stock Report Map with
+ *                  the real 141-byte Game Pad collection appended, which is
+ *                  what Android accepted with a working controller.
+ * Nothing here changes report bodies or the send path.
  */
+static const uint8_t bbp_gamepad_ble_descriptor[] = {BBP_GAMEPAD_DESCRIPTOR_BYTES};
+
 static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                        void *buf, uint16_t len, uint16_t offset,
                                        const void *value, uint16_t value_len) {
     if (value != (const void *)zmk_hid_report_desc || value_len != sizeof(zmk_hid_report_desc)) {
         return bt_gatt_attr_read(conn, attr, buf, len, offset, value, value_len);
     }
-    /* Apple invalidates the device when a Game Pad collection shares the HID
-     * service with a keyboard, so only the dedicated gamepad profile gets one.
-     * Every other profile receives the vendor-ID4 map that iPad accepts.
-     */
-    const bool gamepad_profile = zmk_ble_active_profile_index() == BBP_GAMEPAD_PROFILE;
-    const uint8_t *map = gamepad_profile ? bbp_map_gamepad : bbp_map_safe;
-    const size_t map_len = gamepad_profile ? sizeof(bbp_map_gamepad) : sizeof(bbp_map_safe);
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, map, map_len);
+    if (zmk_ble_active_profile_index() != BBP_GAMEPAD_PROFILE) {
+        return bt_gatt_attr_read(conn, attr, buf, len, offset, bbp_map_safe,
+                                 sizeof(bbp_map_safe));
+    }
+    /* Two-segment immutable slice: stock map, then the Game Pad collection. */
+    const size_t stock_size = sizeof(zmk_hid_report_desc);
+    const size_t total_size = stock_size + sizeof(bbp_gamepad_ble_descriptor);
+    if ((size_t)offset > total_size) {
+        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+    }
+    size_t count = total_size - offset;
+    if (count > len) { count = len; }
+    if (!count) { return 0; }
+    uint8_t *out = buf;
+    size_t pos = offset, copied = 0U;
+    if (pos < stock_size) {
+        copied = stock_size - pos;
+        if (copied > count) { copied = count; }
+        memcpy(out, zmk_hid_report_desc + pos, copied);
+        pos += copied;
+    }
+    if (copied < count) {
+        memcpy(out + copied, bbp_gamepad_ble_descriptor + (pos - stock_size), count - copied);
+    }
+    return (ssize_t)count;
 }
 
 static bool bbp_gamepad_ble_connected(const struct bt_conn *conn) {
