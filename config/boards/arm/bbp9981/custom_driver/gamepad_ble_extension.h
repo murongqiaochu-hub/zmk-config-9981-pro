@@ -16,17 +16,13 @@
 #include <zmk/ble.h>
 #include <zmk/endpoints.h>
 #include <zmk/hid.h>
+#include "gamepad_ble_map.h"
 #include "gamepad_runtime.h"
 
-/* Include the official declarations and descriptor BEFORE the read alias. */
-static const uint8_t bbp_gamepad_ble_descriptor[] = {BBP_GAMEPAD_DESCRIPTOR_BYTES};
-_Static_assert(sizeof(struct bbp_gamepad_report_body) == 9U, "BLE Game Pad body has no ID byte");
-_Static_assert(sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor) <= UINT16_MAX,
-               "HOG report map must fit the GATT read ABI");
-
-/* A two-segment immutable slice, not a large stack or shared concatenation.
- * Only the exact stock descriptor object AND stock length identify Report Map.
- * All other HOG reads keep the SDK helper's offset/error semantics unchanged.
+/* Serve ONE compact composite map in place of the stock one. Apple invalidated
+ * the entire HID device when this read returned stock196+appendix337; the
+ * replacement is 238 bytes, under the ATT MTU, with identical report bodies.
+ * Every other HOG read keeps the SDK helper's offset/error semantics.
  */
 static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_gatt_attr *attr,
                                        void *buf, uint16_t len, uint16_t offset,
@@ -34,27 +30,8 @@ static ssize_t bbp_gamepad_ble_attr_read(struct bt_conn *conn, const struct bt_g
     if (value != (const void *)zmk_hid_report_desc || value_len != sizeof(zmk_hid_report_desc)) {
         return bt_gatt_attr_read(conn, attr, buf, len, offset, value, value_len);
     }
-    const size_t stock_size = sizeof(zmk_hid_report_desc);
-    const size_t total_size = stock_size + sizeof(bbp_gamepad_ble_descriptor);
-    if ((size_t)offset > total_size) {
-        return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
-    }
-    size_t count = total_size - offset;
-    if (count > len) { count = len; }
-    if (!count) { return 0; }
-
-    uint8_t *out = buf;
-    size_t pos = offset, copied = 0U;
-    if (pos < stock_size) {
-        copied = stock_size - pos;
-        if (copied > count) { copied = count; }
-        memcpy(out, zmk_hid_report_desc + pos, copied);
-        pos += copied;
-    }
-    if (copied < count) {
-        memcpy(out + copied, bbp_gamepad_ble_descriptor + (pos - stock_size), count - copied);
-    }
-    return (ssize_t)count;
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, bbp_composite_report_map,
+                             sizeof(bbp_composite_report_map));
 }
 
 static bool bbp_gamepad_ble_connected(const struct bt_conn *conn) {

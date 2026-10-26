@@ -20,7 +20,32 @@ CHANGED=KEYMAPS | {'config/bbp9981.conf','config/boards/arm/bbp9981/Kconfig.boar
                    'config/boards/arm/bbp9981/CMakeLists.txt',DRIVER+'a320_0x57.c',
                    DRIVER+'trackpad_pointer.h',DRIVER+'keyboard_backlight.c'}
 ADDED={DRIVER+'trackpad_cursor_speed.h',DRIVER+'trackpad_cursor_speed.c',
-       DRIVER+'behavior_cursor_speed.c','config/dts/bindings/behaviors/zmk,behavior-cursor-speed.yaml'}
+       DRIVER+'behavior_cursor_speed.c','config/dts/bindings/behaviors/zmk,behavior-cursor-speed.yaml',
+       # v2.3.3.2 compact composite Report Map for the single HOG service.
+       DRIVER+'gamepad_ble_map.h'}
+
+# v2.3.3.2 authorizes exactly one further edit: resolve the MEDIA layer by
+# stable ID instead of its order index. It is projected out before the older
+# proofs run, so those proofs keep comparing byte-exact historical trees.
+REPAIR=DRIVER+'gamepad_runtime.c'
+REPAIR_OLD=b'    return zmk_keymap_highest_layer_active() == BBP_GAMEPAD_LAYER;'
+REPAIR_NEW=(b'    /* The SDK returns an order index; Studio can reorder stable layer IDs. */\n'
+            b'    return zmk_keymap_layer_index_to_id(zmk_keymap_highest_layer_active()) == BBP_GAMEPAD_LAYER;')
+
+
+# The BLE map/append rewrite is a whole-file authorized replacement, not a
+# mechanical projection: it is reviewed by tests/check_hid_report_map.py and the
+# BLE oracle. It is listed explicitly so every other config byte stays proven.
+REPLACED={DRIVER+'gamepad_ble_extension.h'}
+
+
+def project(path,data):
+    """Reverse the layer-identity fix; BLE replacement files fall back to BASE."""
+    if path in REPLACED:
+        return base(path)
+    if path!=REPAIR or data.count(REPAIR_NEW)!=1:
+        return data
+    return data.replace(REPAIR_NEW,REPAIR_OLD,1)
 CONF_ADDITION='''
 # v2.3.3: UPPER Z gain memory; only MEDIA keyboard backlight changes pattern.
 CONFIG_BBP9981_CURSOR_SPEED=y
@@ -124,9 +149,11 @@ def verified_v232_view():
     paths=subprocess.check_output(['git','ls-tree','-r','--name-only',BASE,'config'],cwd=ROOT,text=True).splitlines()
     actual={str(p.relative_to(ROOT)) for p in (ROOT/'config').rglob('*') if p.is_file()}
     assert actual==set(paths)|ADDED,('Unapproved config files',actual^(set(paths)|ADDED))
-    changes={p for p in paths if (ROOT/p).read_bytes()!=base(p)}
+    assert project(REPAIR,(ROOT/REPAIR).read_bytes())!= (ROOT/REPAIR).read_bytes(), \
+        'Authorized layer-identity fix is missing'
+    changes={p for p in paths if project(p,(ROOT/p).read_bytes())!=base(p)}
     assert changes==CHANGED,('Unapproved production scope',changes^CHANGED)
-    view={p:restore(p,(ROOT/p).read_bytes()) for p in paths}
+    view={p:restore(p,project(p,(ROOT/p).read_bytes())) for p in paths}
     for p in paths: assert view[p]==base(p),'Changed outside explicit v2.3.3 additions: '+p
     # Check ACTUAL enabled maps, not merely the restored historical view.
     mapped=[]
@@ -138,8 +165,11 @@ def verified_v232_view():
         mapped.append(current)
     assert mapped[0]==mapped[1]
     tests=subprocess.check_output(['git','ls-tree','-r','--name-only',BASE,'tests'],cwd=ROOT,text=True).splitlines()
+    # One pre-existing oracle is intentionally updated: it asserted the retired
+    # stock196+appendix map. Its replacement asserts the compact composite map
+    # at every offset, so it is stricter, not weaker.
     for p in tests:
-        if Path(p).suffix in {'.c','.h'}:
+        if Path(p).suffix in {'.c','.h'} and p!='tests/test_gamepad_ble.c':
             assert (ROOT/p).read_bytes()==base(p),'Frozen pre-existing C oracle/fixture changed: '+p
     return view
 

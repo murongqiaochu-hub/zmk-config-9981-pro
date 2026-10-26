@@ -27,7 +27,15 @@ HEADERS = [
 for relative in HEADERS:
     p = STUBS / relative
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text('/* Test mock declarations come from test_env.h. */\n')
+    if relative == 'zmk/keymap.h':
+        # SDK order index -> stable layer ID; identity here, varied by the
+        # dedicated reordering test that owns its own include directory.
+        p.write_text('#pragma once\n#include <stdint.h>\n'
+                     'static inline uint8_t zmk_keymap_layer_index_to_id(uint8_t index) {\n'
+                     '    return index;\n'
+                     '}\n')
+    else:
+        p.write_text('/* Test mock declarations come from test_env.h. */\n')
 cc = os.environ.get('CC', 'cc')
 # Byte-exact ZMK v0.3.0 sticky/mo/to sources: never silently test a rewritten SDK.
 for path, size, expected in [
@@ -141,6 +149,7 @@ for relative, after in zip(paths, updated):
     assert previous == after, relative
 print('PASS Keymaps: both 42-key layers synchronized; MEDIA up/right/down/left=W/D/Z/A, L3=S/R3=L, Y/X/B/A=O/K/Backspace/$, shoulders LT/RT and Call/End LB/RB, View=R/Menu=U with T/Y unused; only SYM/aA exit; UPPER held-aA P3/P5 restore BT, M toggles mouse with aA, five light controls shifted left; owned aA sticky/fixed layer')
 subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/run_gamepad_tests.py')], check=True)
+subprocess.run([os.sys.executable, '-B', str(ROOT / 'tests/check_hid_report_map.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/test_uf2_validator.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/hid_snapshot_mocks/replay.py')], check=True)
 subprocess.run([os.sys.executable, str(ROOT / 'tests/run_diag_hid.py')], check=True)

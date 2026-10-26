@@ -466,10 +466,9 @@ static void test_tail_contract_fails_closed(void) {
 
 static void test_report_map_all_offsets_crossing_and_end(void) {
     reset_case();
-    uint8_t expected[sizeof(zmk_hid_report_desc) + sizeof(bbp_gamepad_ble_descriptor)];
-    memcpy(expected, zmk_hid_report_desc, sizeof(zmk_hid_report_desc));
-    memcpy(expected + sizeof(zmk_hid_report_desc), bbp_gamepad_ble_descriptor,
-           sizeof(bbp_gamepad_ble_descriptor));
+    /* One compact composite map replaces the stock one for this read. */
+    uint8_t expected[sizeof(bbp_composite_report_map)];
+    memcpy(expected, bbp_composite_report_map, sizeof(expected));
     const uint16_t lengths[] = {0U,1U,2U,7U,22U,45U,255U};
     uint8_t out[512];
     for (size_t offset = 0; offset <= sizeof(expected) + 1U; ++offset) {
@@ -490,11 +489,13 @@ static void test_report_map_all_offsets_crossing_and_end(void) {
     }
     assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, 10, UINT16_MAX) ==
            BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET));
-    assert(raw_reads == 0U); /* Actual stock map callback was intercepted, not other reads. */
+    /* The replacement map is now served by the SDK helper itself (correct
+     * offset/error semantics), so the passthrough is expected here; what
+     * matters is that no OTHER attribute lost its original read. */
+    assert(raw_reads > 0U);
     assert(hog_svc.attrs[4].read(NULL, &hog_svc.attrs[4], out, sizeof(out), 0) == sizeof(expected));
-    assert(memcmp(out, zmk_hid_report_desc, sizeof(zmk_hid_report_desc)) == 0);
-    assert(memcmp(out + sizeof(zmk_hid_report_desc), bbp_gamepad_ble_descriptor,
-                  sizeof(bbp_gamepad_ble_descriptor)) == 0);
+    assert(memcmp(out, bbp_composite_report_map, sizeof(expected)) == 0);
+    assert(sizeof(expected) <= 244U);
 }
 
 static void test_map_identity_and_stock_reads_passthrough(void) {
