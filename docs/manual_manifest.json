@@ -1,12 +1,12 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T12:59:20+08:00",
-  "source_commit": "650869acdf30e12b6e2b3943d76fa27fad10c5bf",
+  "updated": "2026-10-26T12:59:27+08:00",
+  "source_commit": "a29ec9174d5a83c4c77392142e6de6d72e98b76f",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.3.5双Map：槽位1–3安全Map，槽位4手柄Map；iPad拒绝共存、Android接受。",
+  "review_note": "v2.3.3.5双Map：槽位1–3安全Map（172B，厂商ID4），槽位4手柄Map（209B，标准Game Pad）；iPad拒绝共存、Android接受。",
   "manual": "docs/9981Pro_使用说明书.md",
   "manual_sha256": "a418aac07f7f719f543ae7eac81965663c60f3481b5e1fffaead230d2608aad7",
   "source_sha256": {
