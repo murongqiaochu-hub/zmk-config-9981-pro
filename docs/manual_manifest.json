@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T11:18:49+08:00",
+  "updated": "2026-10-26T11:23:29+08:00",
   "source_commit": "f9ad36695025958dc8e1a24e81eff1ad049462a7",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.3.3：BLE改为238B自有合成Map（ID1键鼠媒体＋ID4手柄，单服务）；层判断改stable ID；host全PASS。",
+  "review_note": "v2.3.3.3最终：Run40263415648/674a127成功，617984B，SHA6678c93c…；单HID服务26属性28–53，合成Map238B在镜像中一份；host/CMake32/反事实/合成Map解析全PASS。iPad键鼠已实测通过，手柄待验。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "d94e3ded7def20e66c542a619e7b3a1dfd80830dae174848f30ec4cdcb823fb1",
+  "manual_sha256": "70ea9fe6b4732ea57604f79ed364914a65337d96c7b5314b6b92bf9a086fbb0b",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
