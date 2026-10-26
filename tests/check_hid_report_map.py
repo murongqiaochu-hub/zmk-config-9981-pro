@@ -94,13 +94,13 @@ def main():
     stock = bytes.fromhex(STOCK.read_text().strip())
     composite = composite_bytes()
     assert len(stock) == 196, len(stock)
-    assert len(composite) == 238, len(composite)
+    assert len(composite) == 172, len(composite)  # isolation build
     assert len(composite) <= 244, 'must fit one 247-byte ATT MTU read'
 
     stock_reports, stock_apps = parse(stock)
     reports, apps = parse(composite)
     assert stock_apps == [(0x01, 0x06), (0x0C, 0x01), (0x01, 0x02)], stock_apps
-    assert apps == stock_apps + [(0x01, 0x05)], apps
+    assert apps == stock_apps + [(0xFF00, 0x01)], apps  # vendor report, not Game Pad
     # Report bodies must stay byte-identical to what ZMK actually sends.
     assert stock_reports == {1: {'input': 8, 'output': 1},
                              2: {'input': 12, 'output': 0},
@@ -109,7 +109,7 @@ def main():
                        2: {'input': 12, 'output': 0},
                        3: {'input': 9, 'output': 0},
                        4: {'input': 9, 'output': 0}}, reports
-    print('PASS compact composite map: 238B single read, IDs 1/2/3/4 unique, '
+    print('PASS isolation map: 172B single read, IDs 1/2/3/4 unique, '
           'bodies 8/12/9/9 bytes identical to ZMK, all collections balanced; HOST PARSER ONLY')
 
 
