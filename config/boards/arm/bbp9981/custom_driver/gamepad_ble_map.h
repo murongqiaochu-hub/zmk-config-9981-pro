@@ -1,20 +1,22 @@
 /* SPDX-License-Identifier: MIT
- * ISOLATION MAP (172 bytes): keyboard ID1, consumer ID2, mouse ID3 and a
- * VENDOR-DEFINED 9-byte input report ID4.
+ * MINIMAL STANDARD GAME PAD (209 bytes): keyboard ID1, consumer ID2, mouse ID3,
+ * Game Pad ID4 declared the most conventional way possible -- 16 contiguous
+ * buttons, hat switch, X/Y axes, 5-byte report. No vendor pages, no
+ * Simulation Controls, no fragmented button usages.
  *
- * Purpose: separate structure from content. The two iPad failures both carried
- * a Game Pad collection; this build keeps the exact same service shape (one
- * HOG service, one extra Report characteristic, 26 attributes) and the same
- * report body sizes (8/12/9/9) but no Game Pad usages at all.
- *   iPad keys work  -> the extra characteristic/structure is fine, and the
- *                      Game Pad collection content is what iPad refuses.
- *   iPad keys fail  -> a 4th Report characteristic itself breaks Apple's HOG
- *                      parse; BLE gamepad in this service is then impossible.
- * Report bodies stay byte-identical to ZMK; the unreachable LED output report
- * is omitted because the device exposes no Output Report characteristic.
+ * Isolation result so far: an identical service carrying a vendor-defined ID4
+ * report keeps iPad keyboard/mouse alive, so the extra Report characteristic
+ * and the 26-attribute service are NOT the problem. This build asks whether a
+ * standard Game Pad collection can coexist with the keyboard at all.
+ *   iPad keys work -> composite gamepad is possible; grow features back.
+ *   iPad keys fail -> iPadOS claims/invalidates the whole HID device as soon as
+ *                      it sees a Game Pad collection next to a keyboard.
  */
 #pragma once
 #include <stdint.h>
+
+/* BLE notifications and report reads must match this report's 5 bytes. */
+#define BBP_GAMEPAD_BLE_REPORT_BYTES 5U
 
 static const uint8_t bbp_composite_report_map[] = {
     0x05, 0x01, 0x09, 0x06, 0xa1, 0x01, 0x85, 0x01, 0x05, 0x07, 0x19, 0xe0,
@@ -29,8 +31,11 @@ static const uint8_t bbp_composite_report_map[] = {
     0x80, 0x26, 0xff, 0x7f, 0x75, 0x10, 0x95, 0x02, 0x81, 0x06, 0x09, 0x38,
     0x16, 0x00, 0x80, 0x26, 0xff, 0x7f, 0x75, 0x10, 0x95, 0x01, 0x81, 0x06,
     0x05, 0x0c, 0x0a, 0x38, 0x02, 0x16, 0x00, 0x80, 0x26, 0xff, 0x7f, 0x75,
-    0x10, 0x95, 0x01, 0x81, 0x06, 0xc0, 0x06, 0x00, 0xff, 0x09, 0x01, 0xa1,
-    0x01, 0x85, 0x04, 0x09, 0x02, 0x15, 0x00, 0x25, 0xff, 0x75, 0x08, 0x95,
-    0x09, 0x81, 0x02, 0xc0,
+    0x10, 0x95, 0x01, 0x81, 0x06, 0xc0, 0x05, 0x01, 0x09, 0x05, 0xa1, 0x01,
+    0x85, 0x04, 0x05, 0x09, 0x19, 0x01, 0x29, 0x0f, 0x15, 0x00, 0x25, 0x01,
+    0x75, 0x01, 0x95, 0x10, 0x81, 0x02, 0x05, 0x01, 0x09, 0x39, 0x15, 0x00,
+    0x25, 0x07, 0x75, 0x08, 0x95, 0x01, 0x81, 0x42, 0x09, 0x30, 0x09, 0x31,
+    0x15, 0x81, 0x25, 0x7f, 0x75, 0x08, 0x95, 0x02, 0x81, 0x02, 0x75, 0x08,
+    0x95, 0x04, 0x81, 0x03, 0xc0,
 };
-_Static_assert(sizeof(bbp_composite_report_map) == 172U, "isolation Map size");
+_Static_assert(sizeof(bbp_composite_report_map) == 209U, "minimal map size");
