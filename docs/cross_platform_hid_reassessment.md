@@ -86,7 +86,21 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 
 安卓原验证入口是盖世游戏的手柄测试，iOS修复之前测试成功；目前不能把修复后盖世测试失败写成Android系统不枚举。安卓回归需区分“系统根本不枚举”和“枚举但MEDIA不发事件”。优先观测完整Map、ReportRef、ID4 CCC及按键notify，不能要求无目的重复刷机；任何清配对、刷写或控制设备另取精确授权。
 
-本阶段不推送、不运行Actions、不发布。后续构建按项目已核验授权边界执行；本次研究不自动授权厂商身份改动或移植第三方协议。
+### 本轮新增云构建授权（交互问答已确认）
+
+用户选择“允许候选推送与构建”：可推送本轮改动至 `murongqiaochu-hub/zmk-config-9981-pro` 的独立分支 `codex/cross-platform-hid-20261026`，运行纯BLE诊断候选GitHub Actions最多3次，含必要编译修复重跑。授权时已使用0次；后续逐次记录run ID与结果，不因自动续轮重置计数。
+
+执行顺序：同步候选说明书 → 准备精确诊断构建入口 → 候选推送/Actions → 检查真实ARM、ELF iterable唯一HIDS/16属性、compile_commands、DTS/config和UF2来源 → 再讨论实机测试。授权不含发布、刷写、清配对、改主机、推稳定分支或厂商身份替换；蓝牙键鼠在此诊断候选中关闭，USB源码/键位保留不等于已通过实机回归。
+
+本轮授权记录在此文档，不依赖自动goal轮次中的目标编辑（运行时只允许顶层人工轮次编辑目标）。
+
+### 构建前准备与计数
+
+- 新增诊断P1补充说明，同批PDF（5页）、可编辑Word与内嵌字体离线HTML已导出；Word以OOXML重新解析、PDF抽取核对关键内容，PDF首尾页已目视检查。当前保留“待ARM/未刷写/未实机”的构建前口径。首次导出错误地调用了要求四张键图的旧API，已改用独立文字型导出，不更改或放宽原手册四图校验。
+- 指定11ee89e回退原件已只读核验：619520字节，SHA-256 `1e277b08428984a6120c42310c34a6ad40eaaecdf491cbfb1d706e58c3359264`；原件未改。
+- 现有main工作流新增手动profile输入，默认仍standard；pure-ble仅允许本授权repo/branch，令牌contents只读，旧build在pure时跳过，既有deliver分支/触发条件不放宽。以`[skip ci]`推送，再显式手动触发，避免顺带构建默认配置。
+- 验收器新增ARM32最终iterable表唯一HIDS/16属性、Map/ReportRef/权限/characteristic检查，三份编译命令唯一及prefix边界，UF2应用区与已验证ELF flash载荷逐字节对应。合成布局/编译命令反事实和完整host回归均exit0（日志14）；这还不是ARM通过。
+- **Actions计数：0/3，首次手动dispatch尚未提交。** 每次实际启动后追加run ID与来源SHA；不得因失败或自动续轮重置。
 
 ## 原始来源
 

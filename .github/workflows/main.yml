@@ -1,5 +1,15 @@
 name: Build and verify firmware
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Explicit build profile (pure BLE disables Bluetooth keyboard/mouse)
+        type: choice
+        options: [standard, pure-ble]
+        default: standard
+        required: true
 permissions:
   contents: read
   actions: write
@@ -7,15 +17,87 @@ permissions:
 jobs:
   regression:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Compile real drivers with host mocks and run regressions
         run: python3 tests/run_host_tests.py
   build:
+    if: github.event_name != 'workflow_dispatch' || inputs.profile != 'pure-ble'
     needs: regression
     uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
+  pure_candidate:
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'pure-ble' && github.ref == 'refs/heads/codex/cross-platform-hid-20261026' && github.repository == 'murongqiaochu-hub/zmk-config-9981-pro'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Stage explicit diagnostic sources (no live config changes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP:?}/pure-stage-${GITHUB_RUN_ID:?}"
+          build="${RUNNER_TEMP:?}/pure-build-${GITHUB_RUN_ID:?}"
+          python3 -B tools/stage_pure_gamepad.py --out "$stage" --accept-ble-keymouse-disabled
+          printf 'PURE_STAGE=%s\nPURE_BUILD=%s\n' "$stage" "$build" >> "$GITHUB_ENV"
+          # Match the official config-as-manifest layout without changing the checkout.
+          git -C "$stage" init
+          git -C "$stage" add config experiments CANDIDATE.json README_CANDIDATE.md
+          git -C "$stage" -c user.name='Diagnostic source staging' -c user.email='staging@invalid' commit -m 'Local diagnostic source snapshot; never pushed'
+      - name: Initialize pinned SDK and modules
+        working-directory: ${{ env.PURE_STAGE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          west init -l "$PURE_STAGE/config"
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+          test "$(git -C zmk rev-parse HEAD)" = edf5c0814fd3ea202e43aad2d68fd32e882a518c
+          test "$(git -C zephyr rev-parse HEAD)" = dacab4875df72109b96cc8977547a0dc04875bcd
+      - name: Build pure BLE candidate with real ARM toolchain
+        working-directory: ${{ env.PURE_STAGE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          west build -s zmk/app -d "$PURE_BUILD" -b bbp9981 -- -DZMK_CONFIG="$PURE_STAGE/config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Verify final ARM iterable service table and UF2 provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tools/verify_pure_candidate.py --build "$PURE_BUILD" --stage "$PURE_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$PURE_BUILD/pure-validation.json"
+      - name: Retain diagnostics even if compilation or validation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pure-ble-diagnostic-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
+          path: |
+            ${{ env.PURE_BUILD }}/zephyr/zmk.elf
+            ${{ env.PURE_BUILD }}/zephyr/zmk.uf2
+            ${{ env.PURE_BUILD }}/zephyr/zmk.map
+            ${{ env.PURE_BUILD }}/zephyr/.config
+            ${{ env.PURE_BUILD }}/zephyr/zephyr.dts
+            ${{ env.PURE_BUILD }}/compile_commands.json
+            ${{ env.PURE_BUILD }}/CMakeCache.txt
+            ${{ env.PURE_BUILD }}/pure-validation.json
+            ${{ env.PURE_STAGE }}/CANDIDATE.json
+            docs/9981Pro_纯BLE诊断候选说明.md
   failure_context:
     if: always() && (needs.regression.result == 'failure' || needs.build.result == 'failure')
     needs: [regression, build]
