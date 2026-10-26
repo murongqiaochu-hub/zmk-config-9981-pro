@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T12:59:17+08:00",
-  "source_commit": "a29ec9174d5a83c4c77392142e6de6d72e98b76f",
+  "updated": "2026-10-26T12:59:20+08:00",
+  "source_commit": "650869acdf30e12b6e2b3943d76fa27fad10c5bf",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.3.5双Map：槽位1–3安全Map（172B，厂商ID4），槽位4手柄Map（209B，标准Game Pad）；iPad拒绝Game Pad与键盘共存、Android接受，故按槽位区分。层判断改stable ID。",
+  "review_note": "v2.3.3.5双Map：槽位1–3安全Map，槽位4手柄Map；iPad拒绝共存、Android接受。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "43bfc317db94b11ade6b575894aee1507f37d3244e04c4522504588ec6cefc15",
+  "manual_sha256": "a418aac07f7f719f543ae7eac81965663c60f3481b5e1fffaead230d2608aad7",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
