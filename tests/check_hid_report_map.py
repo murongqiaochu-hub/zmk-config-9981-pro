@@ -100,7 +100,7 @@ def main():
     stock_reports, stock_apps = parse(stock)
     reports, apps = parse(composite)
     assert stock_apps == [(0x01, 0x06), (0x0C, 0x01), (0x01, 0x02)], stock_apps
-    assert apps == stock_apps + [(0x01, 0x05)], apps  # standard Game Pad collection
+    assert apps == [(0x01, 0x05)] + stock_apps, apps  # Game Pad first
     # Report bodies must stay byte-identical to what ZMK actually sends.
     assert stock_reports == {1: {'input': 8, 'output': 1},
                              2: {'input': 12, 'output': 0},
