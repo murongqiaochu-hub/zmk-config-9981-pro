@@ -158,6 +158,7 @@ def main():
     run([str(map_stability)])
     stadia_codec = build('test_gamepad_stadia_codec')
     run([str(stadia_codec)])
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_pure_hids_tests.py')])
     for boot in [0, 1]:
         exe = build('test_gamepad_usb_case' + str(boot),
                     ['tests/gamepad_usb_mocks', 'tests/hid_snapshot_mocks', 'tests/sdk_snapshot_mocks'],

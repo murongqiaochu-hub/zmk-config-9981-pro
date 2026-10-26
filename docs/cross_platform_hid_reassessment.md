@@ -49,6 +49,16 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 
 推荐技术顺序：纯手柄协议先通过系统接口，再逐项加键盘、鼠标；复合失败时应评估明确独立模式，而非再次按活动槽在同一读取中切Map。现有键位、轻拍、灯光、速度记忆不动。USB与BLE分开验收，Windows标准HID与XInput-only游戏分开验收。
 
+## 第二个本地里程碑：纯手柄声明与GATT原型
+
+已补齐[实验说明](<../experiments/gamepad_protocol/README.md>)、固定182字节参照描述符与16属性纯手柄GATT表，输入ID3/10字节、输出ID5/4字节匹配。未接入生产CMake、广播/身份/模式选择或notify worker；源码config仍与0603a22相同。
+
+独立审查指出NULL合法长度、write flags边界及测试自证问题，已加固：公共写检查拒绝PREPARE/EXECUTE/未知flags和NULL；read输入无效快照归中；全部read长度/offset边界与诊断实参断言；实际GATT样本按HID字段独立解码。缺Output、多LED、错ID、重复ref、hat/output位宽和button usage共7种契约反例均被拒绝。
+
+新增原型后的完整host在标准权限Git归档快照exit0（07日志），审查补强专项exit0（08日志）。CMake执行矩阵仍SKIP；没有ARM/空口/GCController/Moonlight结果。上游仅输入GATT与其含Output描述符不一致的细节被记录，不推定它是苹果不识别的根因。
+
+下一步是实际conn/epoch/suspend/订阅/notify生命周期桥接，不能把当前外部snapshot/suspend接口的mock当作已实现的设备功能。
+
 ## 下一道决策与验收
 
 用户本轮已确认：iPad Air 6、iPadOS 26.2、官方Moonlight（具体App版本未提供）；接受先验证明确键鼠模式／纯手柄模式，再推进合并。此方案不是已完成的三合一，也不等于授权更改厂商身份、刷写或清配对。
