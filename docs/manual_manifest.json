@@ -1,14 +1,14 @@
 {
   "manual_version": "2.3.3.3",
   "manual_date": "2026-10-26",
-  "updated": "2026-10-26T11:16:48+08:00",
+  "updated": "2026-10-26T11:16:59+08:00",
   "source_commit": "f9ad36695025958dc8e1a24e81eff1ad049462a7",
   "reference_delivery_commit": null,
   "source_run": null,
   "device_tested": false,
-  "review_note": "v2.3.3.3：BLE改为238B自有合成Map（ID1键鼠媒体＋ID4手柄，单服务），替换被iPad拒绝的337B追加式；MEDIA层判断改stable ID。host待复验，实机待用户。",
+  "review_note": "v2.3.3.3：BLE改为238B自有合成Map（ID1键鼠媒体＋ID4手柄，单服务），替换被iPad拒绝的337B追加式；MEDIA层判断改stable ID。host复验中，实机待用户。",
   "manual": "docs/9981Pro_使用说明书.md",
-  "manual_sha256": "a06dcae58bdc59f453c2875f096549e02a3328e3fea54f6dee1f8dbdfbaddf29",
+  "manual_sha256": "a21b2454372036e8190e44b8c260e367ea4710f3421771a834757b1602251b8a",
   "source_sha256": {
     "config/bbp9981.conf": "d791eb1549c9f203085e739ededcc79cf6571109128d0537e16b3889a89dbb53",
     "config/bbp9981.keymap": "786e5e9a9578120995b66d6b5b84559d8663bc60e8fd1281cec6a928b5ed4d10",
