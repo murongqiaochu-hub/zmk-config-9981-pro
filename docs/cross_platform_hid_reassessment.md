@@ -1,6 +1,6 @@
 # 全端键鼠与手柄：证据重建及候选边界
 
-日期：2026-10-26。仅本地研究与回归，未交付新固件、未刷写或实机验收。
+日期：2026-10-26（历史阶段）。当时仅本地研究与回归，未交付新固件、未刷写或实机验收；最新 Source 2 状态见本文后续 2026-10-28 小节。
 
 ## 当前候选
 
@@ -108,6 +108,14 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 - 第二次产物已下载并完成本地复验，固件源码无需修复：固定SDK的BT_CONN_CB_DEFINE实际生成`bt_conn_cb_bbp_exp_connection`，不是原验收器假设的裸名。已改为检查真实callback iterable范围、记录大小及connected/disconnected函数指针，现有runtime回调与实验回调均在表中。
 - 另一处验收器假设也已纠正：PT_LOAD包含NOBITS/对齐空洞，原始ELF文件中为00而objcopy以FF填充（本产物共15字节），不能将这些空洞当实际程序字节。现在严格逐字节比较SHF_ALLOC的文件载荷节，经PT_LOAD换算LMA；只有空洞/对齐/尾部填充允许00/FF，额外尾块仍拒绝。
 - 从`7852486`干净Git archive重新运行生成器，所得manifest与云端原件**完全相同**；修正后的完整CLI离线复验通过（记录22）。真实ELF：唯一HIDS、16属性，ID3/10字节输入和ID5/4字节输出描述符，182B Map哈希符合固定值；两项连接回调已注册；三TU与guard边界正确。UF2为612864字节、应用区`0x1000..0x4bd00`，实际306357字节ELF节载荷全部匹配，SHA-256 `52f9385ef8289dac8a8c4c95929eaaa0a57ab3b784f27c5d3846677bef1e1f6d`。这证明ARM/静态产物，不证明通知或任何设备兼容。
+
+## 2026-10-28：Source 2 单变量诊断构建
+
+- 用户在接手会话明确追加授权最多1次 `pure-ble-usb-pnp` Actions；失败亦计一次、不自动重跑。仅向 `codex/cross-platform-hid-20261026` 推送带 `[skip ci]` 的候选提交 `a7cbec4d5d4ee509984f1438659efd9f6af369a7`，确认没有额外自动运行；唯一手动 [Run 40630925248](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40630925248>) 的 regression、pure_candidate及整体均成功，standard build、deliver skipped。此次授权1/1已用完；不是GitHub账户额度结论。
+- Source 2 只改变BLE PnP Vendor Source，保持现有 `1D50:615E`，不复制Google/Microsoft VID/PID。下载后的真实ELF验证唯一HIDS/16属性、182字节固定Map、连接回调、PnP字节 `02 50 1d 5e 61 01 00`；独立重建manifest与云端逐字节一致，独立验收JSON与云端一致，306357字节ELF文件节与UF2载荷匹配。
+- 实际生成DTS与旧P1逐字节一致：四层各42键、UPPER P28的cursor_speed及其0 cell节点均核对；2719项已编译Kconfig只有 `CONFIG_BT_DIS_PNP_VID_SRC` 从1变2。此结果不代替USB设备、BLE空口或按键实测。
+- Source 2 UF2：612864字节、1197块、family `0xADA52840`、应用区 `[0x1000,0x4bd00)`；SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`。旧P1用户报告安卓盖世可用，但Source 2 未刷写、未实机，不能沿用旧结果或宣称iPad/Moonlight成功；设备实际操作需用户另行决定。
+- 此候选全局禁用BLE键盘、Consumer及鼠标，退出MEDIA也不恢复；不是三合一日常固件。保留指定11ee89e键鼠回退，不自动刷写、清配对/settings或修改主机。同批说明书v1.1及PDF/Word/离线HTML另存，具体来源和验收记录保留在当日任务目录。
 
 ## 原始来源
 

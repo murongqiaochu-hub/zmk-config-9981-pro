@@ -1,6 +1,6 @@
 # 纯手柄诊断与PnP编号来源隔离对照
 
-**构建前状态：** 原P1 Run 40300798791 整体success，真实ARM和后置ELF/UF2验收通过。用户随后反馈安卓盖世游戏手柄可用、iOS Gamepad Tester和两台Mac的苹果手柄路径不可用；未独立核对设备实际刷入UF2，不能外推其他App或Moonlight。新增“PnP来源2”截至构建前仅为隔离源码对照，尚未ARM构建或设备测试。此前3/3次Actions授权已用尽；用户于2026-10-28另授权该对照最多1次，失败亦计一次、不自动重跑。以下里程碑保留**各阶段当时**的证据范围。
+**最新状态：** 原P1 Run 40300798791 已通过ARM验收；用户随后反馈安卓盖世游戏手柄可用、iOS Gamepad Tester和两台Mac的苹果手柄路径不可用，设备实际刷入UF2未独立核对。Source 2 对照 Run 40630925248 已通过真实ARM及独立静态验收，源码 `a7cbec4d5d4ee509984f1438659efd9f6af369a7`，UF2 SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`；未刷写、未设备测试，不能外推旧P1结果或Moonlight。此前3次和本次追加1次Actions授权均已用尽，不自动重跑。以下里程碑保留**各阶段当时**的证据范围。
 
 更新：2026-10-28。目标设备：iPad Air 6 / iPadOS 26.2 / 官方 Moonlight。用户接受先分模式验证，再推进键鼠共存。
 
@@ -62,7 +62,7 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B tests/run_map_stability_counterfactual.py
 1. tap的stock HOG prefix替换为 [pure_hog_guard.h](<pure_hog_guard.h>)：旧HID表变为普通const对象，不进入GATT iterable表；蓝牙键盘/consumer/鼠标公共发送与mouse snapshot API返回ENOTSUP，不排队、不清除调用方鼠标数据。旧SDK TU保持原字节、旧实现改名但不从公共入口调用。
 2. gamepad BLE extension替换为独立TU [pure_runtime.c](<pure_runtime.c>)：注册纯HIDS和连接/断开回调，导出既有 `bbp_gamepad_ble_send` ABI接到实验transport，并导出有限诊断快照getter。
 
-默认生成的旧P1不改变USB源码/配置、设备身份、键图、设置项或板定义；可选Source 2对照另外改变PnP来源身份元数据。两者均不是自动切换模式的新UI。必须使用已有控制选择BLE输出与MEDIA层。这个诊断profile的**蓝牙键鼠不可用**，USB源码/接口保留但仍需ARM和设备回归；不可直接作为全端三合一交付。
+默认生成的旧P1不改变USB源码/配置、设备身份、键图、设置项或板定义；可选Source 2对照另外改变PnP来源身份元数据。两者均不是自动切换模式的新UI。必须使用已有控制选择BLE输出与MEDIA层。这个诊断profile的**蓝牙键鼠不可用**，USB源码/接口保留且两个候选已ARM构建，但USB仍需设备回归；不可直接作为全端三合一交付。
 
 ```bash
 python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pure-stage --accept-ble-keymouse-disabled
@@ -78,27 +78,27 @@ python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pure-stage --accept-ble-k
 
 固定Zephyr定义中Source 1表示蓝牙SIG分配，Source 2表示USB-IF分配；[OpenMoko公开分配表](<https://github.com/openmoko/openmoko-usb-oui/blob/aec9527b73b01fef966003b21066f33f09e75a67/usb_product_ids.psv>)登记`1D50:615E`为ZMK的USB分配，[Bluetooth SIG公司标识公开表](<https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml>)2026-10-28完整读取210984字节、4059项，SHA-256 `7161690ddbf487525b509d8e7596289423d57bf3cdb7179c446285cc37ed6a1d`，未列出`1D50`。原P1实际ARM和Mac读取为`01 50 1d 5e 61 01 00`：沿用USB数值却标记成SIG来源，存在可核实的编号命名空间不一致。它不证明苹果拒绝由此造成，也不证明修正后可兼容。
 
-新增生成器可选对照只对外部新暂存树追加`CONFIG_BT_DIS_PNP_VID_SRC=2`；其余纯手柄源码、键位、VID/PID、描述符、USB、默认配置均不变。该字段属于BLE身份元数据变化，manifest明确标记`identity_changed=true`；并非冒充其他厂商。**蓝牙键鼠仍全局关闭；构建前未ARM构建、未刷写、未实机验证。** 用户已授权一次本对照Actions；设备测试仍需用户另行决定。
+新增生成器可选对照只对外部新暂存树追加`CONFIG_BT_DIS_PNP_VID_SRC=2`；其余纯手柄源码、键位、VID/PID、描述符、USB、默认配置均不变。该字段属于BLE身份元数据变化，manifest明确标记`identity_changed=true`；并非冒充其他厂商。**蓝牙键鼠仍全局关闭；Source 2 已ARM构建、未刷写、未实机验证。** 用户授权的一次本对照Actions已使用；设备测试仍需用户另行决定。
 
 ```bash
 python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pnp-source2-stage \
   --accept-ble-keymouse-disabled --experiment-usb-pnp-source --accept-pnp-source-change
 ```
 
-原参数不启用新实验；只有两个实验参数同时提供才允许生成。工作流预备仅手动选择的`pure-ble-usb-pnp`配置，不会触发默认构建或发布；本次已获用户授权最多1次Actions。验收器默认只接受原Source 1；构建Source 2必须显式传`--experiment-usb-pnp-source`，并由验收器校验manifest、Zephyr `.config`、已注册DIS/PnP属性及最终ELF的7个PnP字节。预期变化只在首字节：`01 50 1d 5e 61 01 00`→`02 50 1d 5e 61 01 00`。构建前没有Source 2真实ARM或UF2，故预期并非实测结果。主机测试不能证明iPad、Moonlight或安卓成功；实际设备若被用户授权测试，也不能自动删配对、重置设置或更改主机。
+原参数不启用新实验；只有两个实验参数同时提供才允许生成。工作流仅手动选择`pure-ble-usb-pnp`，本次获授权的1次Actions已完成且未触发发布。验收器默认只接受原Source 1；Source 2必须显式传`--experiment-usb-pnp-source`，并校验manifest、Zephyr `.config`、已注册DIS/PnP属性及最终ELF的7个PnP字节。实际编译结果为 `02 50 1d 5e 61 01 00`，旧P1为 `01 50 1d 5e 61 01 00`；最终DTS四层168键绑定完全一致，2719项Kconfig只改变Source。独立重建manifest与云端逐字节相同，UF2与ELF载荷及云端验收一致。主机和ARM测试不能证明iPad、Moonlight或安卓成功；实际设备若被用户授权测试，也不能自动删配对、重置设置或更改主机。
 
 ## 明确未完成
 
-- 不改变9981厂商/产品身份；没有复制Google/Microsoft VID/PID。
+- 保持现有VID/PID数值，但Source 2会改变BLE PnP身份元数据；没有复制Google/Microsoft VID/PID。
 - 显式候选已有BT回调和生产send ABI接线，且真实ARM三TU编译/链接、最终ELF已复核；尚无实际广播/连接验收、身份切换、运行时模式选择及持久化。host竞态测试仍使用SDK/runtime替身，不等于运行链设备验收。
 - Control Point已接实验中的每peer挂起状态，但真实ATT派发、suspend抑制通知及重连行为仍待集成/实机验证。
 - 旧P1的安卓盖世测试有用户反馈；Mac探针结果为GCController未接纳，iPad Gamepad Tester不可用。仍无空口完整载荷、iPad extendedGamepad或Moonlight成功验收；ARM成功不能替代它们。
 - 本目录不是可刷固件，不能称Stadia认证、Xbox原生兼容或iPad手柄已恢复。
-- 旧P1 UF2已生成并完成静态复核；用户已报告实际测试，未独立核对设备中刷入的文件哈希。Source 2对照未ARM构建、未刷写且未设备测试。[补充说明](<../../docs/9981Pro_纯BLE诊断候选说明.md>)同批维护和导出；任何设备动作仍需用户明确决定。
+- 旧P1 UF2已生成并完成静态复核；用户已报告实际测试，未独立核对设备中刷入的文件哈希。Source 2对照已ARM构建、未刷写且未设备测试。[补充说明](<../../docs/9981Pro_纯BLE诊断候选说明.md>)同批维护和导出；任何设备动作仍需用户明确决定。
 
 ## 下一阶段闸门
 
-1. 原有3次授权构建已用尽，最后一次为Run 40300798791（结果以[构建记录](<../../docs/cross_platform_hid_reassessment.md>)为准）。2026-10-28用户另授权Source 2对照最多1次Actions，失败亦计一次；不可自行额外dispatch或rerun。之后须经设备授权验证真实worker的旧peer释放、断开/重连、订阅变化、suspend/resume及发送失败；不能用host模型或静态链接替代。
+1. 原有3次授权构建已用尽，最后一次为Run 40300798791（结果以[构建记录](<../../docs/cross_platform_hid_reassessment.md>)为准）。2026-10-28用户另授权Source 2对照最多1次Actions，已用一次、Run 40630925248 成功；不可自行额外dispatch或rerun。之后须经设备授权验证真实worker的旧peer释放、断开/重连、订阅变化、suspend/resume及发送失败；不能用host模型或静态链接替代。
 2. 服务呈现只能在建立连接前确定，不能在同一Read Blob过程中或仅随活动槽切换；不自动清配对，不在后台更换身份。
 3. 新模式保留现有键位、灯光、速度与键鼠回退，不以全局重构冒险。先确定纯手柄的固定构建/模式隔离，再做三合一。
 4. 与参照协议一致的数据不保证系统驱动匹配；如需改变厂商身份，必须先说明原因并取得用户明确选择，不能偷偷替换。

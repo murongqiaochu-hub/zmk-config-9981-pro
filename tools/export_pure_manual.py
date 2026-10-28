@@ -44,6 +44,7 @@ def export_text_word(doc_sections, target):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--validation',type=Path,help='independently verified Source 2 ARM/UF2 validation JSON')
     args=parser.parse_args()
     day=subprocess.check_output(['date','+%m%d'],text=True).strip()
     out=args.out.resolve()
@@ -51,6 +52,22 @@ def main():
         raise ValueError('use a NEW directory in the current-day output task')
     source=ROOT/'docs/9981Pro_纯BLE诊断候选说明.md'
     md=source.read_text()
+    validation=None
+    if args.validation:
+        validation=json.loads(args.validation.read_text())
+        if (validation.get('device_tested') is not False or
+            validation.get('bluetooth_keyboard_mouse') is not False or
+            validation.get('pnp',{}).get('vendor_source')!=2 or
+            validation.get('pnp',{}).get('raw_hex')!='02501d5e610100' or
+            not isinstance(validation.get('source_run'),int) or validation['source_run']<=0 or
+            not all(str(value) in md for value in [validation.get('source_commit',''),
+                                                   validation.get('source_run',''),
+                                                   validation.get('uf2',{}).get('sha256','')]) or
+            not re.fullmatch(r'[0-9a-f]{40}',validation.get('source_commit','')) or
+            not re.fullmatch(r'[0-9a-f]{64}',validation.get('uf2',{}).get('sha256',''))):
+            raise ValueError('validation JSON does not establish the Source 2 candidate described by the manual')
+    elif 'Source 2 已通过真实ARM及独立静态验收' in md:
+        raise ValueError('built Source 2 manual requires its independent validation JSON')
     font=base64.b64encode(FONT.read_bytes()).decode()
     css='''@page{size:A4;margin:17mm 16mm}body{font-family:ManualHan,sans-serif;font-size:10.5pt;line-height:1.6;color:#19304a;max-width:850px;margin:24px auto}h1{font-size:24pt;color:#125bb4}h2{font-size:16pt;margin-top:22px;break-after:avoid}h3{break-after:avoid}table{width:100%;border-collapse:collapse;font-size:9pt;margin:12px 0}th,td{padding:6px;border:1px solid #dbe5ef;text-align:left;vertical-align:top}th{background:#eaf2ff}thead{display:table-header-group}tr{break-inside:avoid}code,a{overflow-wrap:anywhere}a{color:#125bb4}code{font-family:monospace;font-size:.9em}strong{color:#124d7d}@media print{body{margin:0;max-width:none}}'''
     html=markdown.markdown(md,extensions=['tables','fenced_code'])
@@ -79,7 +96,8 @@ def main():
     pdf=out/'01_纯BLE诊断候选说明.pdf'
     with tempfile.TemporaryDirectory(prefix='9981-manual-') as directory:
         temp=Path(directory)
-        doc_sections=[('纯BLE诊断候选 · P1及来源对照预研',blocks(md.split('\n',1)[1].split('\n## ',1)[0]))]+sections(md)
+        title='纯BLE诊断候选 · P1及来源2构建候选' if validation else '纯BLE诊断候选 · P1及来源对照预研'
+        doc_sections=[(title,blocks(md.split('\n',1)[1].split('\n## ',1)[0]))]+sections(md)
         docx=out/'02_纯BLE诊断候选说明_可编辑版.docx'
         export_text_word(doc_sections,docx)
         subprocess.run(['chromium','--headless','--disable-gpu','--no-sandbox',
@@ -96,10 +114,14 @@ def main():
         assert 'Source2' in pdftext and 'Source 2' in wordtext
         info=subprocess.check_output(['pdfinfo',str(pdf)],text=True)
         pages=int(re.search(r'^Pages:\s+(\d+)',info,re.M)[1]);assert 1<=pages<=15
-    metadata=dict(version='P1+PnP-source2-research',pages=pages,
+    metadata=dict(version='P1+PnP-source2-arm-validated' if validation else 'P1+PnP-source2-research',pages=pages,
                   p1_user_reported_test=True,p1_flash_identity_independently_verified=False,
-                  pnp_source2_arm_built=False,pnp_source2_device_tested=False,
+                  pnp_source2_arm_built=validation is not None,pnp_source2_device_tested=False,
                   source_manual_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),files={})
+    if validation:
+        metadata.update(source2_commit=validation['source_commit'],source2_run=validation['source_run'],
+                        source2_uf2_sha256=validation['uf2']['sha256'],
+                        validation_sha256=hashlib.sha256(args.validation.read_bytes()).hexdigest())
     for path in sorted(out.iterdir()):
         if path.is_file():
             metadata['files'][path.name]=dict(bytes=path.stat().st_size,sha256=hashlib.sha256(path.read_bytes()).hexdigest())
