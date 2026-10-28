@@ -163,6 +163,9 @@ def main():
     run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_map_host.py')])
     run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_hog_host.py')])
     run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_hog_snapshot_host.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_ble_candidate.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_candidate_runtime.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_stage_composite_candidate.py')])
     pure_transport = build('test_gamepad_pure_transport', ['tests/gamepad_ble_mocks'])
     run([str(pure_transport)])
     aggregate_only = subprocess.run([str(pure_transport), '--aggregate-only'],
