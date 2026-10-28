@@ -159,6 +159,9 @@ def main():
     stadia_codec = build('test_gamepad_stadia_codec')
     run([str(stadia_codec)])
     run([os.sys.executable, '-B', str(ROOT/'tests/run_pure_hids_tests.py')])
+    # Isolated, fail-closed host experiments; never add them to production CMake.
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_map_host.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_hog_host.py')])
     pure_transport = build('test_gamepad_pure_transport', ['tests/gamepad_ble_mocks'])
     run([str(pure_transport)])
     aggregate_only = subprocess.run([str(pure_transport), '--aggregate-only'],
