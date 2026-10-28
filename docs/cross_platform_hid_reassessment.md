@@ -114,8 +114,9 @@ nRF Connect看到1812只证明服务存在，不等于系统或Moonlight接受�
 - 用户在接手会话明确追加授权最多1次 `pure-ble-usb-pnp` Actions；失败亦计一次、不自动重跑。仅向 `codex/cross-platform-hid-20261026` 推送带 `[skip ci]` 的候选提交 `a7cbec4d5d4ee509984f1438659efd9f6af369a7`，确认没有额外自动运行；唯一手动 [Run 40630925248](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/40630925248>) 的 regression、pure_candidate及整体均成功，standard build、deliver skipped。此次授权1/1已用完；不是GitHub账户额度结论。
 - Source 2 只改变BLE PnP Vendor Source，保持现有 `1D50:615E`，不复制Google/Microsoft VID/PID。下载后的真实ELF验证唯一HIDS/16属性、182字节固定Map、连接回调、PnP字节 `02 50 1d 5e 61 01 00`；独立重建manifest与云端逐字节一致，独立验收JSON与云端一致，306357字节ELF文件节与UF2载荷匹配。
 - 实际生成DTS与旧P1逐字节一致：四层各42键、UPPER P28的cursor_speed及其0 cell节点均核对；2719项已编译Kconfig只有 `CONFIG_BT_DIS_PNP_VID_SRC` 从1变2。此结果不代替USB设备、BLE空口或按键实测。
-- Source 2 UF2：612864字节、1197块、family `0xADA52840`、应用区 `[0x1000,0x4bd00)`；SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`。旧P1用户报告安卓盖世可用，但Source 2 未刷写、未实机，不能沿用旧结果或宣称iPad/Moonlight成功；设备实际操作需用户另行决定。
-- 此候选全局禁用BLE键盘、Consumer及鼠标，退出MEDIA也不恢复；不是三合一日常固件。保留指定11ee89e键鼠回退，不自动刷写、清配对/settings或修改主机。同批说明书v1.1及PDF/Word/离线HTML另存，具体来源和验收记录保留在当日任务目录。
+- Source 2 UF2：612864字节、1197块、family `0xADA52840`、应用区 `[0x1000,0x4bd00)`；SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`。2026-10-28用户反馈本次Source 2实测“只有安卓手柄好用，其他键盘、鼠标、手柄都不行”；各项具体主机、传输和App未逐一提供，设备实际刷入文件的哈希未独立核对，不得将其细化为某个具体iPad App或系统框架结果。
+- 此候选全局禁用BLE键盘、Consumer及鼠标，退出MEDIA也不恢复；不是三合一日常固件。若反馈指BLE键鼠不可用，这是既定设计；USB与其他主机的具体结果尚未区分。已向用户提供手动回退到指定11ee89e的步骤，实际是否回退、是否恢复尚无反馈；本代理未刷写、清配对/settings或修改主机。
+- 根据最新用户反馈，同批说明书更新至v1.2；保留此前v1.1和原始固件，不追加Actions或推送。各项测试状态与来源见当日任务目录。
 
 ## 原始来源
 

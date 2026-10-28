@@ -1,6 +1,6 @@
 # 纯手柄诊断与PnP编号来源隔离对照
 
-**最新状态：** 原P1 Run 40300798791 已通过ARM验收；用户随后反馈安卓盖世游戏手柄可用、iOS Gamepad Tester和两台Mac的苹果手柄路径不可用，设备实际刷入UF2未独立核对。Source 2 对照 Run 40630925248 已通过真实ARM及独立静态验收，源码 `a7cbec4d5d4ee509984f1438659efd9f6af369a7`，UF2 SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`；未刷写、未设备测试，不能外推旧P1结果或Moonlight。此前3次和本次追加1次Actions授权均已用尽，不自动重跑。以下里程碑保留**各阶段当时**的证据范围。
+**最新状态：** 原P1 Run 40300798791 已通过ARM验收；用户反馈安卓盖世游戏手柄可用、iOS Gamepad Tester和两台Mac的苹果手柄路径不可用。Source 2 对照 Run 40630925248 已通过真实ARM及独立静态验收，源码 `a7cbec4d5d4ee509984f1438659efd9f6af369a7`，UF2 SHA-256 `2983f716e9ab66bd270af523e9347b733de86f491700e037caa9e59a13d3a5c4`。2026-10-28用户反馈本次Source 2实测“只有安卓手柄好用，其他键盘、鼠标、手柄都不行”；各项具体主机、传输和App未逐一提供，设备实际刷入文件哈希未独立核对。不能外推成Moonlight成功或已定位根因。此前3次和本次追加1次Actions授权均已用尽，不自动重跑。以下里程碑保留**各阶段当时**的证据范围。
 
 更新：2026-10-28。目标设备：iPad Air 6 / iPadOS 26.2 / 官方 Moonlight。用户接受先分模式验证，再推进键鼠共存。
 
@@ -78,7 +78,7 @@ python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pure-stage --accept-ble-k
 
 固定Zephyr定义中Source 1表示蓝牙SIG分配，Source 2表示USB-IF分配；[OpenMoko公开分配表](<https://github.com/openmoko/openmoko-usb-oui/blob/aec9527b73b01fef966003b21066f33f09e75a67/usb_product_ids.psv>)登记`1D50:615E`为ZMK的USB分配，[Bluetooth SIG公司标识公开表](<https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml>)2026-10-28完整读取210984字节、4059项，SHA-256 `7161690ddbf487525b509d8e7596289423d57bf3cdb7179c446285cc37ed6a1d`，未列出`1D50`。原P1实际ARM和Mac读取为`01 50 1d 5e 61 01 00`：沿用USB数值却标记成SIG来源，存在可核实的编号命名空间不一致。它不证明苹果拒绝由此造成，也不证明修正后可兼容。
 
-新增生成器可选对照只对外部新暂存树追加`CONFIG_BT_DIS_PNP_VID_SRC=2`；其余纯手柄源码、键位、VID/PID、描述符、USB、默认配置均不变。该字段属于BLE身份元数据变化，manifest明确标记`identity_changed=true`；并非冒充其他厂商。**蓝牙键鼠仍全局关闭；Source 2 已ARM构建、未刷写、未实机验证。** 用户授权的一次本对照Actions已使用；设备测试仍需用户另行决定。
+新增生成器可选对照只对外部新暂存树追加`CONFIG_BT_DIS_PNP_VID_SRC=2`；其余纯手柄源码、键位、VID/PID、描述符、USB、默认配置均不变。该字段属于BLE身份元数据变化，manifest明确标记`identity_changed=true`；并非冒充其他厂商。**蓝牙键鼠仍全局关闭；Source 2 已ARM构建，用户已反馈测试，但设备镜像哈希及各平台细节尚未独立核对。** 用户授权的一次本对照Actions已使用；本代理未刷写，也未自动修改设备或主机。
 
 ```bash
 python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pnp-source2-stage \
@@ -94,7 +94,7 @@ python3 -B tools/stage_pure_gamepad.py --out /tmp/9981-pnp-source2-stage \
 - Control Point已接实验中的每peer挂起状态，但真实ATT派发、suspend抑制通知及重连行为仍待集成/实机验证。
 - 旧P1的安卓盖世测试有用户反馈；Mac探针结果为GCController未接纳，iPad Gamepad Tester不可用。仍无空口完整载荷、iPad extendedGamepad或Moonlight成功验收；ARM成功不能替代它们。
 - 本目录不是可刷固件，不能称Stadia认证、Xbox原生兼容或iPad手柄已恢复。
-- 旧P1 UF2已生成并完成静态复核；用户已报告实际测试，未独立核对设备中刷入的文件哈希。Source 2对照已ARM构建、未刷写且未设备测试。[补充说明](<../../docs/9981Pro_纯BLE诊断候选说明.md>)同批维护和导出；任何设备动作仍需用户明确决定。
+- 旧P1和Source 2 UF2均已ARM构建并完成静态复核；用户已报告测试，设备中实际刷入的文件哈希未独立核对。Source 2 本轮安卓手柄可用，其他键鼠和手柄不可用；主机、连接方式及应用未逐项确认。[补充说明](<../../docs/9981Pro_纯BLE诊断候选说明.md>)同批维护和导出；本代理未刷写，任何设备动作仍需用户明确决定。
 
 ## 下一阶段闸门
 
