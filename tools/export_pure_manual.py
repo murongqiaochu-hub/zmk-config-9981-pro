@@ -46,6 +46,7 @@ def main():
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--validation',type=Path,help='independently verified Source 2 ARM/UF2 validation JSON')
     parser.add_argument('--source2-user-tested',action='store_true',help='record explicitly documented user-reported Source 2 testing; not independent device verification')
+    parser.add_argument('--current-feedback-corrected',action='store_true',help='record the user-corrected current keyboard/mouse and gamepad status')
     args=parser.parse_args()
     day=subprocess.check_output(['date','+%m%d'],text=True).strip()
     out=args.out.resolve()
@@ -72,6 +73,9 @@ def main():
     feedback_mark='用户反馈本次Source 2实测'
     if args.source2_user_tested != (feedback_mark in md) or (args.source2_user_tested and validation is None):
         raise ValueError('user-reported Source 2 test flag must match the manual and verified ARM provenance')
+    correction='所有手柄都不能用了，但是全平台的键鼠都OK'
+    if args.current_feedback_corrected != (correction in md) or (args.current_feedback_corrected and not args.source2_user_tested):
+        raise ValueError('corrected current feedback flag must match the documented user report')
     font=base64.b64encode(FONT.read_bytes()).decode()
     css='''@page{size:A4;margin:17mm 16mm}body{font-family:ManualHan,sans-serif;font-size:10.5pt;line-height:1.6;color:#19304a;max-width:850px;margin:24px auto}h1{font-size:24pt;color:#125bb4}h2{font-size:16pt;margin-top:22px;break-after:avoid}h3{break-after:avoid}table{width:100%;border-collapse:collapse;font-size:9pt;margin:12px 0}th,td{padding:6px;border:1px solid #dbe5ef;text-align:left;vertical-align:top}th{background:#eaf2ff}thead{display:table-header-group}tr{break-inside:avoid}code,a{overflow-wrap:anywhere}a{color:#125bb4}code{font-family:monospace;font-size:.9em}strong{color:#124d7d}@media print{body{margin:0;max-width:none}}'''
     html=markdown.markdown(md,extensions=['tables','fenced_code'])
@@ -118,12 +122,18 @@ def main():
         assert 'Source2' in pdftext and 'Source 2' in wordtext
         info=subprocess.check_output(['pdfinfo',str(pdf)],text=True)
         pages=int(re.search(r'^Pages:\s+(\d+)',info,re.M)[1]);assert 1<=pages<=15
-    metadata=dict(version='P1+PnP-source2-user-feedback' if args.source2_user_tested else ('P1+PnP-source2-arm-validated' if validation else 'P1+PnP-source2-research'),pages=pages,
+    version=('P1+PnP-source2-feedback-corrected' if args.current_feedback_corrected else
+             'P1+PnP-source2-user-feedback' if args.source2_user_tested else
+             'P1+PnP-source2-arm-validated' if validation else 'P1+PnP-source2-research')
+    metadata=dict(version=version,pages=pages,
                   p1_user_reported_test=True,p1_flash_identity_independently_verified=False,
                   pnp_source2_arm_built=validation is not None,
                   pnp_source2_device_tested=args.source2_user_tested,
                   pnp_source2_test_evidence='user_report' if args.source2_user_tested else 'none',
                   pnp_source2_flash_identity_independently_verified=False,
+                  current_user_reports_all_gamepads_unavailable=args.current_feedback_corrected,
+                  current_user_reports_all_platform_keyboard_mouse_working=args.current_feedback_corrected,
+                  current_firmware_independently_verified=False,
                   source_manual_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),files={})
     if validation:
         metadata.update(source2_commit=validation['source_commit'],source2_run=validation['source_run'],
