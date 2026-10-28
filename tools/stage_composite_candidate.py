@@ -16,6 +16,7 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[1]
 BOARD = 'config/boards/arm/bbp9981'
 GAMEPAD = BOARD + '/cmake/gamepad.cmake'
+BOARD_CMAKE = BOARD + '/CMakeLists.txt'
 TAP = BOARD + '/cmake/tap_extensions.cmake'
 CANDIDATE = 'experiments/gamepad_protocol/composite_ble_candidate.h'
 PURE = 'experiments/gamepad_protocol/stadia_descriptor.h'
@@ -23,8 +24,7 @@ STOCK = 'tests/hid_map_fixtures/stock_196.hex'
 OLD_PREFIX = '"-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/gamepad_ble_extension.h")'
 NEW_PREFIX = '"-DBBP9981_COMPOSITE_EXPERIMENT=1" "-include" "${CMAKE_CURRENT_SOURCE_DIR}/../../../../experiments/gamepad_protocol/composite_ble_candidate.h")'
 SNAPSHOT_PREFIX = '"-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_hog_snapshot.h")'
-PRECONDITION = '''# Explicit, isolated composite BLE source candidate; never a default setting.
-# Sanitize Git redirections for THIS configure process and its children only.
+GIT_PRELUDE = '''# Sanitize Git redirections for THIS configure process and its children only.
 # Do not modify the caller's environment, Git files or global configuration.
 foreach(_composite_env IN ITEMS GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE
         GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE
@@ -39,6 +39,20 @@ set(ENV{GIT_CONFIG_GLOBAL} "/dev/null")
 set(ENV{GIT_TERMINAL_PROMPT} "0")
 set(ENV{GIT_OPTIONAL_LOCKS} "0")
 set(ENV{GIT_NO_REPLACE_OBJECTS} "1")
+# Environment config entries override any repository-local fsmonitor/hook.
+set(ENV{GIT_CONFIG_COUNT} "2")
+set(ENV{GIT_CONFIG_KEY_0} "core.fsmonitor")
+set(ENV{GIT_CONFIG_VALUE_0} "false")
+set(ENV{GIT_CONFIG_KEY_1} "core.hooksPath")
+set(ENV{GIT_CONFIG_VALUE_1} "/dev/null")
+'''
+HOST_ONLY_BOARD_GUARD = '''# Safety gate: this source stage is NOT ready for firmware configuration.
+# The flag below is for CMake -P recording tests only, not an ARM build.
+if(CMAKE_GENERATOR OR NOT CMAKE_SCRIPT_MODE_FILE OR NOT BBP9981_COMPOSITE_HOST_CMAKE_TEST STREQUAL "1")
+    message(FATAL_ERROR "Composite candidate is not ready for firmware configuration or build")
+endif()
+''' + GIT_PRELUDE
+PRECONDITION = GIT_PRELUDE + '''# Explicit, isolated composite BLE source candidate; never a default setting.
 if(NOT CONFIG_BBP9981_GAMEPAD OR NOT CONFIG_ZMK_BLE OR NOT CONFIG_A320_TAP_OUTPUT OR
    NOT CONFIG_ZMK_POINTING OR NOT CONFIG_ZMK_HID_INDICATORS OR
    NOT CONFIG_BT_GATT_ENFORCE_SUBSCRIPTION OR CONFIG_ZMK_POINTING_SMOOTH_SCROLLING OR CONFIG_BT_EATT OR
@@ -72,6 +86,30 @@ foreach(_composite_path IN ITEMS "subsys/bluetooth/host/att.c"
         message(FATAL_ERROR "Composite candidate requires clean pinned Zephyr BLE stack file: ${_composite_path}")
     endif()
 endforeach()
+# Track all other source files covered by the existing ZMK/USB/HAL guards.
+if(DEFINED APPLICATION_SOURCE_DIR)
+    foreach(_composite_app IN ITEMS "src/hog.c" "src/usb.c" "src/usb_hid.c" "include/zmk/hid.h")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+            "${APPLICATION_SOURCE_DIR}/${_composite_app}")
+    endforeach()
+endif()
+foreach(_composite_usb IN ITEMS "drivers/usb/device/usb_dc_nrfx.c"
+        "subsys/usb/device/class/hid/core.c" "subsys/usb/device/usb_device.c"
+        "subsys/usb/device/usb_descriptor.c" "include/zephyr/usb/usb_device.h"
+        "include/zephyr/usb/class/usb_hid.h")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${ZEPHYR_BASE}/${_composite_usb}")
+endforeach()
+if(CONFIG_ZMK_USB)
+    if(DEFINED ZEPHYR_HAL_NORDIC_MODULE_DIR)
+        set(_composite_hal "${ZEPHYR_HAL_NORDIC_MODULE_DIR}")
+    else()
+        set(_composite_hal "${ZEPHYR_BASE}/../modules/hal/nordic")
+    endif()
+    foreach(_composite_hal_file IN ITEMS "nrfx/drivers/src/nrfx_usbd.c"
+            "nrfx/drivers/include/nrfx_usbd.h" "nrfx/hal/nrf_usbd.h")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_composite_hal}/${_composite_hal_file}")
+    endforeach()
+endif()
 '''
 PURE_SHA = '4317e34b66d9c247b0fb12327516c38c74deea04619db54a05cf190444482a3f'
 PURE_HEADER_SHA = 'ced8c185ad628390e54d71e17ffd6ef0ba1996f1b3fac17772c514a03b0b5ea5'
@@ -101,7 +139,7 @@ def git_environment():
 
 
 def source_path(relative, *, directory):
-    """Reject symlinks at *every* source component, including the root itself."""
+    """Reject symlinks in relative source components; ROOT is normalized separately."""
     candidate = ROOT
     for part in Path(relative).parts:
         if part in ('', '.', '..'):
@@ -173,6 +211,18 @@ def stage(out, *, acknowledge_hid_database_change=False):
     top = subprocess.check_output([*git,'rev-parse','--show-toplevel'], cwd=ROOT, env=env, text=True).strip()
     if Path(top).resolve() != ROOT:
         raise ValueError('Git checkout root does not match candidate source root')
+    dotgit = ROOT/'.git'
+    if dotgit.is_symlink():
+        raise ValueError('checkout .git must not be a symlink')
+    gitdir = Path(subprocess.check_output([*git,'rev-parse','--absolute-git-dir'],cwd=ROOT,env=env,text=True).strip())
+    common = Path(subprocess.check_output([*git,'rev-parse','--path-format=absolute','--git-common-dir'],cwd=ROOT,env=env,text=True).strip()).resolve()
+    index = Path(subprocess.check_output([*git,'rev-parse','--path-format=absolute','--git-path','index'],cwd=ROOT,env=env,text=True).strip())
+    if gitdir.is_symlink() or index.is_symlink() or not index.is_file():
+        raise ValueError('Git directory/index must be an existing non-symlink')
+    if index.resolve() != (gitdir.resolve()/'index'):
+        raise ValueError('Git index does not belong to this checkout')
+    if gitdir.resolve() != common and not gitdir.resolve().is_relative_to(common/'worktrees'):
+        raise ValueError('linked worktree gitdir does not belong to its common repository')
     tracked = subprocess.check_output([*git,'ls-files','-z','--','config',
                                        'experiments/gamepad_protocol'], cwd=ROOT, env=env).decode('utf-8').split('\0')
     tracked_names = {name for name in tracked if name}
@@ -182,7 +232,7 @@ def stage(out, *, acknowledge_hid_database_change=False):
     # Git status suppresses ignored files, but we copy them if present. Record
     # every copied non-tracked input and never label that stage Git-clean.
     untracked_sources = sorted(sources.keys() - tracked_names)
-    required = (GAMEPAD, TAP, CANDIDATE, PURE,
+    required = (GAMEPAD, BOARD_CMAKE, TAP, CANDIDATE, PURE,
                 'experiments/gamepad_protocol/stadia_codec.h')
     if any(name not in sources for name in required):
         raise ValueError('candidate source is incomplete; no stage was created')
@@ -203,8 +253,14 @@ def stage(out, *, acknowledge_hid_database_change=False):
         raise ValueError('unrecognized board/snapshot integration: refuse heuristic patching')
     if b'BBP9981_COMPOSITE_EXPERIMENT' not in sources[CANDIDATE]:
         raise ValueError('candidate is missing its explicit build guard')
-    source_lock = locked_source_guard(sources)
-    modified = (PRECONDITION + source_lock + gamepad.replace(OLD_PREFIX, NEW_PREFIX, 1)).encode('utf-8')
+    guarded_board = (HOST_ONLY_BOARD_GUARD + sources[BOARD_CMAKE].decode('utf-8')).encode('utf-8')
+    locked_sources = dict(sources)
+    locked_sources[BOARD_CMAKE] = guarded_board
+    source_lock = locked_source_guard(locked_sources)
+    modified = {
+        GAMEPAD:(PRECONDITION + source_lock + gamepad.replace(OLD_PREFIX, NEW_PREFIX, 1)).encode('utf-8'),
+        BOARD_CMAKE:guarded_board,
+    }
     commit = subprocess.check_output([*git,'rev-parse','HEAD'], cwd=ROOT, env=env, text=True).strip()
     dirty = bool(subprocess.check_output([*git,'status','--porcelain'], cwd=ROOT, env=env)) or bool(untracked_sources)
 
@@ -215,6 +271,7 @@ def stage(out, *, acknowledge_hid_database_change=False):
                     source_dirty=dirty, untracked_source_files=untracked_sources,
                     build_performed=False, flashed=False, device_tested=False,
                     ready_for_firmware_build=False, device_test_ready=False, known_ccc_race=True,
+                    firmware_configure_forbidden=True, host_cmake_script_test_only=True,
                     fresh_configure_required=True, incremental_guard_mtime_sensitive=True,
                     pnp_vid_pid_changed=False, pnp_source_changed=False,
                     bluetooth_address_configuration_changed=False, hid_database_changed=True,
@@ -231,7 +288,7 @@ def stage(out, *, acknowledge_hid_database_change=False):
                     expected_map_bytes=len(composite), expected_map_sha256=digest(composite),
                     modified_config=[], files={})
     for name, original in sources.items():
-        data = modified if name == GAMEPAD else original
+        data = modified.get(name, original)
         dest = target / name
         dest.parent.mkdir(parents=True, exist_ok=True)
         with dest.open('xb') as file:
@@ -239,7 +296,7 @@ def stage(out, *, acknowledge_hid_database_change=False):
         if dest.read_bytes() != data:
             raise OSError('candidate stage write verification failed: ' + name)
         manifest['files'][name] = dict(bytes=len(data), sha256=digest(data))
-        if name == GAMEPAD:
+        if name in modified:
             manifest['modified_config'].append(dict(path=name, original_sha256=digest(original),
                                                      candidate_sha256=digest(data)))
         elif name.startswith('config/') and data != original:
@@ -257,8 +314,9 @@ USB configuration and all keymaps stay unchanged. No vendor identity is copied.
 KNOWN SAFETY GAP: a CCC unsubscribe can be observed before its new value is
 committed, so a newer epoch may still send while the old subscription is ON.
 Queued notifications cannot be retracted and old-peer neutral/host ACK is not
-guaranteed. This candidate is NOT ready for firmware build or device testing;
-first resolve or explicitly assess the gap and complete the required reviews.
+guaranteed. The staged board rejects ordinary firmware CMake configuration;
+its explicit host-script test mode is not firmware. This candidate is NOT ready
+for firmware build or device testing; resolve the gap and complete all reviews.
 
 The HID database changes even though PnP fields/address configuration do not.
 Host caches or pairing may be affected; there is NO automatic unpair/reset.
