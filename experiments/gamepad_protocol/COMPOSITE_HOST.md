@@ -4,7 +4,7 @@
 
 ## 结构与为什么需要补丁
 
-基于固定 stock HOG 196 字节 Map 和此前用户报告安卓手柄曾可用的纯手柄 182 字节 Map。前者鼠标输入是 ID3；后者手柄输入也为 ID3。直接拼接会使输入报告混入鼠标及手柄两种应用集合，不能满足两者各自长度。
+基于固定 stock HOG 196 字节 Map 和此前用户报告安卓手柄曾可用的纯手柄 182 字节 Map。已只读核对 Source 2 ARM ELF 内一个 `zmk_hid_report_desc` 对象与196字节fixture逐字节一致（SHA-256 `5c7e4106019e5baf9027c8a24e334c58f5e09c65cd3ff46b338c551c61da4ee3`）；这不意味着该对象在纯手柄版中被注册成BLE服务。前者鼠标输入是 ID3；后者手柄输入也为 ID3。直接拼接会使输入报告混入鼠标及手柄两种应用集合，不能满足两者各自长度。
 
 只把手柄输入 ID3 改为 ID4 仍不够：HID 全局属性跨 End Collection 保留，stock 鼠标末尾的 Logical Minimum 为 -32768，纯手柄方向帽前只设 Maximum 7，不显式设 Minimum；因此只改ID会使帽错误继承 -32768。本模型在手柄输入 ID4 后增加 `15 00`（Logical Minimum 0），结果保持原始 stock 字节不变，追加段184字节，总 Map 380 字节；手柄输出仍为 ID5。**这是可验证的候选结构，不是设备兼容结论。**
 
@@ -17,9 +17,10 @@
 - [run_composite_map_host.py](<../../tests/run_composite_map_host.py>)：分别用UBSan、非PIE ASan编译测试；解析**完整拼接字节流**的Logical/Physical范围、单位、Usage、flags、大小、顶层集合，并对源stock和源纯手柄字段逐项对照。按Array的完整Usage范围比较，明确拒绝本oracle未支持的32位Extended Usage，不冒充通用HID解析器。等长度的“只改ID、漏重置Minimum”和“手柄ID仍碰撞鼠标”反例必须失败；漏LED/重复或错误Report Reference、长度/保留位错误也必须失败；另编译实际代码变异负例和无host宏拒绝。
 - [composite_hog_host.h](<composite_hog_host.h>) 与 [test_composite_hog_host.c](<../../tests/test_composite_hog_host.c>) 在固定SDK HOG fixture/GATT宏的单个 `hog_svc` 上，**仅在host编译**追加 output5 后 input4；原stock属性及回调保留。固定配置下验证29属性、6个引用及引用与值的正确对应、权限元数据、LED、键鼠发送和手柄10字节输入/4字节忽略输出。引用交换但集合不变的反例也被拒绝。
 - [run_composite_hog_host.py](<../../tests/run_composite_hog_host.py>) 执行UBSan及非PIE ASan、独立编译闸与错误配置拒绝。原HID mock只含45字节玩具Map，实际模型Map是将SHA核验过的196字节fixture注入测试，不能说它直接来自该mock。逐peer CCC、ATT与同步通知是**测试替身**，不是实际Zephyr、安全加密、空口或操作系统识别；stock HOG自己的共享全局通知标志也仅保留原样，不宣称该行为被修复。
+- [run_composite_hog_snapshot_host.py](<../../tests/run_composite_hog_snapshot_host.py>) 以真实编译器 `-include` 顺序先加载未改的触板snapshot、再加载复合host模型，随后编译固定 HOG fixture；分别验证 steady OFF/ON、已编译配置的鼠标FIFO 20项和diag ON。首次diag ON误预期4次入队诊断而失败，实际还包含一次 `-ESTALE`；修正oracle后8种 sanitizer 组合通过。键盘/Consumer队列各只测试1项，tap/Studio仅定义编译宏未执行完整路径，调度与通知仍为替身，不能推为设备稳定。
 
-分别运行 `PYTHONDONTWRITEBYTECODE=1 python3 -B tests/run_composite_map_host.py` 和 `PYTHONDONTWRITEBYTECODE=1 python3 -B tests/run_composite_hog_host.py`；两项也由 `tests/run_gamepad_tests.py` 自动调用。原有纯手柄 GATT fixture、原复合 Xbox Map 检查和旧 codec 穷举回归也分别运行，详见本批专项测试记录；这均属于 host 范围。
+分别运行 `PYTHONDONTWRITEBYTECODE=1 python3 -B tests/run_composite_map_host.py`、`tests/run_composite_hog_host.py`、`tests/run_composite_hog_snapshot_host.py`；三项也由 `tests/run_gamepad_tests.py` 自动调用。原有纯手柄 GATT fixture、原复合 Xbox Map 检查和旧 codec 穷举回归也分别运行，详见本批专项测试记录；这均属于 host 范围。
 
 ## 未来集成门槛
 
-不得把纯手柄 service 直接和 stock HOG 同时注册，也不能复用旧9字节发送或硬编码 `pure_transport.h` 的属性位置。当前两个文件都严格host-only；距实际生产接线还需验证现有 `trackpad_hog_snapshot` 前置链、真实SDK/Zephyr的per-peer CCC、队列与peer/epoch隔离、异步发送和在途断连、控制点/挂起、加密、边界回退。USB报告、键位、灯效、配对及settings必须不变。只有测试和授权充分时才可考虑候选ARM构建；苹果 `GCController.extendedGamepad` 和官方Moonlight仍需由用户决定是否实测。
+不得把纯手柄 service 直接和 stock HOG 同时注册，也不能复用旧9字节发送或硬编码 `pure_transport.h` 的属性位置。当前模型都严格host-only；触板snapshot前置链只在host固定fixture验证。距实际生产接线还需验证真实SDK/Zephyr的per-peer CCC、队列与peer/epoch隔离、异步发送和在途断连、控制点/挂起、加密、边界回退。USB报告、键位、灯效、配对及settings必须不变。只有测试和授权充分时才可考虑候选ARM构建；苹果 `GCController.extendedGamepad` 和官方Moonlight仍需由用户决定是否实测。

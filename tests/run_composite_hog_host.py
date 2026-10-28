@@ -106,7 +106,7 @@ def main():
             must_reject(raw, stock, pure, [(1,1),(2,1),(3,1),(1,1),(5,2),(4,1)], 'missing LED ref')
             must_reject(raw, stock, pure, [(1,1),(2,1),(3,1),(1,2),(5,2),(3,1)], 'wrong gamepad input id')
             must_reject(raw, stock, pure, [(1,1),(2,1),(3,1),(1,2),(5,1),(4,1)], 'wrong output type')
-            print('PASS actual GATT refs versus complete HID stream; collision/minimum/reference negatives', flush=True)
+            print('PASS pinned mock GATT refs versus complete HID stream; collision/minimum/reference negatives', flush=True)
         assert check_fixed() == stock, 'fixed fixtures changed during test'
     print('LIMIT host-only: mock per-peer CCC/ATT/synchronous notify; no real Zephyr, ARM, OS, radio, pairing or device acceptance')
 
