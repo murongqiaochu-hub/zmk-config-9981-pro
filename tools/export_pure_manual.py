@@ -55,19 +55,31 @@ def main():
     css='''@page{size:A4;margin:17mm 16mm}body{font-family:ManualHan,sans-serif;font-size:10.5pt;line-height:1.6;color:#19304a;max-width:850px;margin:24px auto}h1{font-size:24pt;color:#125bb4}h2{font-size:16pt;margin-top:22px;break-after:avoid}h3{break-after:avoid}table{width:100%;border-collapse:collapse;font-size:9pt;margin:12px 0}th,td{padding:6px;border:1px solid #dbe5ef;text-align:left;vertical-align:top}th{background:#eaf2ff}thead{display:table-header-group}tr{break-inside:avoid}code,a{overflow-wrap:anywhere}a{color:#125bb4}code{font-family:monospace;font-size:.9em}strong{color:#124d7d}@media print{body{margin:0;max-width:none}}'''
     html=markdown.markdown(md,extensions=['tables','fenced_code'])
     html=html.replace('href="9981Pro_使用说明书.md"','href="04_默认手册_只读参考.md"')
-    html='<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>9981 Pro 纯BLE诊断候选 P1</title><style>@font-face{font-family:ManualHan;src:url(data:font/otf;base64,'+font+')}'+css+'</style></head><body>'+html+'</body></html>'
+    html=html.replace('href="../experiments/gamepad_protocol/README.md"','href="参考源码/experiments/gamepad_protocol/README.md"')
+    html=html.replace('href="../tools/stage_pure_gamepad.py"','href="参考源码/tools/stage_pure_gamepad.py"')
+    html='<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>9981 Pro 纯BLE诊断与PnP来源对照</title><style>@font-face{font-family:ManualHan;src:url(data:font/otf;base64,'+font+')}'+css+'</style></head><body>'+html+'</body></html>'
     out.mkdir(parents=True,exist_ok=False)
     htmlpath=out/'03_纯BLE诊断候选说明_离线阅读.html'
     htmlpath.write_text(html)
     (out/'04_默认手册_只读参考.md').write_bytes((ROOT/'docs/9981Pro_使用说明书.md').read_bytes())
     (out/'05_纯BLE诊断候选说明_正文.md').write_text(md)
+    # Keep linked candidate references readable offline; never copy a UF2 or
+    # pretend that this source snapshot is an ARM/device validation.
+    reference=out/'参考源码'
+    experiment=reference/'experiments/gamepad_protocol';experiment.mkdir(parents=True)
+    for path in (ROOT/'experiments/gamepad_protocol').iterdir():
+        if path.is_symlink(): raise ValueError('reference source symlink is not allowed')
+        if path.is_file(): (experiment/path.name).write_bytes(path.read_bytes())
+    (reference/'tools').mkdir()
+    (reference/'tools/stage_pure_gamepad.py').write_bytes((ROOT/'tools/stage_pure_gamepad.py').read_bytes())
+    assert (experiment/'README.md').is_file() and (reference/'tools/stage_pure_gamepad.py').is_file()
     diagrams=out/'说明书图示';diagrams.mkdir()
     for path in (ROOT/'docs/说明书图示').glob('*.svg'):
         (diagrams/path.name).write_bytes(path.read_bytes())
     pdf=out/'01_纯BLE诊断候选说明.pdf'
     with tempfile.TemporaryDirectory(prefix='9981-manual-') as directory:
         temp=Path(directory)
-        doc_sections=[('纯BLE诊断候选 · P1',blocks(md.split('\n',1)[1].split('\n## ',1)[0]))]+sections(md)
+        doc_sections=[('纯BLE诊断候选 · P1及来源对照预研',blocks(md.split('\n',1)[1].split('\n## ',1)[0]))]+sections(md)
         docx=out/'02_纯BLE诊断候选说明_可编辑版.docx'
         export_text_word(doc_sections,docx)
         subprocess.run(['chromium','--headless','--disable-gpu','--no-sandbox',
@@ -79,11 +91,15 @@ def main():
         with ZipFile(docx) as archive:
             xml=ET.fromstring(archive.read('word/document.xml'))
             wordtext=''.join(xml.itertext())
-        for phrase in ['GCController.extendedGamepad','未刷写','蓝牙','1e277b08428984a6120c42310c34a6ad40eaaecdf491cbfb1d706e58c3359264']:
+        for phrase in ['GCController.extendedGamepad','未刷写','蓝牙','PnP','1e277b08428984a6120c42310c34a6ad40eaaecdf491cbfb1d706e58c3359264']:
             assert phrase in pdftext and phrase in wordtext,phrase
+        assert 'Source2' in pdftext and 'Source 2' in wordtext
         info=subprocess.check_output(['pdfinfo',str(pdf)],text=True)
         pages=int(re.search(r'^Pages:\s+(\d+)',info,re.M)[1]);assert 1<=pages<=15
-    metadata=dict(version='P1',pages=pages,device_tested=False,source_manual_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),files={})
+    metadata=dict(version='P1+PnP-source2-research',pages=pages,
+                  p1_user_reported_test=True,p1_flash_identity_independently_verified=False,
+                  pnp_source2_arm_built=False,pnp_source2_device_tested=False,
+                  source_manual_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),files={})
     for path in sorted(out.iterdir()):
         if path.is_file():
             metadata['files'][path.name]=dict(bytes=path.stat().st_size,sha256=hashlib.sha256(path.read_bytes()).hexdigest())

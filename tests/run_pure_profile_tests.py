@@ -82,6 +82,23 @@ def main():
             assert hashlib.sha256((target/name).read_bytes()).hexdigest()==details['sha256']
             if name.startswith('config/') and name not in (stager.TAP,stager.GAMEPAD):
                 assert (target/name).read_bytes()==(ROOT/name).read_bytes()
+        variant=temp/'pnp-source-2'
+        compare=stager.stage(variant,experiment_usb_pnp_source=True)
+        assert compare['identity_changed'] is True and compare['experimental_pnp_vendor_source']==2
+        assert {x['path'] for x in compare['modified_config']} == {stager.TAP,stager.GAMEPAD,stager.BOARD_CONFIG}
+        assert not compare['usb_changed'] and not compare['keymap_changed'] and not compare['bluetooth_keyboard_mouse']
+        board=(target/stager.BOARD_CONFIG).read_bytes();alternate=(variant/stager.BOARD_CONFIG).read_bytes()
+        assert alternate.startswith(board) and alternate.count(stager.PNP_SOURCE_LINE)==1
+        for name,details in compare['files'].items():
+            assert hashlib.sha256((variant/name).read_bytes()).hexdigest()==details['sha256']
+            if name!=stager.BOARD_CONFIG:
+                assert (variant/name).read_bytes()==(target/name).read_bytes(),name
+        for flags in [['--experiment-usb-pnp-source'],['--accept-pnp-source-change']]:
+            rejected=temp/('unconfirmed-pnp-'+flags[0][2:])
+            result=subprocess.run([os.sys.executable,'-B',str(ROOT/'tools/stage_pure_gamepad.py'),
+                    '--out',str(rejected),'--accept-ble-keymouse-disabled',*flags],capture_output=True,text=True)
+            assert result.returncode!=0 and not rejected.exists()
+        print('PASS source-2 comparison: only PnP assignment differs from staged baseline; explicit dual acknowledgement required')
         original = (target/'CANDIDATE.json').read_bytes()
         try:
             stager.stage(target)

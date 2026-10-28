@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       profile:
-        description: Explicit build profile (pure BLE disables Bluetooth keyboard/mouse)
+        description: Explicit profile (both pure BLE profiles disable Bluetooth keyboard/mouse; usb-pnp changes BLE identity metadata)
         type: choice
-        options: [standard, pure-ble]
+        options: [standard, pure-ble, pure-ble-usb-pnp]
         default: standard
         required: true
 permissions:
@@ -27,11 +27,11 @@ jobs:
       - name: Compile real drivers with host mocks and run regressions
         run: python3 tests/run_host_tests.py
   build:
-    if: github.event_name != 'workflow_dispatch' || inputs.profile != 'pure-ble'
+    if: github.event_name != 'workflow_dispatch' || (inputs.profile != 'pure-ble' && inputs.profile != 'pure-ble-usb-pnp')
     needs: regression
     uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
   pure_candidate:
-    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'pure-ble' && github.ref == 'refs/heads/codex/cross-platform-hid-20261026' && github.repository == 'murongqiaochu-hub/zmk-config-9981-pro'
+    if: github.event_name == 'workflow_dispatch' && (inputs.profile == 'pure-ble' || inputs.profile == 'pure-ble-usb-pnp') && github.ref == 'refs/heads/codex/cross-platform-hid-20261026' && github.repository == 'murongqiaochu-hub/zmk-config-9981-pro'
     needs: regression
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -53,12 +53,19 @@ jobs:
           GIT_CONFIG_COUNT: '1'
           GIT_CONFIG_KEY_0: safe.directory
           GIT_CONFIG_VALUE_0: ${{ github.workspace }}
+          DIAGNOSTIC_PROFILE: ${{ inputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
           stage="${RUNNER_TEMP:?}/pure-stage-${GITHUB_RUN_ID:?}"
           build="${RUNNER_TEMP:?}/pure-build-${GITHUB_RUN_ID:?}"
-          python3 -B tools/stage_pure_gamepad.py --out "$stage" --accept-ble-keymouse-disabled
+          args=()
+          case "$DIAGNOSTIC_PROFILE" in
+            pure-ble) ;;
+            pure-ble-usb-pnp) args=(--experiment-usb-pnp-source --accept-pnp-source-change) ;;
+            *) echo 'Unexpected profile' >&2; exit 1 ;;
+          esac
+          python3 -B tools/stage_pure_gamepad.py --out "$stage" --accept-ble-keymouse-disabled "${args[@]}"
           printf 'PURE_STAGE=%s\nPURE_BUILD=%s\n' "$stage" "$build" >> "$GITHUB_ENV"
           # Match the official config-as-manifest layout without changing the checkout.
           git -C "$stage" init
@@ -81,10 +88,18 @@ jobs:
           set -euo pipefail
           west build -s zmk/app -d "$PURE_BUILD" -b bbp9981 -- -DZMK_CONFIG="$PURE_STAGE/config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
       - name: Verify final ARM iterable service table and UF2 provenance
+        env:
+          DIAGNOSTIC_PROFILE: ${{ inputs.profile }}
         shell: bash
         run: |
           set -euo pipefail
-          python3 -B tools/verify_pure_candidate.py --build "$PURE_BUILD" --stage "$PURE_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$PURE_BUILD/pure-validation.json"
+          args=()
+          case "$DIAGNOSTIC_PROFILE" in
+            pure-ble) ;;
+            pure-ble-usb-pnp) args=(--experiment-usb-pnp-source) ;;
+            *) echo 'Unexpected profile' >&2; exit 1 ;;
+          esac
+          python3 -B tools/verify_pure_candidate.py --build "$PURE_BUILD" --stage "$PURE_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$PURE_BUILD/pure-validation.json" "${args[@]}"
       - name: Retain diagnostics even if compilation or validation fails
         if: always()
         uses: actions/upload-artifact@v4

@@ -13,6 +13,9 @@ from verify_firmware import validate_uf2
 MAP_SHA='4317e34b66d9c247b0fb12327516c38c74deea04619db54a05cf190444482a3f'
 UUIDS=[0x2800,0x2803,0x2a4e,0x2803,0x2a4a,0x2803,0x2a4b,
        0x2803,0x2a4d,0x2902,0x2908,0x2803,0x2a4d,0x2908,0x2803,0x2a4c]
+BOARD='config/boards/arm/bbp9981/'
+BASE_CHANGES={BOARD+'cmake/tap_extensions.cmake',BOARD+'cmake/gamepad.cmake'}
+PNP_CONFIG='config/bbp9981.conf'
 
 def require(condition,message):
     if not condition:
@@ -115,6 +118,54 @@ def check_elf(image):
                 report_map_sha256=MAP_SHA,input_id=3,descriptor_input_bytes=10,output_id=5,
                 descriptor_output_bytes=4,live_report_lengths_verified=False)
 
+def check_profile(manifest, experiment):
+    expected=BASE_CHANGES | ({PNP_CONFIG} if experiment else set())
+    changes=[entry['path'] for entry in manifest['modified_config']]
+    require(len(changes)==len(expected) and set(changes)==expected,'unexpected staged config changes')
+    require(manifest.get('identity_changed') is experiment,'PnP identity profile mismatch')
+    require(manifest.get('usb_changed') is False and manifest.get('keymap_changed') is False,'USB or keymap change not permitted')
+    require(manifest.get('bluetooth_keyboard_mouse') is False,'candidate BLE keyboard/mouse must be disabled')
+    if experiment:
+        require(manifest.get('experimental_pnp_vendor_source')==2,'missing explicit PnP source 2 experiment')
+    else:
+        require('experimental_pnp_vendor_source' not in manifest,'experimental PnP profile requires explicit verifier flag')
+
+
+def check_pnp(image, config, expected_source):
+    require(expected_source in (1,2),'unsupported PnP vendor source')
+    lines=config.splitlines()
+    def value(key):
+        matches=[line.split('=',1)[1] for line in lines if line.startswith(key+'=')]
+        require(len(matches)==1,'expected one config setting: '+key)
+        return matches[0]
+    require(value('CONFIG_BT_DIS_PNP')=='y','PnP service disabled')
+    for name,expected in [('CONFIG_BT_DIS_PNP_VID_SRC',expected_source),('CONFIG_BT_DIS_PNP_VID',0x1d50),
+                          ('CONFIG_BT_DIS_PNP_PID',0x615e),('CONFIG_BT_DIS_PNP_VER',1),
+                          ('CONFIG_USB_DEVICE_VID',0x1d50),('CONFIG_USB_DEVICE_PID',0x615e)]:
+        require(int(value(name),0)==expected,'unexpected config: '+name)
+    start=image.address('_bt_gatt_service_static_list_start');end=image.address('_bt_gatt_service_static_list_end')
+    require(end>start and (end-start)%8==0,'invalid GATT iterable boundaries')
+    found=[]
+    for pos in range(start,end,8):
+        attrs,count=struct.unpack('<II',image.read(pos,8));require(0<count<1024,'invalid service count')
+        first=image.attr(attrs)
+        if first['uuid']==0x2800 and image.uuid16(first['user'])==0x180a:
+            found.append((pos,attrs,count))
+    require(len(found)==1,'expected one registered Device Information service')
+    position,attrs,count=found[0]
+    require(position==image.address('dis_svc'),'unexpected Device Information service')
+    refs=[image.attr(attrs+i*20) for i in range(count)]
+    pnp=[attr for attr in refs if attr['uuid']==0x2a50]
+    require(len(pnp)==1,'expected one PnP ID characteristic')
+    symbol=image.symbol('dis_pnp_id')
+    require(symbol['st_size']==7 and pnp[0]['user']==symbol['st_value'],'PnP object reference mismatch')
+    require(pnp[0]['read']&~1==image.address('read_pnp_id')&~1,'wrong PnP read callback')
+    expected=struct.pack('<BHHH',expected_source,0x1d50,0x615e,1)
+    require(image.read(symbol['st_value'],7)==expected,'compiled PnP bytes do not match experiment')
+    return dict(vendor_source=expected_source,vendor_id='0x1d50',product_id='0x615e',version=1,
+                raw_hex=expected.hex(),source_changed=(expected_source==2),live_device_verified=False)
+
+
 def check_commands(entries):
     result={}
     for name in ['hog.c','pure_runtime.c','gamepad_runtime.c']:
@@ -152,12 +203,14 @@ def main():
     parser.add_argument('--commit',required=True)
     parser.add_argument('--run-id',type=int,required=True)
     parser.add_argument('--out',type=Path,required=True)
+    parser.add_argument('--experiment-usb-pnp-source',action='store_true',help='verify explicitly staged source-2 identity experiment; not the baseline')
     args=parser.parse_args()
     from elftools.elf.elffile import ELFFile
     require(len(args.commit)==40 and all(c in '0123456789abcdef' for c in args.commit) and args.run_id>0,'invalid provenance')
     manifest=json.loads((args.stage/'CANDIDATE.json').read_text())
     require(manifest['source_commit']==args.commit and not manifest['source_dirty'],'stage source provenance mismatch')
     require(manifest['report_map_sha256']==MAP_SHA,'manifest map mismatch')
+    check_profile(manifest,args.experiment_usb_pnp_source)
     for name,metadata in manifest['files'].items():
         require(hashlib.sha256((args.stage/name).read_bytes()).hexdigest()==metadata['sha256'],'staged file changed: '+name)
     zephyr=args.build/'zephyr'
@@ -168,9 +221,10 @@ def main():
     with (zephyr/'zmk.elf').open('rb') as stream:
         image=Image(ELFFile(stream))
         structure=check_elf(image)
+        pnp=check_pnp(image,config,2 if args.experiment_usb_pnp_source else 1)
     uf2=check_uf2_matches(image,(zephyr/'zmk.uf2').read_bytes())
     result=dict(source_commit=args.commit,source_run=args.run_id,device_tested=False,
-                bluetooth_keyboard_mouse=False,compiled_sources=commands,elf=structure,uf2=uf2)
+                bluetooth_keyboard_mouse=False,compiled_sources=commands,elf=structure,pnp=pnp,uf2=uf2)
     args.out.parent.mkdir(parents=True,exist_ok=True)
     with args.out.open('x') as output:
         json.dump(result,output,indent=2);output.write('\n')

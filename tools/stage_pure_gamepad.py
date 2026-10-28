@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Create a NEW, isolated diagnostic source profile; never build, push or flash.
 The normal config is untouched. BLE keyboard/mouse are explicitly disabled in
-this staged profile; USB, keys, settings, identity and physical board stay fixed.
+this staged profile; USB, keys, settings and physical board stay fixed. An optional
+explicit experiment changes only BLE PnP vendor-source identity metadata.
 """
 from pathlib import Path
 import argparse
@@ -14,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BOARD = 'config/boards/arm/bbp9981'
 TAP = BOARD + '/cmake/tap_extensions.cmake'
 GAMEPAD = BOARD + '/cmake/gamepad.cmake'
+BOARD_CONFIG = 'config/bbp9981.conf'
+PNP_SOURCE_LINE = b'CONFIG_BT_DIS_PNP_VID_SRC=2\n'
 OLD_PREFIX = '"-include" "${CMAKE_CURRENT_SOURCE_DIR}/custom_driver/trackpad_hog_snapshot.h"'
 NEW_PREFIX = '"-include" "${CMAKE_CURRENT_SOURCE_DIR}/../../../../experiments/gamepad_protocol/pure_hog_guard.h"'
 OLD_BLE = '''        # AFTER the existing mouse snapshot prefix. Tail attrs keep5/9/13.
@@ -43,7 +46,7 @@ def descriptor_digest(source):
         raise ValueError('descriptor changed: re-review before staging')
     return value
 
-def stage(out):
+def stage(out, *, experiment_usb_pnp_source=False):
     requested = Path(out).expanduser().absolute()
     if requested.is_symlink():
         raise ValueError('output itself must not be a symlink')
@@ -69,6 +72,13 @@ def stage(out):
         TAP: tap.replace(OLD_PREFIX, NEW_PREFIX).encode('utf-8'),
         GAMEPAD: (PRECONDITION + gamepad.replace(OLD_BLE, NEW_BLE)).encode('utf-8'),
     }
+    if experiment_usb_pnp_source:
+        config = sources[BOARD_CONFIG]
+        if re.search(rb'(?m)^\s*(?:#\s*)?CONFIG_BT_DIS_PNP_VID_SRC(?:\s*=|\s+is\s+not\s+set)', config):
+            raise ValueError('PnP source already customized: refuse to override')
+        if not config.endswith(b'\n'):
+            raise ValueError('board config must end with newline')
+        modified[BOARD_CONFIG] = config + b'\n# Isolated experiment: interpret the existing ZMK VID in the USB namespace.\n' + PNP_SOURCE_LINE
     commit = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     dirty = bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT))
     print('Resolved NEW diagnostic stage:', target, flush=True)
@@ -76,9 +86,11 @@ def stage(out):
     manifest = dict(schema=1, source_commit=commit, source_dirty=dirty,
                     build_performed=False, flashed=False, hardware_verified=False,
                     bluetooth_keyboard_mouse=False, bluetooth_gamepad='experimental',
-                    usb_changed=False, identity_changed=False, keymap_changed=False,
+                    usb_changed=False, identity_changed=experiment_usb_pnp_source, keymap_changed=False,
                     report_map_sha256=map_sha,
                     modified_config=[], files={})
+    if experiment_usb_pnp_source:
+        manifest['experimental_pnp_vendor_source'] = 2
     for name, original in sources.items():
         data = modified.get(name, original)
         dest = target/name
@@ -95,9 +107,10 @@ def stage(out):
     with (target/'CANDIDATE.json').open('x') as file:
         json.dump(manifest,file,indent=2,ensure_ascii=False);file.write('\n')
     with (target/'README_CANDIDATE.md').open('x') as file:
-        file.write('''# DIAGNOSTIC SOURCE PROFILE — NOT A FLASHABLE DELIVERY
-
-BLE presents only the experimental Game Pad. BLE keyboard, consumer and mouse
+        file.write('# DIAGNOSTIC SOURCE PROFILE — NOT A FLASHABLE DELIVERY\n\n')
+        if experiment_usb_pnp_source:
+            file.write('EXPERIMENT: BLE PnP Vendor ID Source is set to 2 (USB-IF), an identity-metadata change; the existing ZMK VID/PID are not changed. Unbuilt and untested on devices; Apple compatibility is unknown.\n\n')
+        file.write('''BLE presents only the experimental Game Pad. BLE keyboard, consumer and mouse
 entrypoints fail closed with ENOTSUP. USB and physical key mappings are unchanged.
 Select the existing BLE endpoint and MEDIA layer using the existing controls.
 No runtime personality switch, third-party VID/PID, bond deletion or settings
@@ -109,7 +122,8 @@ Before any release, verify the actual ELF iterable-service table, ARM ABI,
 compiled DTS/config, UF2 identity, manuals, and all host/device acceptance gates.
 
 Generating this directory performs NO build, upload, Actions, pairing or flash.
-CANDIDATE.json records hashes and exactly two mechanical CMake substitutions.
+CANDIDATE.json records file hashes and all mechanical substitutions; the optional
+PnP experiment adds one isolated board-config assignment.
 Parent research and limitations: experiments/gamepad_protocol/README.md.
 ''')
     return manifest
@@ -118,10 +132,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',required=True)
     parser.add_argument('--accept-ble-keymouse-disabled',action='store_true')
+    parser.add_argument('--experiment-usb-pnp-source',action='store_true',help='isolated experiment: use existing ZMK VID/PID in USB vendor namespace')
+    parser.add_argument('--accept-pnp-source-change',action='store_true',help='acknowledge changed BLE PnP identity metadata')
     args = parser.parse_args()
     if not args.accept_ble_keymouse_disabled:
         parser.error('explicit --accept-ble-keymouse-disabled is required; this is NOT the normal profile')
-    stage(args.out)
+    if args.experiment_usb_pnp_source != args.accept_pnp_source_change:
+        parser.error('PnP experiment requires BOTH --experiment-usb-pnp-source and --accept-pnp-source-change')
+    stage(args.out, experiment_usb_pnp_source=args.experiment_usb_pnp_source)
 
 if __name__ == '__main__':
     main()
