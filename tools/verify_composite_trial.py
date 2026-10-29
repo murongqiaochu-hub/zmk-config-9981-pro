@@ -105,10 +105,18 @@ def check_elf(image, max_connections):
     changed,write,match=struct.unpack('<III',image.read(fields[27]['user']+callbacks_offset,12))
     pointer(changed,'bbp_candidate_ccc_changed');pointer(write,'bbp_candidate_ccc_write')
     require(match==0,'unexpected cfg_match')
-    stock=image.symbol('zmk_hid_report_desc');pure=image.symbol('bbp_exp_report_map')
-    require(stock['st_size']==196 and pure['st_size']==182,'wrong compiled descriptor input sizes')
-    stock_bytes=image.read(stock['st_value'],196);pure_bytes=image.read(pure['st_value'],182)
-    require(hashlib.sha256(stock_bytes).hexdigest()==STOCK_SHA,'stock descriptor changed')
+    # The fixed HID header defines a static const object. USB HID and HOG each
+    # retain a legal local symbol of this name; do not demand global uniqueness
+    # or pick one copy and silently ignore corruption of the other.
+    stocks=image.symbols.get('zmk_hid_report_desc',[])
+    require(bool(stocks),'missing compiled stock descriptor')
+    for stock in stocks:
+        require(stock['st_size']==196,'wrong compiled stock descriptor size')
+        stock_bytes=image.read(stock['st_value'],196)
+        require(hashlib.sha256(stock_bytes).hexdigest()==STOCK_SHA,'stock descriptor changed')
+    pure=image.symbol('bbp_exp_report_map')
+    require(pure['st_size']==182,'wrong compiled pure descriptor size')
+    pure_bytes=image.read(pure['st_value'],182)
     require(hashlib.sha256(pure_bytes).hexdigest()==PURE_SHA,'pure descriptor changed')
     virtual=stock_bytes+pure_bytes[:7]+b'\x04\x15\0'+pure_bytes[8:]
     for name in ['bbp_candidate_attr_read','bbp_gamepad_ble_send','bbp_trial_connection_reset',
@@ -124,7 +132,8 @@ def check_elf(image, max_connections):
                 virtual_map_sha256=hashlib.sha256(virtual).hexdigest(),
                 input_id=4,descriptor_input_bytes=10,output_id=5,descriptor_output_bytes=4,
                 live_report_lengths_verified=False,live_map_read_verified=False,
-                standard_ccc_write=True,lifecycle_iterable_verified=True)
+                standard_ccc_write=True,lifecycle_iterable_verified=True,
+                stock_descriptor_copies_verified=len(stocks))
 
 
 def check_commands(entries, stage=None):

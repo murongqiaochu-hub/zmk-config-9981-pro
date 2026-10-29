@@ -54,6 +54,33 @@ def main():
         reused=subprocess.run([cmake_bin,'-P',str(script)],cwd=ROOT,text=True,capture_output=True)
         assert reused.returncode!=0 and 'NEW build directory and fresh configure' in reused.stderr
         assert 'bbp-composite-trial-configured' in (target/trial.BOARD_CMAKE).read_text()
+        # Real CMake property regression: Zephyr already tracks the absolute
+        # .conf/keymap paths. The original ../ lock spelling produced duplicate
+        # Ninja regeneration outputs. Keep a failing alias control, without
+        # configuring firmware or weakening the content hash checks.
+        locked={name:(target/name).read_bytes() for name in trial.LOCKED_SOURCE}
+        guard=trial.locked_source_guard(locked)
+        original_alias=guard.replace('get_filename_component(_composite_source_path ',
+                                     'set(_composite_source_path ').replace(' ABSOLUTE)',')')
+        for label,content,expect_alias in [('old-alias',original_alias,True),('normalized',guard,False)]:
+            deps=Path(temp)/(label+'.deps')
+            dependency_script=Path(temp)/(label+'.cmake')
+            dependency_script.write_text('set(CMAKE_CURRENT_SOURCE_DIR "'+str(target/trial.BOARD)+'")\n'+
+                'set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "'+str(target/'config/bbp9981.conf')+'" "'+str(target/'config/bbp9981.keymap')+'")\n'+
+                content+'get_property(deps DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS)\n'+
+                'file(WRITE "'+str(deps)+'" "${deps}")\n')
+            checked=subprocess.run([cmake_bin,'-P',str(dependency_script)],cwd=ROOT,text=True,capture_output=True)
+            assert checked.returncode==0,checked.stdout+checked.stderr
+            paths=set(deps.read_text().split(';'))
+            resolved={str(Path(path).resolve()) for path in paths}
+            assert (len(paths)!=len(resolved))==expect_alias,(label,paths)
+            if not expect_alias: assert all('/../' not in path for path in paths)
+        # Normalization must not turn the hash guard into a merely structural check.
+        changed=target/'config/bbp9981.conf';before=changed.read_bytes()
+        changed.write_bytes(before+b'\n# tampered trial input\n')
+        mismatch=subprocess.run([cmake_bin,'-P',str(dependency_script)],cwd=ROOT,text=True,capture_output=True)
+        assert mismatch.returncode!=0 and 'Composite staged source changed' in mismatch.stderr
+        changed.write_bytes(before)
         assert (target/trial.TAP).read_bytes()==(ROOT/trial.TAP).read_bytes()
         for path in ['config/bbp9981.conf','config/bbp9981.keymap',trial.BOARD+'/bbp9981.keymap']:
             assert (target/path).read_bytes()==(ROOT/path).read_bytes()

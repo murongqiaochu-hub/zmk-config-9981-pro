@@ -65,6 +65,20 @@ def main():
     reject(lambda:check_standard(config,dts.replace('&cursor_speed','&none')))
     reject(lambda:check_config(config+'CONFIG_BT_EATT=y\n'))
     image,_,_=fixture();assert check_elf(image,2)['hids_attributes']==29
+    # Fixed zmk/hid.h is static const: USB and HOG retain local same-name copies.
+    # All copies must be checked, not just whichever comes first in .symtab.
+    image,data,_=fixture()
+    data[0x1700:0x1700+196]=data[0x1200:0x1200+196]
+    image.symbols['zmk_hid_report_desc'].append(dict(st_value=0x2700,st_size=196))
+    assert check_elf(image,2)['stock_descriptor_copies_verified']==2
+    for index in (0,1):
+        bad=copy.deepcopy(image);at=bad.symbols['zmk_hid_report_desc'][index]['st_value']-0x1000
+        bad.segments[0][1][at]^=1
+        reject(lambda:check_elf(bad,2))
+    bad=copy.deepcopy(image);bad.symbols['zmk_hid_report_desc'][1]['st_size']=195
+    reject(lambda:check_elf(bad,2))
+    bad=copy.deepcopy(image);bad.symbols.pop('zmk_hid_report_desc')
+    reject(lambda:check_elf(bad,2))
     for mode in ['two_hid','count','uuid','ref','stock','pure','ccc_wrapper','cfg_write','cfg_match','connected','iterable','led','properties','map_callback']:
         image,data,put=fixture()
         if mode=='two_hid':
@@ -93,5 +107,5 @@ def main():
     bad=copy.deepcopy(entries);bad[1]['arguments'].append('-DBBP9981_COMPOSITE_DEVICE_TRIAL=1');reject(lambda:check_commands(bad))
     bad=copy.deepcopy(entries);bad.append(dict(file='/trial/other.c',arguments=['cc','-DBBP9981_COMPOSITE_DEVICE_TRIAL=1']));reject(lambda:check_commands(bad))
     bad=copy.deepcopy(entries);bad[0]['arguments'].append('-DBBP9981_COMPOSITE_DEVICE_TRIAL_LIFECYCLE=1');reject(lambda:check_commands(bad))
-    print('PASS 14 malformed ELF layouts and 7 compile-command negatives; synthetic only')
+    print('PASS duplicate local stock descriptors, 18 malformed ELF layouts and 7 compile-command negatives; synthetic only')
 if __name__=='__main__': main()

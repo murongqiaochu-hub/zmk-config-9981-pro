@@ -177,10 +177,15 @@ def locked_source_guard(sources):
         if name not in sources or not re.fullmatch(r'[A-Za-z0-9_./-]+', name) or '..' in Path(name).parts:
             raise ValueError('candidate source lock is incomplete: ' + name)
         path = '${CMAKE_CURRENT_SOURCE_DIR}/../../../../' + name
-        lines.extend([f'if(NOT EXISTS "{path}")',
+        # Zephyr already tracks .conf/keymap inputs by absolute path. Passing a
+        # second ../ spelling creates duplicate Ninja regeneration outputs even
+        # though both entries name the same file. Normalize before registering;
+        # retain the exact same content hash and configure-time checks.
+        lines.extend([f'get_filename_component(_composite_source_path "{path}" ABSOLUTE)',
+                      'if(NOT EXISTS "${_composite_source_path}")',
                       f'    message(FATAL_ERROR "Composite staged source missing: {name}")',
-                      'endif()', f'set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "{path}")',
-                      f'file(SHA256 "{path}" _composite_source_sha)',
+                      'endif()', 'set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_composite_source_path}")',
+                      'file(SHA256 "${_composite_source_path}" _composite_source_sha)',
                       f'if(NOT _composite_source_sha STREQUAL "{digest(sources[name])}")',
                       f'    message(FATAL_ERROR "Composite staged source changed: {name}")', 'endif()'])
     return '\n'.join(lines) + '\n'
