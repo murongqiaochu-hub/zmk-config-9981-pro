@@ -7,7 +7,7 @@ on:
       profile:
         description: Explicit profile (both pure BLE profiles disable Bluetooth keyboard/mouse; usb-pnp changes BLE identity metadata)
         type: choice
-        options: [standard, pure-ble, pure-ble-usb-pnp]
+        options: [standard, pure-ble, pure-ble-usb-pnp, ble-composite-trial]
         default: standard
         required: true
 permissions:
@@ -27,7 +27,7 @@ jobs:
       - name: Compile real drivers with host mocks and run regressions
         run: python3 tests/run_host_tests.py
   build:
-    if: github.event_name != 'workflow_dispatch' || (inputs.profile != 'pure-ble' && inputs.profile != 'pure-ble-usb-pnp')
+    if: (github.event_name == 'workflow_dispatch' && inputs.profile == 'standard') || (github.event_name == 'push' && github.ref != 'refs/heads/codex/composite-device-trial-20261030') || (github.event_name == 'pull_request' && github.head_ref != 'codex/composite-device-trial-20261030' && github.base_ref != 'codex/composite-device-trial-20261030')
     needs: regression
     uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
   pure_candidate:
@@ -119,6 +119,79 @@ jobs:
             ${{ env.PURE_BUILD }}/pure-validation.json
             ${{ env.PURE_STAGE }}/CANDIDATE.json
             docs/9981Pro_纯BLE诊断候选说明.md
+  composite_trial:
+    if: github.event_name == 'workflow_dispatch' && inputs.profile == 'ble-composite-trial' && github.ref == 'refs/heads/codex/composite-device-trial-20261030' && github.repository == 'murongqiaochu-hub/zmk-config-9981-pro'
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Stage explicit reviewed composite device trial
+        env:
+          GIT_CONFIG_COUNT: '1'
+          GIT_CONFIG_KEY_0: safe.directory
+          GIT_CONFIG_VALUE_0: ${{ github.workspace }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP:?}/composite-stage-${GITHUB_RUN_ID:?}"
+          build="${RUNNER_TEMP:?}/composite-build-${GITHUB_RUN_ID:?}"
+          test ! -e "$build"
+          python3 -B tools/stage_composite_trial.py --out "$stage" --accept-experimental-device-trial --acknowledge-hid-database-change
+          printf 'COMPOSITE_STAGE=%s\nCOMPOSITE_BUILD=%s\n' "$stage" "$build" >> "$GITHUB_ENV"
+          git -C "$stage" init
+          git -C "$stage" add config experiments CANDIDATE.json README_CANDIDATE.md
+          git -C "$stage" -c user.name='Diagnostic source staging' -c user.email='staging@invalid' commit -m 'Local composite trial snapshot; never pushed'
+      - name: Initialize pinned SDK and modules
+        working-directory: ${{ env.COMPOSITE_STAGE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          west init -l "$COMPOSITE_STAGE/config"
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+          test "$(git -C zmk rev-parse HEAD)" = edf5c0814fd3ea202e43aad2d68fd32e882a518c
+          test "$(git -C zephyr rev-parse HEAD)" = dacab4875df72109b96cc8977547a0dc04875bcd
+      - name: Fresh ARM build of isolated composite trial
+        working-directory: ${{ env.COMPOSITE_STAGE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$COMPOSITE_BUILD"
+          west build -s zmk/app -d "$COMPOSITE_BUILD" -b bbp9981 -- -DZMK_CONFIG="$COMPOSITE_STAGE/config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Verify composite ARM ELF and UF2 provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tools/verify_composite_trial.py --build "$COMPOSITE_BUILD" --stage "$COMPOSITE_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$COMPOSITE_BUILD/composite-validation.json"
+      - name: Retain unapproved diagnostic artifacts even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ble-composite-trial-diagnostic-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
+          path: |
+            ${{ env.COMPOSITE_BUILD }}/zephyr/zmk.elf
+            ${{ env.COMPOSITE_BUILD }}/zephyr/zmk.uf2
+            ${{ env.COMPOSITE_BUILD }}/zephyr/zmk.map
+            ${{ env.COMPOSITE_BUILD }}/zephyr/.config
+            ${{ env.COMPOSITE_BUILD }}/zephyr/zephyr.dts
+            ${{ env.COMPOSITE_BUILD }}/compile_commands.json
+            ${{ env.COMPOSITE_BUILD }}/CMakeCache.txt
+            ${{ env.COMPOSITE_BUILD }}/bbp-composite-trial-configured
+            ${{ env.COMPOSITE_BUILD }}/composite-validation.json
+            ${{ env.COMPOSITE_STAGE }}/CANDIDATE.json
   failure_context:
     if: always() && (needs.regression.result == 'failure' || needs.build.result == 'failure')
     needs: [regression, build]

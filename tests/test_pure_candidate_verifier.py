@@ -149,8 +149,10 @@ def main():
     bad=bytearray(uf2);bad[33]^=1;reject(lambda:check_uf2_matches(image,bad))
     image.flash=[(0x1000,bytes(data[:-256]))];reject(lambda:check_uf2_matches(image,uf2))
     workflow=(ROOT/'.github/workflows/main.yml').read_text()
-    assert 'options: [standard, pure-ble, pure-ble-usb-pnp]' in workflow
-    assert "(inputs.profile != 'pure-ble' && inputs.profile != 'pure-ble-usb-pnp')" in workflow
+    assert 'options: [standard, pure-ble, pure-ble-usb-pnp, ble-composite-trial]' in workflow
+    # The added manual trial is not a second implicit standard ARM build.
+    assert "github.event_name == 'workflow_dispatch' && inputs.profile == 'standard'" in workflow
+    assert "github.ref != 'refs/heads/codex/composite-device-trial-20261030'" in workflow
     assert "(inputs.profile == 'pure-ble' || inputs.profile == 'pure-ble-usb-pnp')" in workflow
     assert "github.ref == 'refs/heads/codex/cross-platform-hid-20261026'" in workflow
     assert "github.repository == 'murongqiaochu-hub/zmk-config-9981-pro'" in workflow

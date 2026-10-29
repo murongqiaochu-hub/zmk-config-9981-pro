@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "run_id": 39743108339,
+  "build_commit": "e2c4966136b5e6af5db795c6c46048672758ba30",
+  "functional_source_commit": "048201f8caeedeb729df3ca22aa2186c50aea476",
+  "config_values": 1170,
+  "archive_sha256": "1cde07551013447b808943714a5dda608e1fe02da83e8b58ae493b92767a29f5",
+  "archive_member": "build _ Build (bbp9981)/12_bbp9981 Kconfig file.txt",
+  "archive_member_sha256": "c8f817d2e36b88d98e29df429f45cbe159fa93017e17773b0590447c1ab2bc5b",
+  "config_sha256": "51e29321a412aaa8ce1d27e108fd2fdd030daa2e61cd6ffe120bfeb0190f0ce4",
+  "dts_sha256": "77d47ac09693cfafe1f9c69717e5cd520341cbea59d5daf015eaac82cf007f99",
+  "source_directory": "/vol1/1000/projects/output/26w43/1022/144323_9981Pro速度记忆与手柄呼吸灯_v2.3.3",
+  "device_tested": false
+}

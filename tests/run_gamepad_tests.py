@@ -167,6 +167,12 @@ def main():
     run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_candidate_runtime.py')])
     run([os.sys.executable, '-B', str(ROOT/'tests/run_ccc_att_order_model.py')])
     run([os.sys.executable, '-B', str(ROOT/'tests/test_stage_composite_candidate.py')])
+    # Explicit device-trial adapters stay separate from the frozen old candidate.
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_ble_trial.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/run_composite_trial_runtime.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_stage_composite_trial.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_composite_trial_verifier.py')])
+    run([os.sys.executable, '-B', str(ROOT/'tests/test_composite_trial_workflow.py')])
     pure_transport = build('test_gamepad_pure_transport', ['tests/gamepad_ble_mocks'])
     run([str(pure_transport)])
     aggregate_only = subprocess.run([str(pure_transport), '--aggregate-only'],
