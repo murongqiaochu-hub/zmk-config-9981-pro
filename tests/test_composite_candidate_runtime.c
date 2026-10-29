@@ -191,6 +191,41 @@ static bool is_pad_neutral(const struct notification *r) {
     return r->attr==&hog_svc.attrs[VALUE] && r->len==10 && !memcmp(r->data,neutral,10);
 }
 static void real_allow_two(void) { assert(write_ccc(0,1,2)==2 && write_ccc(1,1,2)==2); }
+static void test_actual_action_to_ble_wire(void) {
+    static const uint8_t hat[BBP_GAMEPAD_ACTION_COUNT] = {
+        0,4,6,2,15,15,15,15,15,15,15,15,15,15,15,15,15,15,15,
+    };
+    /* Independent protocol oracle: A/B/X/Y, shoulders, digital trigger bits,
+     * View/Menu/Guide, L3/R3. */
+    static const uint8_t buttons[BBP_GAMEPAD_ACTION_COUNT][2] = {
+        {0,0},{0,0},{0,0},{0,0},{0,0x40},{0,0x20},{0,0x10},{0,0x08},
+        {0,0x04},{0,0x02},{4,0},{8,0},{64,0},{32,0},{16,0},{0,1},{128,0},
+        {0,0},{0,1},
+    };
+    /* Decode the 10-byte body as dpad, button bits, four centered axes, LT/RT.
+     * The extra final byte is reserved and must remain zero. */
+    for (unsigned int action=0; action<BBP_GAMEPAD_ACTION_COUNT; ++action) {
+        uint8_t want[10]={hat[action],buttons[action][0],buttons[action][1],128,128,128,128,0,0,0};
+        if (action==BBP_GP_LT) { want[7]=255; }
+        if (action==BBP_GP_RT) { want[8]=255; }
+        runtime_setup(); real_allow_two();
+        key(action,action,true); pump_once(0);
+        assert(sent_count==2 && is_pad_neutral(&sent[0]));
+        assert(sent[1].conn==&peer[0] && sent[1].len==10 && !memcmp(sent[1].data,want,10));
+        key(action,action,false); pump_once(0);
+        assert(sent_count==3 && is_pad_neutral(&sent[2]));
+        runtime_balanced();
+    }
+    /* Right-stick modifier changes only which axis pair carries sensor motion;
+     * the descriptor remains a single gamepad report. */
+    runtime_setup(); real_allow_two(); key(17,BBP_GP_RIGHT_STICK_MOD,true); pump_once(0);
+    bbp_gamepad_trackpad_poll(40,-20,true,runtime_now); pump_once(0);
+    assert(sent_count==3 && sent[2].data[3]==128 && sent[2].data[4]==128 &&
+           (sent[2].data[5]!=128 || sent[2].data[6]!=128));
+    key(17,BBP_GP_RIGHT_STICK_MOD,false); pump_once(0);
+    assert(sent_count==4 && is_pad_neutral(&sent[3]));
+    runtime_balanced();
+}
 static void test_actual_runtime_fifo(void) {
     runtime_setup();
     assert(fixture_fake_context_epoch()==10 && bbp_gamepad_context_epoch()==1);
@@ -310,7 +345,7 @@ static void test_actual_runtime_precommit_counterexample(void) {
 int main(void) {
     assert(bbp_candidate_map_valid());
 #define RUN(fn) do { fn(); puts("PASS " #fn); } while(0)
-    RUN(test_actual_runtime_fifo); RUN(test_actual_switch_and_usb); RUN(test_actual_ccc_and_disconnect);
+    RUN(test_actual_action_to_ble_wire); RUN(test_actual_runtime_fifo); RUN(test_actual_switch_and_usb); RUN(test_actual_ccc_and_disconnect);
     RUN(test_sdk_einval_discards_old_release); RUN(test_actual_fifo_overflow); RUN(test_actual_other_peer_ccc_stales_queue);
     RUN(test_actual_worker_postgate_event); RUN(test_actual_runtime_precommit_counterexample);
     puts("LIMIT actual runtime+candidate+fixed HOG, but mocked scheduling/CCC/ATT/USB; no Zephyr concurrency, host ACK, ARM or device proof");
