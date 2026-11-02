@@ -12,12 +12,15 @@
 #include <zmk/endpoints.h>
 #include "gamepad_runtime.h"
 
-static const uint8_t bbp_gamepad_ble_descriptor[] = {BBP_GAMEPAD_DESCRIPTOR_BYTES};
-_Static_assert(sizeof(bbp_gamepad_ble_descriptor) == 141U, "Independent Game Pad Map");
-_Static_assert(sizeof(struct bbp_gamepad_report_body) == 9U, "BLE body excludes Report ID");
+#include "gamepad_android_report.h"
+#define bbp_gamepad_ble_descriptor bbp_android_report_map
+_Static_assert(sizeof(bbp_gamepad_ble_descriptor) == 184U, "Independent Android candidate Map");
+_Static_assert(BBP_GAMEPAD_REPORT_ID == BBP_ANDROID_INPUT_ID, "Keep isolated input ID4");
+_Static_assert(sizeof(struct bbp_gamepad_report_body) == 9U, "Internal and USB ABI unchanged");
 /* bcdHID=1.11, country=0, normally connectable; NOT remote wake capable. */
 static const uint8_t bbp_gamepad_ble_hid_info[] = {0x11, 0x01, 0x00, 0x02};
-static uint8_t bbp_gamepad_ble_report_ref[] = {BBP_GAMEPAD_REPORT_ID, 0x01};
+static uint8_t bbp_gamepad_ble_report_ref[] = {BBP_ANDROID_INPUT_ID, 0x01};
+static uint8_t bbp_gamepad_ble_output_ref[] = {BBP_ANDROID_OUTPUT_ID, 0x02};
 static ATOMIC_DEFINE(bbp_gamepad_ble_suspended, CONFIG_BT_MAX_CONN);
 
 static bool bbp_gamepad_ble_connected(const struct bt_conn *conn) {
@@ -70,7 +73,9 @@ static ssize_t bbp_gamepad_ble_read_report(struct bt_conn *conn, const struct bt
             body = bbp_gamepad_neutral();
         }
     }
-    return bt_gatt_attr_read(conn, attr, buf, len, offset, &body, sizeof(body));
+    uint8_t wire[BBP_ANDROID_INPUT_SIZE];
+    (void)bbp_android_encode(&body, wire); /* Invalid state reads neutral. */
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, wire, sizeof(wire));
 }
 static ssize_t bbp_gamepad_ble_read_report_ref(struct bt_conn *conn,
                                               const struct bt_gatt_attr *attr, void *buf,
@@ -87,7 +92,8 @@ static ssize_t bbp_gamepad_ble_write_cp(struct bt_conn *conn, const struct bt_ga
                                        const void *buf, uint16_t len, uint16_t offset,
                                        uint8_t flags) {
     (void)attr;
-    (void)flags;
+    /* Atomic reports only: pinned flags PREPARE=1, CMD=2, EXECUTE=4. */
+    if (flags & (uint8_t)~0x02U) { return BT_GATT_ERR(0x06); }
     if (offset != 0U) { return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET); }
     if (len != 1U) { return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN); }
     if (!buf || *(const uint8_t *)buf > 1U) {
@@ -119,6 +125,42 @@ static void bbp_gamepad_ble_ccc_changed(const struct bt_gatt_attr *attr, uint16_
     bbp_gamepad_transport_invalidate();
 }
 
+static ssize_t bbp_gamepad_ble_read_output(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                          void *buf, uint16_t len, uint16_t offset) {
+    const uint8_t zero[BBP_ANDROID_OUTPUT_SIZE] = {0};
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, zero, sizeof(zero));
+}
+static int bbp_gamepad_ble_check_write(const void *buf, uint16_t len, uint16_t offset,
+                                      uint16_t expected, uint8_t flags) {
+    if (flags & (uint8_t)~0x02U) { return BT_GATT_ERR(0x06); }
+    if (offset) { return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET); }
+    if (len != expected) { return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN); }
+    if (!buf) { return BT_GATT_ERR(BT_ATT_ERR_UNLIKELY); }
+    return len;
+}
+static ssize_t bbp_gamepad_ble_write_output(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                           const void *buf, uint16_t len, uint16_t offset,
+                                           uint8_t flags) {
+    (void)conn; (void)attr;
+    /* No actuators and no retained per-peer output data. */
+    return bbp_gamepad_ble_check_write(buf, len, offset, BBP_ANDROID_OUTPUT_SIZE, flags);
+}
+static ssize_t bbp_gamepad_ble_read_protocol(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                            void *buf, uint16_t len, uint16_t offset) {
+    const uint8_t protocol = 1U;
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, &protocol, sizeof(protocol));
+}
+static ssize_t bbp_gamepad_ble_write_protocol(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                             const void *buf, uint16_t len, uint16_t offset,
+                                             uint8_t flags) {
+    (void)conn; (void)attr;
+    int ret = bbp_gamepad_ble_check_write(buf, len, offset, 1U, flags);
+    if (ret == 1 && *(const uint8_t *)buf != 1U) {
+        return BT_GATT_ERR(BT_ATT_ERR_VALUE_NOT_ALLOWED);
+    }
+    return ret; /* Report-only gamepad: never pretend to support Boot mode. */
+}
+
 /* Official macro, separate primary service and CCC. zz sorts after stock HOG
  * in Zephyr iterable sections; integration must check final linked ordering.
  */
@@ -135,15 +177,28 @@ BT_GATT_SERVICE_DEFINE(zz_bbp_gamepad_svc,
     BT_GATT_CCC(bbp_gamepad_ble_ccc_changed,
                 BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT),
     BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT,
-                       bbp_gamepad_ble_read_report_ref, NULL, bbp_gamepad_ble_report_ref)
+                       bbp_gamepad_ble_read_report_ref, NULL, bbp_gamepad_ble_report_ref),
+    /* Append only: keep the original input value/CCC/reference at 8/9/10. */
+    BT_GATT_CHARACTERISTIC(BT_UUID_HIDS_REPORT,
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+                           BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT,
+                           bbp_gamepad_ble_read_output, bbp_gamepad_ble_write_output, NULL),
+    BT_GATT_DESCRIPTOR(BT_UUID_HIDS_REPORT_REF, BT_GATT_PERM_READ_ENCRYPT,
+                       bbp_gamepad_ble_read_report_ref, NULL, bbp_gamepad_ble_output_ref),
+    BT_GATT_CHARACTERISTIC(BT_UUID_DECLARE_16(0x2a4e),
+                           BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+                           BT_GATT_PERM_READ_ENCRYPT | BT_GATT_PERM_WRITE_ENCRYPT,
+                           bbp_gamepad_ble_read_protocol, bbp_gamepad_ble_write_protocol, NULL)
 );
 
 static const struct bt_gatt_attr *
 bbp_gamepad_ble_value_attr(const struct bt_gatt_service_static *service) {
-    if (!service || !service->attrs || service->attr_count < 4U) { return NULL; }
-    const struct bt_gatt_attr *value = &service->attrs[service->attr_count - 3U];
-    const struct bt_gatt_attr *ref = &service->attrs[service->attr_count - 1U];
-    if (value->read != bbp_gamepad_ble_read_report ||
+    if (!service || !service->attrs || service->attr_count != 16U) { return NULL; }
+    const struct bt_gatt_attr *value = &service->attrs[8];
+    const struct bt_gatt_attr *ref = &service->attrs[10];
+    if (bt_uuid_cmp(value->uuid, BT_UUID_HIDS_REPORT) ||
+        bt_uuid_cmp(ref->uuid, BT_UUID_HIDS_REPORT_REF) ||
+        value->read != bbp_gamepad_ble_read_report ||
         !(value->perm & BT_GATT_PERM_READ_ENCRYPT) ||
         ref->read != bbp_gamepad_ble_read_report_ref ||
         ref->user_data != bbp_gamepad_ble_report_ref) { return NULL; }
@@ -158,8 +213,10 @@ int bbp_gamepad_ble_send(struct bt_conn *captured_conn,
     const struct bt_gatt_attr *value = bbp_gamepad_ble_value_attr(&zz_bbp_gamepad_svc);
     if (!value) { return -EINVAL; }
     if (!bt_gatt_is_subscribed(captured_conn, value, BT_GATT_CCC_NOTIFY)) { return -EAGAIN; }
+    uint8_t wire[BBP_ANDROID_INPUT_SIZE];
+    if (!bbp_android_encode(body, wire)) { return -EINVAL; }
     struct bt_gatt_notify_params params = {
-        .attr = value, .data = body, .len = sizeof(*body),
+        .attr = value, .data = wire, .len = sizeof(wire),
     };
     /* Neutral release can target the old captured peer, but never a suspended
      * peer. No NULL broadcast, retry, security upgrade or reference retention.
