@@ -1,11 +1,25 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
-## 当前移植合同：完整v2.3.3兼容修正（2026-10-25）
+## 当前合同：纯键鼠日用收口（2026-11-02）
+
+- 用户2026-11-02 14:23对上一轮 `51fe33a` 候选反馈仍失败，具体失败范围未知，不猜只有手柄或全部键鼠失败；用户永久放弃手柄，不继续手柄研发、调参或发布路线。旧文档中的当时授权与“当前”不覆盖本条。
+- 固件称谓统一为 **v2.3.4-daily 纯键鼠日用收口版（待蓝牙实测）**，手册 `v2.3.4.1`。完整基线 `11ee89eee92969a15f75a0d5848c38c6a2c2ce15`；功能源码 `bba36b607e0f90401f1840b6a2f897d347f5df52`。移除手柄生产实现、USB/BLE接口、报告、behavior、虚拟杆、构建接线及触板独占门；不是仅关开关，不整板恢复出厂。
+- 仅MEDIA层3恢复 `72c0cee8cb0dbd9e14e692a96d9ef3726bcc73e8` 两份原键图的42绑定：39个`&none`，P35($)/P40(SYM)/P41(右aA)为`&to DEFAULT`；无透明回落。历史完整来源与逐位置表见[日用说明](<docs/daily_keymouse.md>)。None只指绑定，不授权关闭传感器或删除P37/P41等物理监听。
+- DEFAULT/SYM/UPPER三层126绑定、Z五档独立记忆、指针滤波/削峰/BLE积压合并、滚轮固定档/半速/临时覆盖、M鼠标翻转、aA仲裁、组合Ctrl、轻拍原参数、两灯保存器和v2.3.1 USB快照修复保留。MEDIA仍为约3.6秒慢呼吸，不能抄72c历史快闪；不可整份回退旧keymap。
+- 蓝牙键鼠是本轮实机目标。当前源码回归、冻结旧版回归、真实ARM/ELF/UF2、交付、刷入与用户验收分记；构建源/运行号/UF2目前待真实结果，不沿用旧PASS，不在实机前宣称稳定。服务布局改变也不能承诺主机旧缓存无影响；不清配对/settings、不改主机。
+- 现行正文：[使用说明书](<docs/9981Pro_使用说明书.md>)；范围/42键/短步骤/验证状态：[日用说明](<docs/daily_keymouse.md>)。手册、四图、manifest及PDF/Word/HTML须同批同步，旧手柄图不能作为当前图；历史原稿与产物保留，不冒充现行玩法。
+- 本批共享写范围：文档协作者仅本文件、[README](<README.md>)、[变更记录](<CHANGELOG.txt>)、[使用说明书](<docs/9981Pro_使用说明书.md>)和[日用说明](<docs/daily_keymouse.md>)；不改config/tests/tools/manifest/图、不构建、不推送、不导出。父负责生产源、集成、manifest、四图、三格式和真实构建；测试协作者仅新增daily测试，原tests/oracle/SDK fixture冻结。维护命令本身不扩大授权。
+
+## 历史合同阅读说明
+
+下文所有日期段是对应版本的历史记录，保留当时commit、运行号、限制与反馈，不是重开手柄或恢复旧键图的授权。历史源码路径可能已从当前生产树删除，须用所属commit读取。当前日用合同优先；旧“本轮/当前/待验/通过”仅指其所在历史版本。
+
+## 历史移植合同：完整v2.3.3兼容修正（2026-10-25）
 
 - 基线为原v2.3.3树 `432d6c8`；原分支不动，另建 `codex/ipad-v233-repair-20261025` 移植。手册v2.3.3.1；功能源 `c667531a0c22d6677b735119861a6d6c1ed4b881`（父已冻结），不得以旧048或858当新功能源。
 - 上一候选 `79b7b7c` 是v2.2.1旧功能，用户仅确认键盘/鼠标正常，手柄未明确验收；不外推本轮。本轮完整host、ARM/UF2、原生GATT、实机全部待验证，最终源/运行号/hash见[移植记录](<docs/ipad_v233_repair.md>)。
 - 85份旧config仅允许层判断/服务接线两处变更，其余字节不改；四层168绑定、五档记忆、指针滤波/削峰/BLE≤10ms积压合并、滚轮固定档/翻转、MEDIA慢呼吸、v2.3.1 USB修复全部保留，禁止恢复v2.2.1旧键图或手册。
-- 生产修改限定[手柄runtime](<config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c>) INDEX→stable ID、[构建接线](<config/boards/arm/bbp9981/cmake/gamepad.cmake>)取消HOG注入，新增[独立BLE服务](<config/boards/arm/bbp9981/custom_driver/gamepad_ble_service.c>)逐字节移植自79b7b7c。index bug上一版反事实已证，设备实际层重排未知，不称实机根因已证。
+- 当时生产修改限定手柄runtime的INDEX→stable ID、构建接线取消HOG注入、独立BLE服务逐字节移植自79b7b7c；这些手柄源现已从生产树移除，历史路径分别为该功能commit下的 `config/boards/arm/bbp9981/custom_driver/gamepad_runtime.c`、`config/boards/arm/bbp9981/cmake/gamepad.cmake`、`config/boards/arm/bbp9981/custom_driver/gamepad_ble_service.c`。index bug上一版反事实已证，设备实际层重排未知，不称实机根因已证。
 - BLE stock196与GP141的Report Map分属两个HIDS，Input9无ID，原服务不拼接；手柄CP每peer独立suspend、无remote wake。身份/连接/cache仍共享，多HIDS不保证iPad手柄支持；不清配对/settings。
 - 本次文档子任务只写手册、README、本文件及新增repair记录；不改manifest/tools/config/tests，不提交、不操作云端、不委派。父负责manifest、导出与QA；历史验证仅属于对应旧版本。
 
@@ -102,7 +116,7 @@
 
 ## v2.2.7 历史修正候选与当时合同（2026-10-21）
 
-- 本节仅适用于 v2.2.7 历史候选，方向仍为累加步进、MEDIA 菜单仍在 T/Y；当前合同见下方 v2.2.8，不自动沿用旧映射或验收状态。此前用户确认已刷入 v2.2.6、未用 Studio 保存过键图，反馈方向/肩键与期望不符、手势和“右aA+P5第三蓝牙槽”入口失灵；不将这些反馈归因 Studio 覆盖，不改写历史产物的 `device_tested=false` 为新版硬件通过。
+- 本节仅适用于 v2.2.7 历史候选，方向仍为累加步进、MEDIA 菜单仍在 T/Y；后续历史变化见下方 v2.2.8，当前以开头纯键鼠日用合同为准，不沿用旧映射或验收状态。此前用户确认已刷入 v2.2.6、未用 Studio 保存过键图，反馈方向/肩键与期望不符、手势和“右aA+P5第三蓝牙槽”入口失灵；不将这些反馈归因 Studio 覆盖，不改写历史产物的 `device_tested=false` 为新版硬件通过。
 - 最终 MEDIA：W/P8=上、D/P19=右、Z/P28=下、A/P17=左；S/P18=L3、L/P25=R3；P0/P1 肩键=数字 LT/RT，P2 Call/P6 End=LB/RB。O/K/Backspace/$=Y/X/B/A，P4/Space=Guide，T/Y=View/Menu；E/P9、X/P29、F/P20 在 MEDIA 留空。19绑定/2出口/21None，仅 P40/P41 回 DEFAULT。
 - 恢复槽优先：物理右 aA 按住时 P3/P5 立即 `BT_SEL 1/2`，即使 scroll latch 已锁定；只有 aA 松开且锁轮时，P3/P5 完整三击分别左→上/右→上，其余点按吞掉。三击按住≤180ms、释放至下次按下≤220ms；aA 双击仍每拍<450ms、间隔≤350ms，解锁/重锁回正。
 - 鼠标翻转快捷键移到物理右 aA 按住+F/P20 双击（180/220ms），再做切回；UPPER F 未满足组合时无输出。普通指针Y反向、DEFAULT肩键LCLK/RCLK互换；X、滚轮、手柄/其他层不变，volatile、重启关闭；P5 不再被鼠标双击占用。
@@ -110,9 +124,9 @@
 - 功能快照 `88e744f51e386db853ae25c4438b33cb23557af5`，候选分支 `codex/xbox-layout-v2.2.7-20261021`。pinned SDK sticky/mo/to 三份Git blob身份对照、owner12case旧bug/新修复对照、真实A320/owner/gesture/rotation两种listener顺序联动（超3秒、按住aA切槽双松手顺序、解锁重锁回正）、gamepad专项与scope gate均PASS；范围45份旧配置/8集成+16新增。完整 `python3 -B tests/run_host_tests.py` exit 0，70配置/四层42键图与手册清单同步PASS；初次完整运行只因矩阵测试仍断言旧aA绑定而失败，修正为精确`aa_mo/aa_layer`契约后全部通过，未放宽GPIO/鬼键断言。**Actions Run `39551522029`（构建提交 `045a7a3a0da9ba372d99ea747e27a15ababb8694`）的regression与bbp9981 ARM均PASS，deliver job按候选条件跳过。新UF2本地验证PASS：SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6`，613376 B/1198 blocks/family `0xada52840`/`[0x1000,0x4be00)`；交付时未刷写/未实机验收，用户14:33后续反馈见下方v2.2.8节，不追改旧校验记录。**
 - 用户在本轮被问是否构建时再次直接要求“以后都直接构建”：**本轮 v2.2.7 及今后本项目同范围固件修正，直接执行必要的版本专属新候选分支推送、既有 Actions ARM 构建、下载与UF2校验，不为同流程重复询问。** 仍须核验精确仓库；不推稳定/已发布分支，不发布、不自动归档回推，不刷写、清配对、擦设置或改主机。范围/目标不同仍先确认；本文档不把构建成功当实机验收。
 
-## v2.2.8 固定方向档与 R/U 菜单当前合同（2026-10-21）
+## 历史 v2.2.8 固定方向档与 R/U 菜单合同（2026-10-21）
 
-- 本节为当前合同；前述v2.2.5–v2.2.7为各自历史，不能沿用累加方向、T/Y菜单或验收。v2.2.8候选分支 `codex/xbox-layout-v2.2.8-20261021`，功能源码 `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`。本版定向strict UBSan（全部旧档绝对选择/幂等/互切、两种listener顺序实际A320双档四向/aA覆盖、preset全向量与饱和）及完整host exit0；scope45旧配置/8集成+16新增、70配置/四层42键图/manifest同步PASS。Actions Run `39557844223` 的regression和bbp9981 ARM均成功，deliver job跳过；最终云DTS逐位置核对R/U、T/Y空且其他层绑定与v2.2.7相同。UF2本地校验PASS：SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`，613376 B/1198块/family `0xada52840`/`[0x1000,0x4be00)`；未发布/归档，未刷写/实机验收。
+- 本节仅为当时合同，不是当前MEDIA键图；前述v2.2.5–v2.2.7也为各自历史，不能沿用累加方向、T/Y菜单或验收。v2.2.8候选分支 `codex/xbox-layout-v2.2.8-20261021`，功能源码 `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`、构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`。本版定向strict UBSan（全部旧档绝对选择/幂等/互切、两种listener顺序实际A320双档四向/aA覆盖、preset全向量与饱和）及完整host exit0；scope45旧配置/8集成+16新增、70配置/四层42键图/manifest同步PASS。Actions Run `39557844223` 的regression和bbp9981 ARM均成功，deliver job跳过；最终云DTS逐位置核对R/U、T/Y空且其他层绑定与v2.2.7相同。UF2本地校验PASS：SHA `a7753c5e242f5e42a95d183f2802a8d189abc9f0311aedac8a690a94236e6593`，613376 B/1198块/family `0xada52840`/`[0x1000,0x4be00)`；未发布/归档，未刷写/实机验收。
 - 用户于2026-10-21 14:33确认 **v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用**；固定方向语义与R/U菜单仍待新版。这是有限用户反馈，不是全部USB/BT、App、多键、保护场景全面硬件验收；不改旧校验记录的 `device_tested=false`。
 - **固定档而非累加：** 仅 aA 松开且锁轮生效时，P3黑莓完整三击直接选 **左→上、右→下、上→右、下→左** 档；P5顶部返回完整三击直接选 **右→上、左→下、上→左、下→右** 档。同键重复幂等，无论原档位都直接选目标；切换另一键直接选其目标，不在原档继续转90°。默认锁轮0°，解锁/重锁回正；按住aA临时原方向和原生肩轮，松开恢复所选固定档；锁轮肩键半速与屏蔽自身Wheel保留。
 - 按住物理右aA时 P3/P5 立即 `BT_SEL 1/2`，已锁轮亦优先选槽；aA+F/P20双击鼠标翻转不改。完整三击每拍按住≤180ms、释放至下次按下≤220ms，其他键取消未完成序列，其余点按吞掉；aA锁轮双击仍每拍<450ms、间隔≤350ms。aA owner仲裁、SYM退层不解锁轮与volatile鼠标模式限制均继承v2.2.7。

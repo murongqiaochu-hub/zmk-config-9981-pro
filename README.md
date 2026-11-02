@@ -1,63 +1,54 @@
 # zmk-config-9981-pro
-This page contains zmk firmware config for 9981 keyboard with trackpad(pro version)
 
-## 当前使用说明书与维护约定
+ZMK firmware configuration for the 9981 Pro / P9981 keyboard with optical trackpad (`bbp9981`, not Air).
 
-**2026-10-25当前：完整v2.3.3兼容修正移植候选，手册v2.3.3.1。** 基线 `432d6c8`，原v2.3.3分支不动，另建 `codex/ipad-v233-repair-20261025`；功能源 `c667531a0c22d6677b735119861a6d6c1ed4b881`。85份旧配置仅层判断/服务接线两处变更，其余字节保留；四层168绑定、五档记忆、滤波/削峰/BLE≤10ms积压合并、固定滚轮档/鼠标翻转、MEDIA慢呼吸和v2.3.1 USB修复全部保留，不回退v2.2.1玩法。层判断改stable ID；上一版index bug反事实已证，但设备实际重排未知，不称根因已证。BLE改独立手柄HIDS：stock196＋GP141分开、不拼接原服务，Input9无ID；CP每peer独立suspend且无remote wake，身份/连接/cache仍共享，多HIDS不保证iPad手柄支持。用户仅确认旧功能候选 `79b7b7c` 键鼠正常，手柄未明确验收；本轮完整host/ARM/原生GATT/实机均待验证，不外推旧PASS，不清配对/settings。最终源/运行号/hash与验证见[本轮移植记录](<docs/ipad_v233_repair.md>)；父负责manifest与导出QA。
+## 当前：纯键鼠日用收口
 
-**以下为2026-10-22历史：v2.3.3指针五档记忆/MEDIA慢呼吸候选。** 用户已刷v2.3.2，反馈改善有限，随后明确要求Z循环调速、重启保留及MEDIA键盘灯改慢呼吸。仅UPPER Z/P28循环0.6→0.9→1.2→1.5→1.8，首次1.2、Ctrl为所选档半速；独立设置键在末次操作1秒后合并保存。普通Z/手柄Z↓不变，不冒称硬件DPI。MEDIA键盘背光改约3.6秒10..100..10%慢呼吸，乘用户上限且尊重关灯/idle；其他层、触板灯和两灯保存语义不改。保留v2.3.2防抖/削峰/BLE屏障及原轻拍资格结构；新帧锁存保证影子与实际运动同档，切档清旧状态。范围、软件验证及未验证项见[本轮说明](<docs/cursor_preferences.md>)、[当前交付](<firmware-delivery/XBOX_CURRENT.md>)。修正后Run39743108339回归/ARM与实际DTS、UF2校验通过（604KiB，未删功能）；首次缺Z构建已拒交隔离，最终件见交付记录；不刷写、不清配对/settings、不改主机、不推稳定/发布或归档，不以600KB删功能。v2.3.2 Run39725910232与下方旧版均是历史构建证据。
+**2026-11-02 · v2.3.4-daily 纯键鼠日用收口版（待蓝牙实测）· 手册 v2.3.4.1。** 用户于14:23永久放弃手柄。本轮从完整 `11ee89eee92969a15f75a0d5848c38c6a2c2ce15` 收口，功能源码为 `bba36b607e0f90401f1840b6a2f897d347f5df52`：移除全部手柄生产实现与接线，仅将曾被占用的 MEDIA 恢复为原默认，不重置其他已认可键鼠、触板、灯控或保存设置。
 
-- **以下是v2.3.1加固阶段的构建证据**，源码 `7d6ab94e57653deb8e20d142665eee351736f297`，分支 `codex/firmware-stability-v2.3.1-20261021`。只修USB轻拍快照的异步栈源寿命、等待期间切BOOT协议两处已复现缺陷；79/80配置逐字节相同，键位/参数/灯效/存储均不变。旧失败/新通过ASan、连续模拟、完整host、Run39614649971 ARM/CI32配置9负例及UF2校验PASS，见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)；非实机长测认证。原生HID_0全局DMA/信号量限制未全修，具体范围见[稳定性说明](<docs/firmware_stability.md>)、[可选排错资料](<docs/long_term_acceptance.md>)。下方v2.3.0为历史重构记录，不是本版构建结果。
+- **MEDIA：39个 `&none`＋3个 `&to DEFAULT`。** $/P35、SYM/P40、右下aA/P41回普通层；其余无绑定输出，不透明回落。真源 `72c0cee8cb0dbd9e14e692a96d9ef3726bcc73e8` 的两份原键图和历史手册已交叉核实；完整42位置与来源见[日用说明](<docs/daily_keymouse.md>)。None不等于关闭传感器或P37/P41等物理监听。
+- **其余三层126绑定保留。** Z五档记忆、相对指针滤波/削峰/BLE≤10ms积压合并、固定方向锁轮、aA仲裁、鼠标翻转、轻拍原参数、v2.3.1 USB轻拍快照修复不回退。
+- **灯光仍用已认可的新玩法。** UPPER X/V/N控制键盘灯减/开关/加，C/B控制触板灯减/加；MEDIA约3.6秒慢呼吸，不恢复旧快闪。两路亮度与Z档位独立保存。
+- **蓝牙键鼠是验收目标。** 当前软件回归、真实ARM/UF2、交付和实机分开记录；构建提交/运行号/UF2哈希仍待填写，见[本轮状态](<docs/daily_keymouse.md>)。未获本版蓝牙实机结论，不称“稳定已验”或全平台通过。
+- 上一轮 `51fe33a` 候选在2026-11-02 14:23获用户“仍失败”反馈，具体失败范围未知，不猜成仅手柄或全部键鼠失败；不外推到本版。不再研发、测试或发布手柄路线。
 
-- **历史 v2.3.0 是行为保持型全局重构候选**，基线 v2.2.9 `f7412ec90c925487617a1e8d40dd886c310142a6`，重构源码 `5c82f7ac3a4fa0acd5d4e2ae504a0fc5f5659fde`。键位、手势时序、灯效/存储、协议/SDK门与保护限制不变；拆分模式服务、滚轮纯核、共享PWM后端、手柄runtime/adapter和板级构建职责。架构、验证与回退见[架构说明](<docs/firmware_architecture.md>)；专项、68万事件旧新差分与独立TU链接已PASS，当前完整host exit0、80配置/四层图同步、Actions Run `39569977363` regression/ARM、云端32配置CMake及9负例、UF2校验均PASS；最终云DTS全文和1166项Kconfig与v2.2.9一致。未刷写/未验收，不推稳定分支或发布/归档。下方标注v2.2.9及更早的构建结果均为历史，不能冒作重构版结果。
+## 使用与维护入口
 
-- 完整中文说明：[9981 Pro 使用说明书](<docs/9981Pro_使用说明书.md>)（手册v2.3.3.1，2026-10-25，对应完整v2.3.3兼容修正候选，**MEDIA / Xbox 布局标准 HID**，非原生 XInput；本轮完整host/ARM/原生GATT/实机待验证）。aA 双击锁轮默认0°，解锁/重锁回正；按住 aA 临时恢复原方向/原生肩轮，松开恢复所选固定档。沿用 v2.2.7 的临时/一次性/固定层 owner 仲裁，旧 sticky 的3秒超时/迟到UP不撤固定 UPPER；SYM退层不解 scroll latch，锁轮肩键半速/屏蔽自身Wheel不变。
-- 仅 MEDIA：View 从 T/P11 移到 **R/P10（action12）**，Menu 从 Y/P12 移到 **U/P13（action13）**，原 T/Y 留空；其余保持 v2.2.7：W/P8↑、D/P19→、Z/P28↓、A/P17←，S/P18=L3、L/P25=R3（**非左杆**），肩P0/P1=数字LT/RT，Call/End P2/P6=LB/RB，O/K/Backspace/$=Y/X/B/A，P4/Space=Guide。19绑定/2出口/21None，仅SYM/右aA退出，$在本层是A。
-- **固定档，不累加：** 松开aA且锁轮时，P3黑莓完整三击直接选左→上、右→下、上→右、下→左档；P5顶部返回完整三击直接选右→上、左→下、上→左、下→右档。同键重复幂等，换键直接选另一目标，不在原档继续转90°；其他点按吞掉，三击180/220ms、aA锁轮双击450/350ms不变。**按住物理右aA时P3/P5立即选槽1/2，即使已锁轮**；右aA按住+F/P20双击鼠标翻转为v2.2.8时的旧键位，现已迁至M/P34：普通指针Y反向、DEFAULT肩键角色互换，其余不变，volatile、重启复位。
-- 触板滑动默认左杆 X/Y，按住黑莓临时右杆 Z/Rz，松开不锁定，切换清旧轴且只用新样本。机械点击/空格固定Guide，S/L独立L3/R3。velocity不累计位置，停住手指不能保持倾斜；120ms无有效位移仅本地归零，非host ACK；单触板不能同时独立控两杆，见手册第26章。
-- 游戏层 driver 独占触板并有晚发送 gate，不同时发鼠标、滚轮或轻拍；退出恢复原鼠标。轻拍原参数、开机 OFF、普通层三击开关不调优，游戏层仅临时阻断和取消旧候选，不自动改开关值。USB 独立 HID_1：ID4 + 9-byte body = 10 bytes；BLE独立手柄HIDS发9-byte body、无ID，原键鼠HOG不拼接。
-- **v2.2.9仅调整 UPPER 灯光快捷键与鼠标翻转键：** 五项灯光控制各向左移一个物理键，X/P29=键盘 RGB_BRD，C/P30=触板 BL_DEC，V/P31=键盘 RGB_TOG，B/P32=触板 BL_INC，N/P33=键盘 RGB_BRI；右 aA 按住时 M/P34 双击切换鼠标翻转，F/P20 在 UPPER 无输出。其余功能与 v2.2.8 固定档/R-U菜单候选相同。功能源码 `ec6e492ca452b19cf3fa1ec35e7a72f0774fc43e`；Actions Run `39563315080` regression/ARM、完整host、UF2与PDF/DOCX均通过；UF2 SHA `8a3506d9ad47b0ca033fea07f7e2bf8724d1e4ac434b2a789a2826ff859e907e`。未刷写、未实机验收。
-- **历史 v2.2.8 功能源码 SHA `88edf7f323b643465fa1470fdc2e090dd3ee0ffa`，候选分支 `codex/xbox-layout-v2.2.8-20261021`，完整host exit0与70配置/四层42键图同步PASS；构建提交 `ffc41698f6972f3a26cc4ce459956a06fe8c3a46`，[Run39557844223](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39557844223>) regression/ARM与新UF2本地边界校验PASS，候选deliver跳过，未刷未验。** 本版定向strict UBSan（固定档绝对选择/幂等/互切、真实A320双顺序四向/aA覆盖、preset向量/饱和）及scope45旧配置/8集成+16新增PASS，非完整host。用户于2026-10-21 14:33确认 v2.2.7 蓝牙按钮已恢复、触板三击已生效、手柄基本可用；固定档方向语义和R/U菜单仍待新版，不代表全场景硬件验收。历史 v2.2.7 [Run 39551522029](<https://github.com/murongqiaochu-hub/zmk-config-9981-pro/actions/runs/39551522029>)、构建 `045a7a3a0da9ba372d99ea747e27a15ababb8694` 与 UF2 SHA `140d608be34b35c237fcc11db8c8bd56c5b55c453c9cae921b2c753750887bc6` 仅证明旧件，不能用于 v2.2.8。v2.2.4仍是最后已发布/归档版本；详见[交付记录](<firmware-delivery/XBOX_CURRENT.md>)与[实现说明](<docs/gamepad_implementation_notes.md>)。非XInput、数字扳机、无振动/Share、Guide截获与矩阵多键风险不变。
-- 用户新增规则：**以后每次更新功能或默认键位，必须在同批次同步说明书、四层键图及版本/验证状态。** 维护流程见[维护规则](<AGENTS.md>)；[说明书同步检查](<tests/check_manual_sync.py>)已纳入主机回归，但本轮最终结果以实际日志为准，不用同步哈希代替语义或实机核对。
-- 下文仅保留上游仓库历史构建引导，不能作为当前版本或后续任务的授权依据；本项目构建授权与范围按[维护规则](<AGENTS.md>)执行。例如旧 Caps Lock 滚动示例不适用于本版（普通键鼠层用右 aA 按住或双击锁轮）。
+- [完整中文使用说明书](<docs/9981Pro_使用说明书.md>)：四层、组合输入、滚轮、轻拍、灯光、维护键与风险。
+- [纯键鼠日用说明](<docs/daily_keymouse.md>)：短步骤、完整MEDIA42键、精确历史来源、保留边界和实际验证状态。
+- [主键图](<config/bbp9981.keymap>)与[板级键图](<config/boards/arm/bbp9981/bbp9981.keymap>)：编译默认；Studio保存的布局可能覆盖默认，不自动擦设置。
+- [项目维护规则](<AGENTS.md>)、[变更记录](<CHANGELOG.txt>)、[说明书清单](<docs/manual_manifest.json>)：功能、正文、四图与三格式必须同批同步；哈希不替代语义或实机检查。
 
+### 几个常用操作
+
+普通层输入字母；黑莓为Cmd/左GUI，左下aA为Ctrl。按住右aA滑触板临时滚动；aA层双击锁轮，初始0°，再次双击解锁，SYM只退层不解锁。松aA且锁轮时黑莓/顶部返回三击选择两个固定方向档，同键重复不累加；按住aA时两键优先选蓝牙槽1/2。右aA+M双击翻鼠标（普通Y方向和肩键角色，重启关闭）；右aA+Z循环五档，末次调节后等至少1秒保存。
+
+选蓝牙输出用右aA+Q；配合右aA+通话/黑莓/返回/结束选择槽0/1/2/3。轻拍默认OFF，普通层左键角色肩键三击开关，误触时关闭改用机械点击。UPPER的R重启、触板机械双击清当前配对、$单击进刷机引导，不作为普通排错操作。详见手册，本文不授权刷写、清配对、擦settings或改主机。
+
+## 历史证据，不是当前使用指引
+
+- 完整v2.3.3兼容移植基线、旧候选及其限制见[历史移植记录](<docs/ipad_v233_repair.md>)；`79b7b7c`只获历史键鼠正面反馈，且是旧功能版本，不代表当前126键及完整玩法已实机验收。
+- 五档速度/MEDIA慢呼吸的来源见[历史指针设定说明](<docs/cursor_preferences.md>)；v2.3.2指针修正见[历史防抖说明](<docs/pointer_steady.md>)；USB快照修复与遗留限制见[历史稳定性说明](<docs/firmware_stability.md>)。
+- 旧GBA/Xbox/虚拟杆、R/U菜单等已退出当前功能。历史提交、构建、UF2与当时反馈保留在[历史交付记录](<firmware-delivery/XBOX_CURRENT.md>)及[历史实现笔记](<docs/gamepad_implementation_notes.md>)；其中“当前”“通过”“待测”只属于当时版本，不能当本版结果，也不授权重开手柄路线。
+- 原生HID_0可变报文DMA、abort丢ready/许可和矩阵多键等限制未因去手柄自动消失。旧模拟/构建通过不是本轮蓝牙实机稳定性证明。
+
+## 上游历史构建引导
+
+以下仅保留上游仓库使用方式，不代表本版构建已执行或对后续任务的授权。当前构建、交付与设备边界以[维护规则](<AGENTS.md>)及用户明确指令为准；旧Caps Lock滚动示例不适用于本版，当前是右aA按住或双击锁轮。
 
 <p align="center">
-<img  height="1200" alt="image" src="https://github.com/user-attachments/assets/20568c06-c573-438d-8e5e-26394261aa20" />
+<img height="1200" alt="Upstream historical keyboard image" src="https://github.com/user-attachments/assets/20568c06-c573-438d-8e5e-26394261aa20" />
 </p>
 
-### Use this repo to generate your own ZMK keymap for the 9981 Pro keyboard.  
-## Get started  
-```Option1```   
-**0. Register a github account if you don't have one.**  
-**1. Fork this repo.**  
-<p align="center">
-<img height="100" alt="image" src="https://github.com/user-attachments/assets/73fbcded-25c4-4208-91d0-c07d19170656" />  
-</p>
+### Generate your own ZMK keymap (historical upstream guide)
 
-**2. Open the [keymap](<config/bbp9981.keymap>) and edit it to your liking.**<br>
-**3. After editing the keymap, choose commit changes.**  
-**and then check the Github Actions section.**  
-**Your new firmware file should be available for download.**  
-**5. Unzip the firmware.zip file. You should see one files: `bbp9981-zmk.uf2`.**  
-**6. Flash the keyboard with your new firmware.**  
+1. Register a GitHub account and fork the repository.
+2. Edit the [keymap](<config/bbp9981.keymap>) directly, or use the [keymap editor](<https://nickcoutsos.github.io/keymap-editor/>).
+3. Commit only within your authorized repository/branch and inspect the actual Actions result; a commit alone does not prove a valid firmware artifact.
+4. Before any manual flashing, verify the target board, source commit, UF2 and recovery path. Current user instructions take precedence; this guide does not authorize automatic flashing.
 
-```Option2```  
-**0. Register a github account if you don't have one.**  
-**1. Fork this repo.**  
-**2. Access the [keymap editor web](https://nickcoutsos.github.io/keymap-editor/)**  
-**3. Login with your Github Account on the web**  
-**4. Choose the right repository and you can edit the keymap more intuitivly**  
-<p align="center">
-<img height="800" alt="image" src="https://github.com/user-attachments/assets/50e5df6c-b703-48af-808c-8b864ba243a0" />  
-</p>
-**5. After editting the keymap there will be another github action compiling and you will have the firmware.zip file**  
-**6. Flash the keyboard with your new firmware.**  
+Editor reference: [keymap-editor repository](<https://github.com/nickcoutsos/keymap-editor>).
 
-**More Info about the web app please access this [github page](https://github.com/nickcoutsos/keymap-editor)**  
+### Historical driver-development example
 
-## Build your own driver
-You can change the source code under the [custom driver directory](<config/boards/arm/bbp9981/custom_driver/>), subject to the current project authorization and maintenance rules above.
-
-For example if you want to change the scroll direction when capslock is activated:
-Go to this [line](https://github.com/ZitaoTech/zmk-config-9981-pro/blob/e0c119fc6a126b8af9a3b8e19102eeef02d5e725/config/boards/arm/bbp9981/custom_driver/a320_0x57.c#L201) and change ```scroll_y``` to ```-scroll_y```
+Source lives in the [custom driver directory](<config/boards/arm/bbp9981/custom_driver/>). The old upstream [Caps Lock scroll example](<https://github.com/ZitaoTech/zmk-config-9981-pro/blob/e0c119fc6a126b8af9a3b8e19102eeef02d5e725/config/boards/arm/bbp9981/custom_driver/a320_0x57.c#L201>) belongs to a different historical layout; it is not an instruction to alter the current fixed scroll presets or reopen feature development.

@@ -1,63 +1,90 @@
-name: Build and verify firmware
-on: [push, pull_request, workflow_dispatch]
+name: Build and verify daily keyboard mouse firmware
+on: [push, workflow_dispatch]
 permissions:
   contents: read
-  actions: write
 
 jobs:
   regression:
+    if: github.repository == 'murongqiaochu-hub/zmk-config-9981-pro' && github.ref == 'refs/heads/codex/keymouse-daily-20261102'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Compile real drivers with host mocks and run regressions
-        run: python3 tests/run_host_tests.py
+          persist-credentials: false
+      - name: Actual daily keyboard mouse regressions and exact scope
+        run: |
+          python3 -B tests/check_manual_sync.py
+          python3 -B tests/run_daily_keymouse_tests.py
   build:
     needs: regression
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
-  failure_context:
-    if: always() && (needs.regression.result == 'failure' || needs.build.result == 'failure')
-    needs: [regression, build]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
+    timeout-minutes: 40
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
-      - name: Publish sanitized context from this run only
-        env:
-          CI_LOG_TOKEN: ${{ github.token }}
-        run: python3 tools/report_ci_failure.py
-  deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/xbox-layout-20261020'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download this run's compiled UF2
-        uses: actions/download-artifact@v4
         with:
-          name: firmware
-          run-id: ${{ github.run_id }}
-          github-token: ${{ github.token }}
-          path: firmware-delivery/${{ github.sha }}
-      - name: Verify application boundaries and record provenance
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-          SOURCE_RUN: ${{ github.run_id }}
-        run: python3 tools/verify_firmware.py "firmware-delivery/$SOURCE_SHA" --commit "$SOURCE_SHA" --run-id "$SOURCE_RUN"
-      - name: Preserve verified UF2 on this feature branch only
-        env:
-          SOURCE_SHA: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Snapshot exact daily configuration
+        shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "firmware-delivery/$SOURCE_SHA"
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: preserve verified HID gamepad candidate [skip ci]'
-          git push origin HEAD:codex/xbox-layout-20261020
+          stage="${RUNNER_TEMP:?}/daily-stage-${GITHUB_RUN_ID:?}"
+          build="${RUNNER_TEMP:?}/daily-build-${GITHUB_RUN_ID:?}"
+          test ! -e "$stage" && test ! -e "$build"
+          mkdir "$stage"
+          git archive "$GITHUB_SHA" config | tar -x -C "$stage"
+          git -C "$stage" init -q
+          git -C "$stage" add config
+          git -C "$stage" -c user.name='Local source staging' -c user.email='staging@invalid' commit -qm 'Exact daily config; never pushed'
+          printf 'DAILY_STAGE=%s\nDAILY_BUILD=%s\n' "$stage" "$build" >> "$GITHUB_ENV"
+      - name: Initialize and verify unchanged SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          west init -l "$DAILY_STAGE/config"
+          cd "$DAILY_STAGE"
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+          test "$(git -C zmk rev-parse HEAD)" = edf5c0814fd3ea202e43aad2d68fd32e882a518c
+          test "$(git -C zephyr rev-parse HEAD)" = dacab4875df72109b96cc8977547a0dc04875bcd
+          test "$(git -C modules/hal/nordic rev-parse HEAD)" = 884c4d61746bc35fbd379c169fc87ddb56c6461d
+          git -C zmk diff --exit-code HEAD -- app/src/hog.c app/src/hid.c app/src/usb.c app/src/usb_hid.c app/src/ble.c app/src/settings.c
+          git -C zephyr diff --exit-code HEAD -- subsys/bluetooth/host/gatt.c drivers/usb/device/usb_dc_nrfx.c subsys/usb/device/class/hid/core.c
+          git -C modules/hal/nordic diff --exit-code HEAD -- nrfx/drivers/src/nrfx_usbd.c
+          printf '%s\n' '2e8c12bb4197173d238a6be1e33abf2db5dedbd4a6cf29a83d5e2f6c79d4919b  zmk/app/src/hog.c' '3c7a934a2b5eac808889cd14cbc2d8b40e1dcc35a4ce0fbf6e6ac3a12b51ac8a  zmk/app/src/usb_hid.c' '4b182d9a942c6a09d4c6849f2c9504fd251b7bf5d1cd741e5d05dc82534c138e  zmk/app/src/usb.c' 'dd161a6631a9dad59f320389a0c146712b2c953215f4a97a8d0d64b0b3ffdee7  zmk/app/include/zmk/hid.h' | sha256sum -c -
+      - name: Fresh ARM build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$DAILY_STAGE"
+          west build -s zmk/app -d "$DAILY_BUILD" -b bbp9981 -- -DZMK_CONFIG="$DAILY_STAGE/config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Verify only stock HOG, original MEDIA, hardware and exact UF2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tools/verify_daily_keymouse.py --build "$DAILY_BUILD" --stage "$DAILY_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$DAILY_BUILD/daily-validation.json"
+      - name: Keep this run artifacts, never publish or archive to Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-keymouse-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
+          path: |
+            ${{ env.DAILY_BUILD }}/zephyr/zmk.elf
+            ${{ env.DAILY_BUILD }}/zephyr/zmk.uf2
+            ${{ env.DAILY_BUILD }}/zephyr/zmk.map
+            ${{ env.DAILY_BUILD }}/zephyr/.config
+            ${{ env.DAILY_BUILD }}/zephyr/zephyr.dts
+            ${{ env.DAILY_BUILD }}/compile_commands.json
+            ${{ env.DAILY_BUILD }}/CMakeCache.txt
+            ${{ env.DAILY_BUILD }}/daily-validation.json
