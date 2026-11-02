@@ -36,18 +36,7 @@
 #include <zmk/events/ble_active_profile_changed.h>
 #endif
 #endif
-#ifdef CONFIG_BBP9981_GAMEPAD
-#include "gamepad_runtime.h"
-/* Late ownership check also covers a layer change during an I2C read/replay.
- * This does not revoke a mouse packet already admitted by the input/USB SDK. */
-#define a320_report_rel(dev, code, value, sync, timeout) \
-    do { if (!bbp_gamepad_layer_active()) { \
-        (void)input_report_rel(dev, code, value, sync, timeout); \
-    } } while (0)
-static uint32_t last_gamepad_pointer_epoch;
-#else
 #define a320_report_rel input_report_rel
-#endif
 #ifdef CONFIG_A320_TAP_OUTPUT
 #include "trackpad_tap_pipeline.h"
 #endif
@@ -289,47 +278,6 @@ static void a320_poll_work_handler(struct k_work *work) {
     }
 #endif
 
-#ifdef CONFIG_BBP9981_GAMEPAD
-    uint32_t game_epoch = bbp_gamepad_pointer_epoch();
-    if (game_epoch != last_gamepad_pointer_epoch) {
-        tp_scroll_reset(&scroll_motion);
-        tp_pointer_reset(&cursor_motion);
-#ifdef CONFIG_A320_CURSOR_STEADY
-        tp_cursor_filter_reset(&cursor_filter);
-#endif
-        last_gamepad_pointer_epoch = game_epoch;
-    }
-    if (bbp_gamepad_layer_active()) {
-        int16_t game_dx = 0, game_dy = 0;
-        bool valid = pin_state >= 0;
-        if (pin_state == 0) { valid = a320_read_motion(dev, &game_dx, &game_dy) == 0; }
-        atomic_set(&touched, valid && pin_state == 0);
-        bbp_gamepad_trackpad_poll(game_dx, game_dy, valid, k_uptime_get());
-        /* Never spend old cursor fractions or wheel accumulation in a stick. */
-        tp_scroll_reset(&scroll_motion);
-        tp_pointer_reset(&cursor_motion);
-#ifdef CONFIG_A320_CURSOR_STEADY
-        tp_cursor_filter_reset(&cursor_filter);
-#endif
-        last_scroll_snapshot = snapshot; last_cursor_speed_snapshot = speed;
-        last_scroll_locked = scroll_locked; last_shoulder_slow = shoulder_slow;
-        last_scroll_rotation = scroll_rotation;
-#ifdef CONFIG_A320_MICROTAP
-        /* Reuse the old blocked/cancel path without changing any tap policy.
-         * scroll=true here means no XY replay; it does NOT emit wheel data. */
-        tp_microtap_runtime_interrupt();
-        tp_microtap_runtime_poll(k_uptime_get_32(), 0, 0, false, true, snapshot, speed, NULL, NULL);
-#elif defined(CONFIG_A320_TAP_OUTPUT)
-        tp_tap_pipeline_poll(k_uptime_get_32(), 0, 0, true, true, snapshot);
-#endif
-#ifdef CONFIG_A320_CONTACT_PROBE
-        const struct a320_dev_config *game_probe_cfg = data->dev->config;
-        probe_poll(&game_probe_cfg->i2c, pin_state);
-#endif
-        k_work_reschedule(&data->poll_work, K_MSEC(CONFIG_A320_POLL_INTERVAL_MS));
-        return;
-    }
-#endif
 
     /* Epoch also detects enter+exit entirely between two sensor polls. */
     if ((snapshot ^ last_scroll_snapshot) & TP_MODE_EPOCH_MASK) {
