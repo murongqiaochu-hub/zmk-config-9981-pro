@@ -1,6 +1,14 @@
 # 9981 Pro 固件：开发与说明书维护规则
 
-## 当前移植合同：完整v2.3.3兼容修正（2026-10-25）
+## 当前合同：最后一轮蓝牙键鼠优先／安卓手柄（2026-11-02）
+
+- 用户已确认3754c9b在iOS经BLE能连但键鼠均失效、各平台手柄不可用；只验蓝牙，不把USB通过代替目标。最后只交一轮候选，失败停止手柄路线，保留11ee89e键鼠回退；不追iOS/Moonlight手柄。
+- 从完整 `11ee89e` 创建 `codex/keymouse-android-final-20261102`。功能源 `a25ec8fd00fcc1ef15ae4c0627e3e602ba89a791`；只改独立BLE服务和新增适配头，其他85份config逐字节保留。stock HOG22/196B不拼接、不关闭；手柄末尾HIDS16/184B，ID4输入10B、ID5输出4B，Protocol-only、CP每peer、无remote wake/振动。
+- 不改栈、identity、profile或settings源码；全局GATT hash会变化，不能承诺旧缓存不受影响。手柄服务对所有主机可见，“安卓”是验收范围，不是假称按系统隐藏。
+- 既有tests/oracle/SDK fixture冻结；新入口为[最终回归](<tests/run_final_android_tests.py>)，先跑完整冻结11ee89e，再编译实际新服务。CI必须执行CMake矩阵；真实ARM ELF/UF2逐载荷核验才可交付，host/ELF均不等于无线或实机。
+- 仅精确原仓库新候选分支和必要Actions/下载验证；不推稳定、发布或自动归档，不刷写、不清配对/settings、不改主机。手册v2.3.3.4、manifest、四图与三种导出同批同步；详见[本轮记录](<docs/final_android_ble.md>)。
+
+## 历史移植合同：完整v2.3.3兼容修正（2026-10-25）
 
 - 基线为原v2.3.3树 `432d6c8`；原分支不动，另建 `codex/ipad-v233-repair-20261025` 移植。手册v2.3.3.1；功能源 `c667531a0c22d6677b735119861a6d6c1ed4b881`（父已冻结），不得以旧048或858当新功能源。
 - 上一候选 `79b7b7c` 是v2.2.1旧功能，用户仅确认键盘/鼠标正常，手柄未明确验收；不外推本轮。本轮完整host、ARM/UF2、原生GATT、实机全部待验证，最终源/运行号/hash见[移植记录](<docs/ipad_v233_repair.md>)。

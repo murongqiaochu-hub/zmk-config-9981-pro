@@ -1,63 +1,83 @@
-name: Build and verify firmware
-on: [push, pull_request, workflow_dispatch]
+name: Build and verify final BLE candidate
+on: [push, workflow_dispatch]
 permissions:
   contents: read
-  actions: write
 
 jobs:
   regression:
+    if: github.repository == 'murongqiaochu-hub/zmk-config-9981-pro' && github.ref == 'refs/heads/codex/keymouse-android-final-20261102'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Compile real drivers with host mocks and run regressions
-        run: python3 tests/run_host_tests.py
+          persist-credentials: false
+      - name: Frozen baseline and actual Android HIDS regressions
+        run: python3 -B tests/run_final_android_tests.py
   build:
     needs: regression
-    uses: zmkfirmware/zmk/.github/workflows/build-user-config.yml@v0.3.0
-  failure_context:
-    if: always() && (needs.regression.result == 'failure' || needs.build.result == 'failure')
-    needs: [regression, build]
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
+    timeout-minutes: 40
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      GIT_CONFIG_COUNT: '1'
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
-      - name: Publish sanitized context from this run only
-        env:
-          CI_LOG_TOKEN: ${{ github.token }}
-        run: python3 tools/report_ci_failure.py
-  deliver:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/codex/xbox-layout-20261020'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download this run's compiled UF2
-        uses: actions/download-artifact@v4
         with:
-          name: firmware
-          run-id: ${{ github.run_id }}
-          github-token: ${{ github.token }}
-          path: firmware-delivery/${{ github.sha }}
-      - name: Verify application boundaries and record provenance
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-          SOURCE_RUN: ${{ github.run_id }}
-        run: python3 tools/verify_firmware.py "firmware-delivery/$SOURCE_SHA" --commit "$SOURCE_SHA" --run-id "$SOURCE_RUN"
-      - name: Preserve verified UF2 on this feature branch only
-        env:
-          SOURCE_SHA: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Snapshot exact config without alternate firmware profiles
+        shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add "firmware-delivery/$SOURCE_SHA"
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'chore: preserve verified HID gamepad candidate [skip ci]'
-          git push origin HEAD:codex/xbox-layout-20261020
+          stage="${RUNNER_TEMP:?}/final-stage-${GITHUB_RUN_ID:?}"
+          build="${RUNNER_TEMP:?}/final-build-${GITHUB_RUN_ID:?}"
+          test ! -e "$stage" && test ! -e "$build"
+          mkdir "$stage"
+          git archive "$GITHUB_SHA" config | tar -x -C "$stage"
+          git -C "$stage" init -q
+          git -C "$stage" add config
+          git -C "$stage" -c user.name='Local source staging' -c user.email='staging@invalid' commit -qm 'Exact final candidate config; never pushed'
+          printf 'FINAL_STAGE=%s\nFINAL_BUILD=%s\n' "$stage" "$build" >> "$GITHUB_ENV"
+      - name: Initialize reviewed SDK and modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          west init -l "$FINAL_STAGE/config"
+          cd "$FINAL_STAGE"
+          west update --fetch-opt=--filter=tree:0
+          west zephyr-export
+          test "$(git -C zmk rev-parse HEAD)" = edf5c0814fd3ea202e43aad2d68fd32e882a518c
+          test "$(git -C zephyr rev-parse HEAD)" = dacab4875df72109b96cc8977547a0dc04875bcd
+      - name: Fresh real ARM build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$FINAL_STAGE"
+          west build -s zmk/app -d "$FINAL_BUILD" -b bbp9981 -- -DZMK_CONFIG="$FINAL_STAGE/config" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Verify linked services, unchanged hardware config and exact UF2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B tools/verify_final_android.py --build "$FINAL_BUILD" --stage "$FINAL_STAGE" --commit "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --out "$FINAL_BUILD/final-validation.json"
+      - name: Retain this run only, never publish or archive back to Git
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-android-ble-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          include-hidden-files: true
+          path: |
+            ${{ env.FINAL_BUILD }}/zephyr/zmk.elf
+            ${{ env.FINAL_BUILD }}/zephyr/zmk.uf2
+            ${{ env.FINAL_BUILD }}/zephyr/zmk.map
+            ${{ env.FINAL_BUILD }}/zephyr/.config
+            ${{ env.FINAL_BUILD }}/zephyr/zephyr.dts
+            ${{ env.FINAL_BUILD }}/compile_commands.json
+            ${{ env.FINAL_BUILD }}/CMakeCache.txt
+            ${{ env.FINAL_BUILD }}/final-validation.json
